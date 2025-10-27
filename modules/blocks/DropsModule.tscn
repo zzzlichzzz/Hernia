@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b4g2spsqobbu"]
+
+[ext_resource type="Script" uid="uid://wucqnucrr8rs" path="res://modules/blocks/DropsModule.gd" id="1_as2js"]
+
+[node name="DropsModule" type="Node"]
+script = ExtResource("1_as2js")

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://da72t0dckb2kl"]
+
+[ext_resource type="Script" uid="uid://c680f3t8mcf64" path="res://modules/blocks/HardnessModule.gd" id="1_hdi7a"]
+
+[node name="HardnessModule" type="Node"]
+script = ExtResource("1_hdi7a")

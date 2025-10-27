@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://bawtp12leskdm"]
+
+[ext_resource type="Script" uid="uid://dj3gmurc1mbxu" path="res://world.gd" id="1_c6gwx"]
+
+[sub_resource type="Environment" id="Environment_cmany"]
+
+[node name="World" type="Node3D"]
+script = ExtResource("1_c6gwx")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_cmany")

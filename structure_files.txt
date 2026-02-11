@@ -1,0 +1,103 @@
+my_minecraft_project/
+│
+├── addons/                      # Плагины и сторонние инструменты
+│   └── voxel_tools/            # Если используете воксельные плагины
+│
+├── assets/                      # Все ресурсы игры
+│   ├── audio/
+│   │   ├── music/
+│   │   ├── sfx/
+│   │   │   ├── blocks/
+│   │   │   ├── entities/
+│   │   │   └── ui/
+│   │   └── ambient/
+│   │
+│   ├── textures/
+│   │   ├── blocks/             # Текстуры блоков (по аналогии с Minecraft)
+│   │   │   ├── stone.png
+│   │   │   ├── dirt.png
+│   │   │   └── ...
+│   │   ├── entities/
+│   │   ├── items/
+│   │   ├── gui/
+│   │   └── environment/
+│   │
+│   ├── models/                  # 3D модели (если не только воксели)
+│   │   ├── entities/
+│   │   └── items/
+│   │
+│   ├── fonts/                   # Шрифты
+│   └── icons/
+│
+├── data/                        # Данные конфигурации (как в Minecraft .jar)
+│   ├── blocks/                  # Определения блоков
+│   │   ├── stone.tres          # Resource файл с параметрами
+│   │   ├── dirt.tres
+│   │   └── blocks_registry.gd  # Реестр всех блоков
+│   │
+│   ├── items/                   # Предметы
+│   ├── recipes/                 # Рецепты крафта
+│   ├── biomes/                  # Биомы
+│   ├── structures/              # Генерация структур
+│   └── worldgen/                # Настройки генерации мира
+│
+├── scripts/                     # Скрипты Godot
+│   ├── core/                    # Ядро игры
+│   │   ├── game_manager.gd
+│   │   ├── save_system.gd
+│   │   └── global_constants.gd
+│   │
+│   ├── world/
+│   │   ├── chunk.gd            # Класс чанка
+│   │   ├── world_generator.gd  # Генерация мира
+│   │   ├── voxel_mesher.gd     # Мешер для вокселей
+│   │   └── block_manager.gd    # Управление блоками
+│   │
+│   ├── entities/
+│   │   ├── player/
+│   │   │   ├── player.gd
+│   │   │   ├── player_input.gd
+│   │   │   └── inventory.gd
+│   │   └── mobs/               # Мобы
+│   │       ├── base_mob.gd
+│   │       ├── creeper.gd
+│   │       └── ...
+│   │
+│   ├── ui/                     # Интерфейс
+│   │   ├── hud/
+│   │   ├── inventory_ui/
+│   │   └── menus/
+│   │
+│   ├── items/                  # Логика предметов
+│   └── utils/                  # Вспомогательные скрипты
+│
+├── scenes/                     # Сцены Godot
+│   ├── core/
+│   │   ├── main.tscn           # Главная сцена
+│   │   └── world.tscn          # Сцена мира
+│   │
+│   ├── entities/
+│   │   ├── player.tscn
+│   │   └── mobs/
+│   │
+│   ├── ui/
+│   │   ├── hud.tscn
+│   │   ├── inventory.tscn
+│   │   └── pause_menu.tscn
+│   │
+│   └── blocks/                 # Префабы сложных блоков
+│
+├── shaders/                    # Шейдеры
+│   ├── blocks/
+│   ├── water/
+│   └── sky/
+│
+├── saves/                      # Сохранения (генерируется при запуске)
+│   └── world1/
+│       ├── level.dat          # Основные данные мира
+│       ├── players/           # Данные игроков
+│       └── regions/           # Чанки (по аналогии с Minecraft)
+│
+├── docs/                       # Документация проекта
+├── exports/                    # Экспортированные сборки
+└── project.godot              # Файл проекта Godot

@@ -1,0 +1,77 @@
+[gd_resource type="Resource" format=3 uid="uid://4kkccmdu0cwc"]
+
+[ext_resource type="Texture2D" uid="uid://dpfejwq0gbhvr" path="res://src/assets/textures/atlas/block_atlas.tres" id="1_vvnra"]
+
+[sub_resource type="GDScript" id="GDScript_fcr3o"]
+
+[resource]
+script = SubResource("GDScript_fcr3o")
+coordinates = {
+"dirt": {
+"height": 32,
+"uv": {
+"bottom": 0.4852941176470588,
+"left": 0.00980392156862745,
+"right": 0.3235294117647059,
+"top": 0.014705882352941176
+},
+"width": 32,
+"x": 1,
+"y": 1
+},
+"grass_block_side_overlay": {
+"height": 32,
+"uv": {
+"bottom": 0.4852941176470588,
+"left": 0.3431372549019608,
+"right": 0.6568627450980392,
+"top": 0.014705882352941176
+},
+"width": 32,
+"x": 35,
+"y": 1
+},
+"grass_block_top": {
+"height": 32,
+"uv": {
+"bottom": 0.4852941176470588,
+"left": 0.6764705882352942,
+"right": 0.9901960784313726,
+"top": 0.014705882352941176
+},
+"width": 32,
+"x": 69,
+"y": 1
+},
+"stone": {
+"height": 32,
+"uv": {
+"bottom": 0.9852941176470589,
+"left": 0.00980392156862745,
+"right": 0.3235294117647059,
+"top": 0.5147058823529411
+},
+"width": 32,
+"x": 1,
+"y": 35
+}
+}
+atlas_texture = ExtResource("1_vvnra")
+block_sizes = {
+"dirt": {
+"height": 32,
+"width": 32
+},
+"grass_block_side_overlay": {
+"height": 32,
+"width": 32
+},
+"grass_block_top": {
+"height": 32,
+"width": 32
+},
+"stone": {
+"height": 32,
+"width": 32
+}
+}

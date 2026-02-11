@@ -1,8 +1,0 @@
-{
-  "parent": "atom:block/main/ore",
-  "textures": {
-    "all": "minecraft:block/stone",
-    "particle": "minecraft:block/stone",
-    "overlay": "atom:block/ore/hematite"
-  }
-}

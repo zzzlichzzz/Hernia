@@ -1,0 +1,16 @@
+{
+  "textures": {
+    "texture": "atom:block/decorations/posters/stalin",
+    "particle": "atom:block/decorations/posters/stalin"
+  },
+  "elements": [
+    {   "from": [ -16, -16, 15.9 ],
+      "to": [ 32, 32, 15.9 ],
+      "shade": false,
+      "faces": {
+        "north": { "uv": [ 0, 0, 16, 16 ], "texture": "#texture" },
+        "south": { "uv": [ 0, 0, 16, 16 ], "texture": "#texture" }
+      }
+    }
+  ]
+}

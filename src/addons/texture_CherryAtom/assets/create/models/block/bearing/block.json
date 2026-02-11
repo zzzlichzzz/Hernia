@@ -1,0 +1,67 @@
+{
+	"credit": "Made with Blockbench",
+	"textures": {
+		"gearbox_two": "#back",
+		"particle": "#side",
+		"bearing_side": "#side"
+	},
+	"elements": [
+		{
+			"name": "Side",
+			"from": [0, 0, 0],
+			"to": [1, 12, 16],
+			"faces": {
+				"north": {"uv": [15, 4, 16, 16], "texture": "#bearing_side"},
+				"east": {"uv": [0, 4, 16, 16], "texture": "#bearing_side"},
+				"south": {"uv": [0, 4, 1, 16], "texture": "#bearing_side"},
+				"west": {"uv": [0, 4, 16, 16], "texture": "#bearing_side"},
+				"up": {"uv": [0, 0, 1, 16], "texture": "#gearbox_two"},
+				"down": {"uv": [0, 0, 1, 16], "texture": "#gearbox_two"}
+			}
+		},
+		{
+			"name": "Side",
+			"from": [15, 0, 0],
+			"to": [16, 12, 16],
+			"faces": {
+				"north": {"uv": [0, 4, 1, 16], "texture": "#bearing_side"},
+				"east": {"uv": [0, 4, 16, 16], "texture": "#bearing_side"},
+				"south": {"uv": [15, 4, 16, 16], "texture": "#bearing_side"},
+				"west": {"uv": [0, 4, 16, 16], "texture": "#bearing_side"},
+				"up": {"uv": [15, 0, 16, 16], "texture": "#gearbox_two"},
+				"down": {"uv": [15, 0, 16, 16], "texture": "#gearbox_two"}
+			}
+		},
+		{
+			"name": "Side",
+			"from": [1, 0, 0],
+			"to": [15, 12, 1],
+			"faces": {
+				"north": {"uv": [1, 4, 15, 16], "texture": "#bearing_side"},
+				"south": {"uv": [2, 4, 14, 16], "texture": "#bearing_side"},
+				"up": {"uv": [2, 0, 14, 2], "texture": "#gearbox_two"},
+				"down": {"uv": [1, 15, 15, 16], "texture": "#gearbox_two"}
+			}
+		},
+		{
+			"name": "Side",
+			"from": [1, 0, 15],
+			"to": [15, 12, 16],
+			"faces": {
+				"north": {"uv": [1, 4, 15, 16], "texture": "#bearing_side"},
+				"south": {"uv": [1, 4, 14, 16], "texture": "#bearing_side"},
+				"up": {"uv": [1, 15, 15, 16], "texture": "#gearbox_two"},
+				"down": {"uv": [2, 0, 14, 1], "texture": "#gearbox_two"}
+			}
+		},
+		{
+			"name": "Core",
+			"from": [1, 0.95, 1],
+			"to": [15, 12, 15],
+			"faces": {
+				"up": {"uv": [1, 1, 15, 15], "texture": "#gearbox_two"},
+				"down": {"uv": [1, 1, 15, 15], "texture": "#gearbox_two"}
+			}
+		}
+	]
+}

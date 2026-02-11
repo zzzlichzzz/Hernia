@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "atom:block/decorations/posters/scp_armory",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "atom:block/decorations/posters/scp_armory"
+    },
+    "facing=south": {
+      "model": "atom:block/decorations/posters/scp_armory",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "atom:block/decorations/posters/scp_armory",
+      "y": 270
+    }
+  }
+}

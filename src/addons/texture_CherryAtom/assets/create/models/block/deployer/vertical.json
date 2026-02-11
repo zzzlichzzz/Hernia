@@ -1,0 +1,72 @@
+{
+	"credit": "Made with Blockbench",
+	"parent": "block/block",
+	"ambientocclusion": false,
+	"textures": {
+		"5": "create:block/andesite_casing_piston",
+		"6": "create:block/piston_bottom",
+		"7": "create:block/piston_inner",
+		"particle": "create:block/gearbox_top",
+		"gearbox_top": "create:block/gearbox_top",
+		"gearbox": "create:block/gearbox_two",
+		"andesite_casing_short": "create:block/andesite_casing_short"
+	},
+	"elements": [
+		{
+			"name": "Bottom",
+			"from": [0, 0, 0],
+			"to": [16, 16, 1],
+			"faces": {
+				"north": {"uv": [0, 16, 16, 0], "rotation": 90, "texture": "#6"},
+				"east": {"uv": [0, 15, 16, 16], "rotation": 270, "texture": "#andesite_casing_short"},
+				"south": {"uv": [0, 0, 16, 16], "rotation": 180, "texture": "#gearbox_top"},
+				"west": {"uv": [0, 15, 16, 16], "rotation": 90, "texture": "#andesite_casing_short"},
+				"up": {"uv": [0, 15, 16, 16], "rotation": 180, "texture": "#andesite_casing_short"},
+				"down": {"uv": [0, 15, 16, 16], "texture": "#andesite_casing_short"}
+			}
+		},
+		{
+			"name": "Inner",
+			"from": [1, 0.95, 1],
+			"to": [15, 15.05, 12],
+			"faces": {
+				"north": {"uv": [0, 1, 12, 15], "texture": "#gearbox"},
+				"south": {"uv": [1, 1, 15, 15], "texture": "#7"},
+				"up": {"uv": [1, 12, 15, 1], "rotation": 180, "texture": "#gearbox"},
+				"down": {"uv": [1, 12, 15, 1], "texture": "#gearbox"}
+			}
+		},
+		{
+			"name": "Side",
+			"from": [15, 0, 1],
+			"to": [16, 16, 12],
+			"faces": {
+				"east": {"uv": [0, 4, 16, 15], "rotation": 270, "texture": "#5"},
+				"south": {"uv": [0, 0, 16, 2], "rotation": 270, "texture": "#andesite_casing_short"},
+				"west": {"uv": [0, 0, 16, 10], "rotation": 90, "texture": "#gearbox_top"},
+				"up": {"uv": [0, 4, 1, 15], "rotation": 180, "texture": "#andesite_casing_short"},
+				"down": {"uv": [15, 4, 16, 15], "texture": "#andesite_casing_short"}
+			}
+		},
+		{
+			"name": "Side2",
+			"from": [0, 0, 1],
+			"to": [1, 16, 12],
+			"faces": {
+				"east": {"uv": [0, 0, 16, 10], "rotation": 270, "texture": "#gearbox_top"},
+				"south": {"uv": [0, 1, 16, 2], "rotation": 90, "texture": "#andesite_casing_short"},
+				"west": {"uv": [0, 4, 16, 15], "rotation": 90, "texture": "#5"},
+				"up": {"uv": [15, 4, 16, 15], "rotation": 180, "texture": "#andesite_casing_short"},
+				"down": {"uv": [0, 4, 1, 15], "texture": "#andesite_casing_short"}
+			}
+		}
+	],
+	"groups": [
+		{
+			"name": "body",
+			"origin": [8, 8, 8],
+			"color": 0,
+			"children": [0, 1, 2, 3]
+		}
+	]
+}

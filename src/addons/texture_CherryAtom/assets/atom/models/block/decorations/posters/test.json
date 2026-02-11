@@ -1,0 +1,7 @@
+{
+  "parent": "atom:block/main/poster/poster_1x",
+  "textures": {
+    "0": "atom:block/decorations/posters/poster_1x",
+    "particle": "atom:block/decorations/posters/poster_1x"
+  }
+}

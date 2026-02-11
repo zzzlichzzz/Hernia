@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "atom:block/metal/scaffolding/steel"
+    }
+  }
+}

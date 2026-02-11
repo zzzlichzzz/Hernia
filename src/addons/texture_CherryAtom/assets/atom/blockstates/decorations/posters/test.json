@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "atom:block/decorations/posters/test",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "atom:block/decorations/posters/test"
+    },
+    "facing=south": {
+      "model": "atom:block/decorations/posters/test",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "atom:block/decorations/posters/test",
+      "y": 270
+    }
+  }
+}

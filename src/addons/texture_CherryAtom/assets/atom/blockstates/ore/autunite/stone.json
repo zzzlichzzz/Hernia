@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "atom:block/ore/autunite/stone"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "parent": "create:block/funnel/block_vertical_filterless",
+  "textures": {
+    "base": "create:block/funnel/andesite_funnel",
+    "direction": "create:block/funnel/andesite_funnel_pull",
+    "frame": "create:block/andesite_belt_cover1",
+    "open": "create:block/funnel/funnel_closed",
+    "particle": "create:block/andesite_block",
+    "redstone": "create:block/funnel/andesite_funnel_powered"
+  }
+}

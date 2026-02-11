@@ -20,7 +20,7 @@ config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 [file_customization]
 
 folder_colors={
-"res://src/": "red"
+"res://src/": "green"
 }
 
 [input]

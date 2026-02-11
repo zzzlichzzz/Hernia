@@ -1,0 +1,7 @@
+{
+  "parent": "atom:block/main/door_hand",
+  "textures": {
+    "top": "minecraft:block/crimson_door_top",
+	"bottom": "minecraft:block/crimson_door_bottom"
+  }
+}

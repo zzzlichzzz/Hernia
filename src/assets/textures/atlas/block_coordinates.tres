@@ -1,11 +1,10 @@
-[gd_resource type="Resource" format=3 uid="uid://4kkccmdu0cwc"]
+[gd_resource type="Resource" script_class="AtlasCoordinates" format=3 uid="uid://bxviswnrvq5cg"]
 
-[ext_resource type="Texture2D" uid="uid://dpfejwq0gbhvr" path="res://src/assets/textures/atlas/block_atlas.tres" id="1_vvnra"]
-
-[sub_resource type="GDScript" id="GDScript_fcr3o"]
+[ext_resource type="Texture2D" uid="uid://doxftlq0v3xsa" path="res://src/assets/textures/atlas/block_atlas.tres" id="1_e8jec"]
+[ext_resource type="Script" uid="uid://cisj1n7fdsrsj" path="res://src/scripts/resources/atlas_coordinates.gd" id="2_oea8o"]
 
 [resource]
-script = SubResource("GDScript_fcr3o")
+script = ExtResource("2_oea8o")
 coordinates = {
 "dirt": {
 "height": 32,
@@ -56,7 +55,7 @@ coordinates = {
 "y": 35
 }
 }
-atlas_texture = ExtResource("1_vvnra")
+atlas_texture = ExtResource("1_e8jec")
 block_sizes = {
 "dirt": {
 "height": 32,

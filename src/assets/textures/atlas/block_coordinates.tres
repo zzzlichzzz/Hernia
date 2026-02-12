@@ -1,62 +1,158 @@
-[gd_resource type="Resource" script_class="AtlasCoordinates" format=3 uid="uid://bxviswnrvq5cg"]
+[gd_resource type="Resource" script_class="AtlasCoordinates" format=3 uid="uid://da5mmeb1lyp28"]
 
-[ext_resource type="Texture2D" uid="uid://doxftlq0v3xsa" path="res://src/assets/textures/atlas/block_atlas.tres" id="1_e8jec"]
+[ext_resource type="Texture2D" uid="uid://c5pu673av62iy" path="res://src/assets/textures/atlas/block_atlas.tres" id="1_e8jec"]
 [ext_resource type="Script" uid="uid://cisj1n7fdsrsj" path="res://src/scripts/resources/atlas_coordinates.gd" id="2_oea8o"]
 
 [resource]
 script = ExtResource("2_oea8o")
 coordinates = {
-"dirt": {
-"height": 32,
+"Sprite-0002": {
+"height": 64,
 "uv": {
-"bottom": 0.4852941176470588,
-"left": 0.00980392156862745,
-"right": 0.3235294117647059,
-"top": 0.014705882352941176
+"bottom": 0.9945652173913044,
+"left": 0.00588235294117647,
+"right": 0.19411764705882353,
+"top": 0.6467391304347826
 },
 "width": 32,
 "x": 1,
-"y": 1
+"y": 119
 },
-"grass_block_side_overlay": {
+"Sprite-0003": {
+"height": 16,
+"uv": {
+"bottom": 0.6358695652173914,
+"left": 0.00588235294117647,
+"right": 0.1,
+"top": 0.5489130434782609
+},
+"width": 16,
+"x": 1,
+"y": 101
+},
+"aluminum": {
 "height": 32,
 "uv": {
-"bottom": 0.4852941176470588,
-"left": 0.3431372549019608,
-"right": 0.6568627450980392,
-"top": 0.014705882352941176
+"bottom": 0.1793478260869565,
+"left": 0.2058823529411765,
+"right": 0.3941176470588235,
+"top": 0.00543478260869565
 },
 "width": 32,
 "x": 35,
 "y": 1
 },
-"grass_block_top": {
+"dirt": {
 "height": 32,
 "uv": {
-"bottom": 0.4852941176470588,
-"left": 0.6764705882352942,
-"right": 0.9901960784313726,
-"top": 0.014705882352941176
+"bottom": 0.1793478260869565,
+"left": 0.40588235294117647,
+"right": 0.5941176470588235,
+"top": 0.00543478260869565
 },
 "width": 32,
 "x": 69,
 "y": 1
 },
-"stone": {
+"grass_block_side_overlay": {
 "height": 32,
 "uv": {
-"bottom": 0.9852941176470589,
-"left": 0.00980392156862745,
-"right": 0.3235294117647059,
-"top": 0.5147058823529411
+"bottom": 0.1793478260869565,
+"left": 0.6058823529411764,
+"right": 0.7941176470588235,
+"top": 0.00543478260869565
+},
+"width": 32,
+"x": 103,
+"y": 1
+},
+"grass_block_top": {
+"height": 32,
+"uv": {
+"bottom": 0.1793478260869565,
+"left": 0.8058823529411765,
+"right": 0.9941176470588236,
+"top": 0.00543478260869565
+},
+"width": 32,
+"x": 137,
+"y": 1
+},
+"iron": {
+"height": 32,
+"uv": {
+"bottom": 0.3641304347826087,
+"left": 0.3941176470588235,
+"right": 0.5823529411764706,
+"top": 0.19021739130434784
+},
+"width": 32,
+"x": 67,
+"y": 35
+},
+"lead": {
+"height": 32,
+"uv": {
+"bottom": 0.3641304347826087,
+"left": 0.5941176470588235,
+"right": 0.7823529411764706,
+"top": 0.19021739130434784
+},
+"width": 32,
+"x": 101,
+"y": 35
+},
+"red": {
+"height": 64,
+"uv": {
+"bottom": 0.5380434782608695,
+"left": 0.00588235294117647,
+"right": 0.38235294117647056,
+"top": 0.19021739130434784
+},
+"width": 64,
+"x": 1,
+"y": 35
+},
+"steel": {
+"height": 32,
+"uv": {
+"bottom": 0.1793478260869565,
+"left": 0.00588235294117647,
+"right": 0.19411764705882353,
+"top": 0.00543478260869565
 },
 "width": 32,
 "x": 1,
+"y": 1
+},
+"stone": {
+"height": 32,
+"uv": {
+"bottom": 0.3641304347826087,
+"left": 0.7941176470588235,
+"right": 0.9823529411764704,
+"top": 0.19021739130434784
+},
+"width": 32,
+"x": 135,
 "y": 35
 }
 }
 atlas_texture = ExtResource("1_e8jec")
 block_sizes = {
+"Sprite-0002": {
+"height": 64,
+"width": 32
+},
+"Sprite-0003": {
+"height": 16,
+"width": 16
+},
+"aluminum": {
+"height": 32,
+"width": 32
+},
 "dirt": {
 "height": 32,
 "width": 32
@@ -66,6 +162,22 @@ block_sizes = {
 "width": 32
 },
 "grass_block_top": {
+"height": 32,
+"width": 32
+},
+"iron": {
+"height": 32,
+"width": 32
+},
+"lead": {
+"height": 32,
+"width": 32
+},
+"red": {
+"height": 64,
+"width": 64
+},
+"steel": {
 "height": 32,
 "width": 32
 },

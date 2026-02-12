@@ -1,6 +1,0 @@
-[gd_scene format=3 uid="uid://bfdwll77a63m6"]
-
-[ext_resource type="Script" uid="uid://dumqkpd4y3mbc" path="res://src/scenes/core/texture_pipeline.gd" id="1_ykhio"]
-
-[node name="Texture_pipeline" type="Node" unique_id=1354673123]
-script = ExtResource("1_ykhio")

@@ -19,7 +19,7 @@ config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 
 [autoload]
 
-TexturePipeline="*uid://dumqkpd4y3mbc"
+AtlasManager="*uid://bob42103h2cmj"
 
 [file_customization]
 

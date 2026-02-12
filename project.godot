@@ -17,10 +17,14 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 config/name="VoxelPrototype"
 config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 
+[autoload]
+
+AtlasManager="*uid://bob42103h2cmj"
+
 [file_customization]
 
 folder_colors={
-"res://src/": "red"
+"res://src/": "green"
 }
 
 [input]

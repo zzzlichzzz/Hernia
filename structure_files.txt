@@ -13,6 +13,7 @@ my_minecraft_project/
 │   │   └── ambient/
 │   │
 │   ├── textures/
+│   │   ├── atlas/              # Храниться атлас карта блоков
 │   │   ├── blocks/             # Текстуры блоков (по аналогии с Minecraft)
 │   │   │   ├── stone.png
 │   │   │   ├── dirt.png
@@ -31,9 +32,9 @@ my_minecraft_project/
 │
 ├── data/                        # Данные конфигурации (как в Minecraft .jar)
 │   ├── blocks/                  # Определения блоков
-│   │   ├── stone.tres          # Resource файл с параметрами
+│   │   ├── stone.tres           # Resource файл с параметрами
 │   │   ├── dirt.tres
-│   │   └── blocks_registry.gd  # Реестр всех блоков
+│   │   └── blocks_registry.gd   # Реестр всех блоков
 │   │
 │   ├── items/                   # Предметы
 │   ├── recipes/                 # Рецепты крафта
@@ -63,6 +64,13 @@ my_minecraft_project/
 │   │       ├── creeper.gd
 │   │       └── ...
 │   │
+│   ├── auto/                   # Для автозапуска
+│   ├── blocks/                 # Скрипты связанные с блоками
+│   ├── resources/              # Ресурсы
+│   ├── testing/                # Тесты
+│   ├── tools/                  # Инструменты
+│   │   └── atlas_work/         # Работа с генерацией атласа
+│   │
 │   ├── ui/                     # Интерфейс
 │   │   ├── hud/
 │   │   ├── inventory_ui/
@@ -80,7 +88,8 @@ my_minecraft_project/
 │   │   ├── player.tscn
 │   │   └── mobs/
 │   │
-│   ├── ui/
+│   ├── testing/                # Тесты
+│   ├── ui/                     # Интерфейс
 │   │   ├── hud.tscn
 │   │   ├── inventory.tscn
 │   │   └── pause_menu.tscn
@@ -98,6 +107,6 @@ my_minecraft_project/
 │       ├── players/           # Данные игроков
 │       └── regions/           # Чанки (по аналогии с Minecraft)
 │
-├── docs/                       # Документация проекта
-├── exports/                    # Экспортированные сборки
+├── docs/                      # Документация проекта
+├── exports/                   # Экспортированные сборки
 └── project.godot              # Файл проекта Godot

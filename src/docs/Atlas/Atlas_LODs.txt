@@ -1,0 +1,48 @@
+						LODManager функции:
+
+
+Функция	                    Описание	                            Пример
+set_lod_distances()     Настройка дистанций              set_lod_distances(20,50,100)
+get_lod_for_distance()  Получить LOD по расстоянию       get_lod_for_distance(30) → 2
+force_lod()             Принудительный LOD               force_lod(4)
+enable_lod()            Вкл/выкл LOD                     enable_lod(true)
+update_interval         Частота обновления               update_interval = 0.1
+
+
+
+--------------------------------------------------------------------------------
+						Настройка дальности LODs
+				 В LODManager.gd найдите эти переменные:
+
+var lod_distances = [20.0, 50.0, 100.0]  # [LOD2, LOD4, LOD8]
+var update_interval: float = 0.1  # Частота обновления (сек)
+--------------------------------------------------------------------------------
+					Ручная настройка для сцен
+
+# В любой сцене или скрипте:
+func _ready():
+	# Ждём готовности LODManager
+	await LODManager.atlas_ready
+	
+	# Настраиваем дистанции
+	LODManager.set_lod_distances(
+		15.0,   # LOD x2 на расстоянии 15
+		40.0,   # LOD x4 на расстоянии 40
+		80.0    # LOD x8 на расстоянии 80
+	)
+--------------------------------------------------------------------------------
+					Настройка производительности
+
+# В LODManager.gd
+
+# Частота обновления LOD (чем реже, тем быстрее)
+@export var update_interval: float = 0.1  # 10 раз в секунду
+
+# Использовать принудительный LOD для тестирования
+@export var force_lod_test: int = 1  # 1=выкл, 2,4,8
+
+# Минимальный размер текстуры
+@export var min_texture_size: int = 4
+
+# Отладка
+@export var debug_mode: bool = false

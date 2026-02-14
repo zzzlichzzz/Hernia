@@ -158,7 +158,7 @@ func add_block_to_lod(block_name: String, lod_image: Image, lod_factor: int, ori
 	return true
 
 func create_lod_coordinates(lod_factor: int, atlas_size: Vector2i, lod_texture: Texture2D, original_coords):
-	var AtlasCoordinatesClass = load("res://src/scripts/resources/atlas_coordinates.gd")
+	var AtlasCoordinatesClass = load("uid://cisj1n7fdsrsj")
 	var coords = AtlasCoordinatesClass.new()
 	
 	coords.atlas_texture = lod_texture

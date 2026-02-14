@@ -5,8 +5,9 @@ extends Node
 @export var blocks_folder: String = "res://src/assets/textures/blocks/"
 @export var output_folder: String = "res://src/assets/textures/atlas/"
 @export var delete_source_textures: bool = true
-@export var padding: int = 1
 @export var allow_mixed_sizes: bool = true
+
+var create_lods = load("res://src/scripts/tools/atlas_work/lod_atlas_builder.gd").new()
 
 var block_coordinates: Dictionary = {}
 var used_texture_paths: Array = []
@@ -29,6 +30,7 @@ func _run():
 	optimize_layout(block_infos)
 	create_atlas(block_infos)
 	save_coordinates()
+	create_lods._run()
 	
 	if delete_source_textures:
 		delete_source_files()
@@ -97,14 +99,20 @@ func optimize_layout(block_infos: Array):
 		var total = block_infos.size()
 		var per_row = ceil(sqrt(total))
 		
-		atlas_width = per_row * (size + padding) + padding
-		atlas_height = ceil(total / float(per_row)) * (size + padding) + padding
+		# Убираем padding из расчета!
+		atlas_width = per_row * size
+		atlas_height = ceil(total / float(per_row)) * size
 		
 		var i = 0
 		for block in block_infos:
-			block.x = (i % per_row) * (size + padding) + padding
-			block.y = floor(i / per_row) * (size + padding) + padding
+			# Без padding!
+			block.x = (i % per_row) * size
+			block.y = floor(i / per_row) * size
 			i += 1
+		
+		# Выравниваем размеры под степени двойки
+		atlas_width = ceil_to_power_of_two(atlas_width)
+		atlas_height = ceil_to_power_of_two(atlas_height)
 		return
 	
 	block_infos.sort_custom(func(a, b): return b.height - a.height)
@@ -113,7 +121,7 @@ func optimize_layout(block_infos: Array):
 	for b in block_infos:
 		total_area += b.width * b.height
 	
-	atlas_width = ceil(sqrt(total_area)) + 64
+	atlas_width = ceil(sqrt(total_area))
 	atlas_height = atlas_width
 	
 	for attempt in range(10):
@@ -123,19 +131,25 @@ func optimize_layout(block_infos: Array):
 		atlas_height = ceil(atlas_height * 1.2)
 	
 	trim_atlas(block_infos)
+	
+	# Финальное выравнивание под степени двойки
+	atlas_width = ceil_to_power_of_two(atlas_width)
+	atlas_height = ceil_to_power_of_two(atlas_height)
 
 func try_pack(blocks: Array, max_w: int, max_h: int) -> bool:
 	var shelves = []
 	
 	for block in blocks:
 		var placed = false
-		var bw = block.width + padding * 2
-		var bh = block.height + padding * 2
+		# Убираем padding!
+		var bw = block.width
+		var bh = block.height
 		
 		for shelf in shelves:
 			if shelf.height >= bh and shelf.width_used + bw <= max_w:
-				block.x = shelf.width_used + padding
-				block.y = shelf.y + padding
+				# Без padding!
+				block.x = shelf.width_used
+				block.y = shelf.y
 				shelf.width_used += bw
 				placed = true
 				break
@@ -151,8 +165,9 @@ func try_pack(blocks: Array, max_w: int, max_h: int) -> bool:
 					"height": bh,
 					"width_used": bw
 				})
-				block.x = padding
-				block.y = new_y + padding
+				# Без padding!
+				block.x = 0
+				block.y = new_y
 				placed = true
 		
 		if not placed:
@@ -165,12 +180,20 @@ func trim_atlas(blocks: Array):
 	var max_y = 0
 	
 	for b in blocks:
-		max_x = max(max_x, b.x + b.width + padding)
-		max_y = max(max_y, b.y + b.height + padding)
+		# Убираем padding из расчета!
+		max_x = max(max_x, b.x + b.width)
+		max_y = max(max_y, b.y + b.height)
 	
 	atlas_width = max_x
 	atlas_height = max_y
-	print("  ✂️ Атлас: ", atlas_width, "x", atlas_height)
+	print("  ✂️ Атлас (обрезано): ", atlas_width, "x", atlas_height)
+
+# НОВАЯ ФУНКЦИЯ: округление до степени двойки
+func ceil_to_power_of_two(value: int) -> int:
+	var power = 1
+	while power < value:
+		power *= 2
+	return power
 
 func create_atlas(block_infos: Array):
 	var atlas_image = Image.create(atlas_width, atlas_height, false, Image.FORMAT_RGBA8)

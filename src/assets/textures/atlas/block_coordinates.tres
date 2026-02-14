@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="AtlasCoordinates" format=3 uid="uid://da5mmeb1lyp28"]
+[gd_resource type="Resource" script_class="AtlasCoordinates" format=3]
 
-[ext_resource type="Texture2D" uid="uid://c5pu673av62iy" path="res://src/assets/textures/atlas/block_atlas.tres" id="1_e8jec"]
-[ext_resource type="Script" uid="uid://cisj1n7fdsrsj" path="res://src/scripts/resources/atlas_coordinates.gd" id="2_oea8o"]
+[ext_resource type="Texture2D" path="res://src/assets/textures/atlas/block_atlas.tres" id="1_e8jec"]
+[ext_resource type="Script" path="res://src/scripts/resources/atlas_coordinates.gd" id="2_oea8o"]
 
 [resource]
 script = ExtResource("2_oea8o")
@@ -9,134 +9,134 @@ coordinates = {
 "Sprite-0002": {
 "height": 64,
 "uv": {
-"bottom": 0.9945652173913044,
-"left": 0.00588235294117647,
-"right": 0.19411764705882353,
-"top": 0.6467391304347826
+"bottom": 0.625,
+"left": 0.0,
+"right": 0.125,
+"top": 0.375
 },
 "width": 32,
-"x": 1,
-"y": 119
+"x": 0,
+"y": 96
 },
 "Sprite-0003": {
 "height": 16,
 "uv": {
-"bottom": 0.6358695652173914,
-"left": 0.00588235294117647,
-"right": 0.1,
-"top": 0.5489130434782609
+"bottom": 0.0625,
+"left": 0.625,
+"right": 0.6875,
+"top": 0.0
 },
 "width": 16,
-"x": 1,
-"y": 101
+"x": 160,
+"y": 0
 },
 "aluminum": {
 "height": 32,
 "uv": {
-"bottom": 0.1793478260869565,
-"left": 0.2058823529411765,
-"right": 0.3941176470588235,
-"top": 0.00543478260869565
+"bottom": 0.125,
+"left": 0.125,
+"right": 0.25,
+"top": 0.0
 },
 "width": 32,
-"x": 35,
-"y": 1
+"x": 32,
+"y": 0
 },
 "dirt": {
 "height": 32,
 "uv": {
-"bottom": 0.1793478260869565,
-"left": 0.40588235294117647,
-"right": 0.5941176470588235,
-"top": 0.00543478260869565
+"bottom": 0.125,
+"left": 0.25,
+"right": 0.375,
+"top": 0.0
 },
 "width": 32,
-"x": 69,
-"y": 1
+"x": 64,
+"y": 0
 },
 "grass_block_side_overlay": {
 "height": 32,
 "uv": {
-"bottom": 0.1793478260869565,
-"left": 0.6058823529411764,
-"right": 0.7941176470588235,
-"top": 0.00543478260869565
+"bottom": 0.125,
+"left": 0.375,
+"right": 0.5,
+"top": 0.0
 },
 "width": 32,
-"x": 103,
-"y": 1
+"x": 96,
+"y": 0
 },
 "grass_block_top": {
 "height": 32,
 "uv": {
-"bottom": 0.1793478260869565,
-"left": 0.8058823529411765,
-"right": 0.9941176470588236,
-"top": 0.00543478260869565
+"bottom": 0.125,
+"left": 0.5,
+"right": 0.625,
+"top": 0.0
 },
 "width": 32,
-"x": 137,
-"y": 1
+"x": 128,
+"y": 0
 },
 "iron": {
 "height": 32,
 "uv": {
-"bottom": 0.3641304347826087,
-"left": 0.3941176470588235,
-"right": 0.5823529411764706,
-"top": 0.19021739130434784
+"bottom": 0.25,
+"left": 0.25,
+"right": 0.375,
+"top": 0.125
 },
 "width": 32,
-"x": 67,
-"y": 35
+"x": 64,
+"y": 32
 },
 "lead": {
 "height": 32,
 "uv": {
-"bottom": 0.3641304347826087,
-"left": 0.5941176470588235,
-"right": 0.7823529411764706,
-"top": 0.19021739130434784
+"bottom": 0.25,
+"left": 0.375,
+"right": 0.5,
+"top": 0.125
 },
 "width": 32,
-"x": 101,
-"y": 35
+"x": 96,
+"y": 32
 },
 "red": {
 "height": 64,
 "uv": {
-"bottom": 0.5380434782608695,
-"left": 0.00588235294117647,
-"right": 0.38235294117647056,
-"top": 0.19021739130434784
+"bottom": 0.375,
+"left": 0.0,
+"right": 0.25,
+"top": 0.125
 },
 "width": 64,
-"x": 1,
-"y": 35
+"x": 0,
+"y": 32
 },
 "steel": {
 "height": 32,
 "uv": {
-"bottom": 0.1793478260869565,
-"left": 0.00588235294117647,
-"right": 0.19411764705882353,
-"top": 0.00543478260869565
+"bottom": 0.125,
+"left": 0.0,
+"right": 0.125,
+"top": 0.0
 },
 "width": 32,
-"x": 1,
-"y": 1
+"x": 0,
+"y": 0
 },
 "stone": {
 "height": 32,
 "uv": {
-"bottom": 0.3641304347826087,
-"left": 0.7941176470588235,
-"right": 0.9823529411764704,
-"top": 0.19021739130434784
+"bottom": 0.25,
+"left": 0.5,
+"right": 0.625,
+"top": 0.125
 },
 "width": 32,
-"x": 135,
-"y": 35
+"x": 128,
+"y": 32
 }
 }
 atlas_texture = ExtResource("1_e8jec")

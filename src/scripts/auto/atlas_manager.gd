@@ -3,7 +3,6 @@ extends Node
 
 signal atlas_build_started
 signal atlas_build_completed(success: bool)
-signal atlas_build_failed(error: String)
 
 var is_building: bool = false
 var last_build_time: Dictionary = {}
@@ -40,7 +39,6 @@ func build_atlas() -> bool:
 		b.blocks_folder = "res://src/assets/textures/blocks/"
 		b.output_folder = "res://src/assets/textures/atlas/"
 		b.delete_source_textures = true
-		b.padding = 1
 		b.allow_mixed_sizes = true
 		b._run()
 	

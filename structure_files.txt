@@ -24,6 +24,7 @@ my_minecraft_project/
 │   │   └── environment/
 │   │
 │   ├── models/                  # 3D модели (если не только воксели)
+│   │   ├── blocks/              # Модели блоков
 │   │   ├── entities/
 │   │   └── items/
 │   │

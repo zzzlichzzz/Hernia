@@ -4,6 +4,25 @@ class_name AtlasCoordinates
 @export var coordinates: Dictionary = {}
 @export var atlas_texture: Texture2D
 @export var block_sizes: Dictionary = {}
+@export var png_filename: String = "block_atlas.png"
+
+# 🔥 ДОБАВЛЯЕМ ЭТО ПОЛЕ
+@export var png_path: String = ""
+
+# Полный путь для использования в коде
+func get_png_path() -> String:
+	if png_path != "":
+		return png_path
+	return PathManager.game_path("src/assets/textures/atlas/" + png_filename)
+
+# Метод для загрузки PNG как текстуры
+func load_png_as_texture() -> Texture2D:
+	var path = get_png_path()
+	if FileAccess.file_exists(path):
+		var img = Image.load_from_file(path)
+		if img:
+			return ImageTexture.create_from_image(img)
+	return atlas_texture
 
 func get_uv(block_name: String) -> Rect2:
 	if coordinates.has(block_name):
@@ -12,13 +31,3 @@ func get_uv(block_name: String) -> Rect2:
 					coord.uv.right - coord.uv.left, 
 					coord.uv.bottom - coord.uv.top)
 	return Rect2(0, 0, 1, 1)
-
-func get_atlas_texture_for_block(block_name: String) -> AtlasTexture:
-	if not coordinates.has(block_name):
-		return null
-	
-	var coord = coordinates[block_name]
-	var atlas_tex = AtlasTexture.new()
-	atlas_tex.atlas = atlas_texture
-	atlas_tex.region = Rect2(coord.x, coord.y, coord.width, coord.height)
-	return atlas_tex

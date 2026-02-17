@@ -1,8 +1,11 @@
 @tool
 extends Node
 
+const ExternalPath = preload("res://src/scripts/utils/external_path.gd")
+
 signal atlas_build_started
 signal atlas_build_completed(success: bool)
+signal atlas_build_failed(error: String)
 
 var is_building: bool = false
 var last_build_time: Dictionary = {}
@@ -21,26 +24,11 @@ func build_atlas() -> bool:
 	
 	is_building = true
 	atlas_build_started.emit()
-	print("\n=== СБОРКА АТЛАСА ===")
+	print("\n=== СБОРКА АТЛАСА В user:// ===")
 	
-	# 1. Конвертируем PNG → TRES
-	var converter = load("uid://d0t12g4uuj2pl")
-	if converter:
-		var c = converter.new()
-		c.target_folder = "res://src/assets/textures/blocks/"
-		c.include_subfolders = true
-		c.delete_png_after_conversion = false
-		c._run()
-	
-	# 2. Собираем атлас
-	var builder = load("uid://dsf2sjlbrik45")
-	if builder:
-		var b = builder.new()
-		b.blocks_folder = "res://src/assets/textures/blocks/"
-		b.output_folder = "res://src/assets/textures/atlas/"
-		b.delete_source_textures = true
-		b.allow_mixed_sizes = true
-		b._run()
+	# Собираем атлас напрямую из PNG в user://
+	var builder = load("res://src/scripts/tools/atlas_work/texture_atlas_builder.gd").new()
+	builder._run()
 	
 	last_build_time = Time.get_datetime_dict_from_system()
 	is_building = false
@@ -49,16 +37,12 @@ func build_atlas() -> bool:
 	atlas_build_completed.emit(true)
 	return true
 
-static func build() -> bool:
-	var manager = Engine.get_main_loop().root.get_node_or_null("/root/AtlasManager")
-	if manager:
-		return manager.build_atlas()
-	print("❌ AtlasManager не найден!")
-	return false
+func get_atlas_path() -> String:
+	return "user://atlas/block_coordinates.tres"
 
 func is_atlas_valid() -> bool:
-	return ResourceLoader.exists("res://src/assets/textures/atlas/block_atlas.tres") \
-		and ResourceLoader.exists("res://src/assets/textures/atlas/block_coordinates.tres")
+	return ResourceLoader.exists(get_atlas_path()) \
+		and FileAccess.file_exists("user://atlas/block_atlas.png")
 
 func get_last_build_time() -> String:
 	if last_build_time.is_empty():

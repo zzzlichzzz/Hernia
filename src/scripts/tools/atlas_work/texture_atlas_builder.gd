@@ -1,92 +1,152 @@
 @tool
 extends Node
-# Версия для экспорта! Работает везде.
+# Создает PNG атлас из PNG текстур в папке src рядом с игрой
 
-@export var blocks_folder: String = "res://src/assets/textures/blocks/"
-@export var output_folder: String = "res://src/assets/textures/atlas/"
-@export var delete_source_textures: bool = true
+const AtlasLogger = preload("res://src/scripts/tools/atlas_work/atlas_logger.gd")
+var log: AtlasLogger
+
+@export var source_blocks_folder: String = "src/assets/textures/blocks/"  # Относительно папки игры
+@export var atlas_output_folder: String = "src/assets/textures/atlas/"    # Относительно папки игры
 @export var allow_mixed_sizes: bool = true
 
-var create_lods = load("res://src/scripts/tools/atlas_work/lod_atlas_builder.gd").new()
-
+# Глобальные переменные
+var source_path: String
+var output_path: String
 var block_coordinates: Dictionary = {}
-var used_texture_paths: Array = []
 var atlas_width: int = 0
 var atlas_height: int = 0
 
+func _init():
+	log = AtlasLogger.new("atlas_build_log.txt")
+
 func _run():
-	print("🎨 Создание атласа...")
+	# Определяем базовый путь к папке игры
+	var game_folder = get_game_folder()
+	source_path = game_folder.path_join(source_blocks_folder)
+	output_path = game_folder.path_join(atlas_output_folder)
 	
-	clean_output_folder()
+	log.section("ЗАПУСК СБОРЩИКА АТЛАСА")
+	log.write_line("📁 Папка игры: " + game_folder)
+	log.write_line("📁 Исходная папка с блоками: " + source_path)
+	log.write_line("📁 Папка для атласа: " + output_path)
 	
-	var texture_files = get_texture_resources()
-	if texture_files.is_empty():
-		print("❌ Нет .tres текстур в: ", blocks_folder)
+	# Создаем выходную папку
+	if not DirAccess.dir_exists_absolute(output_path):
+		DirAccess.make_dir_recursive_absolute(output_path)
+		log.success("Создана папка для атласа")
+	
+	# ШАГ 1: Поиск PNG файлов в папке рядом с игрой
+	log.section("ШАГ 1: Поиск PNG в папке игры")
+	var png_files = find_png_files(source_path)
+	if png_files.is_empty():
+		log.error("НЕТ PNG ФАЙЛОВ! Путь: " + source_path)
+		log.close()
 		return
 	
-	print("✅ Найдено текстур: ", texture_files.size())
+	log.success("Найдено PNG: " + str(png_files.size()))
+	for f in png_files:
+		log.write_line("   - " + f.name + " (" + f.path + ")")
 	
-	var block_infos = collect_block_infos(texture_files)
+	# ШАГ 2: Загрузка изображений
+	log.section("ШАГ 2: Загрузка изображений")
+	var block_infos = load_images(png_files)
+	if block_infos.is_empty():
+		log.error("НЕ УДАЛОСЬ ЗАГРУЗИТЬ ИЗОБРАЖЕНИЯ")
+		log.close()
+		return
+	
+	log.success("Загружено блоков: " + str(block_infos.size()))
+	
+	# ШАГ 3: Оптимизация размещения
+	log.section("ШАГ 3: Оптимизация размещения")
 	optimize_layout(block_infos)
+	
+	# ШАГ 4: Создание атласа
+	log.section("ШАГ 4: Создание атласа")
 	create_atlas(block_infos)
+	
+	# ШАГ 5: Сохранение координат
+	log.section("ШАГ 5: Сохранение координат")
 	save_coordinates()
-	create_lods._run()
 	
-	if delete_source_textures:
-		delete_source_files()
+	# ШАГ 6: Проверка результата
+	log.section("ШАГ 6: Проверка результата")
+	check_result()
+	
+	log.success("СБОРКА ЗАВЕРШЕНА")
+	log.close()
 
-func clean_output_folder():
-	if DirAccess.dir_exists_absolute(output_folder):
-		var dir = DirAccess.open(output_folder)
-		if dir:
-			dir.list_dir_begin()
-			var f = dir.get_next()
-			while f != "":
-				if f != "." and f != "..":
-					dir.remove(f)
-				f = dir.get_next()
-			dir.list_dir_end()
+func get_game_folder() -> String:
+	"""Возвращает путь к папке, где находится игра"""
+	if Engine.is_editor_hint():
+		# В редакторе используем user:// для тестов
+		return "user://"
 	else:
-		DirAccess.make_dir_recursive_absolute(output_folder)
+		# В экспортированной игре - папка с exe
+		return OS.get_executable_path().get_base_dir().path_join("")
 
-func get_texture_resources() -> Array:
-	var textures = []
-	var dir = DirAccess.open(blocks_folder)
+func find_png_files(folder: String) -> Array:
+	"""Ищет все PNG файлы в папке и подпапках"""
+	var files = []
+	_find_png_files_recursive(folder, files)
+	files.sort_custom(func(a, b): return a.name < b.name)
+	return files
+
+func _find_png_files_recursive(folder: String, files: Array):
+	var dir = DirAccess.open(folder)
+	if not dir:
+		return
 	
-	if dir:
-		dir.list_dir_begin()
-		var f = dir.get_next()
-		while f != "":
-			if f.ends_with(".tres"):
-				textures.append({
-					"name": f.get_basename(),
-					"path": blocks_folder.path_join(f)
+	dir.list_dir_begin()
+	var file_name = dir.get_next()
+	
+	while file_name != "":
+		if file_name == "." or file_name == "..":
+			file_name = dir.get_next()
+			continue
+		
+		var full_path = folder.path_join(file_name)
+		
+		if dir.current_is_dir():
+			_find_png_files_recursive(full_path, files)
+		else:
+			if file_name.ends_with(".png") and not file_name.ends_with(".png.import"):
+				var block_name = file_name.get_basename()
+				files.append({
+					"name": block_name,
+					"path": full_path
 				})
-			f = dir.get_next()
-		dir.list_dir_end()
+				log.write_line("    Найден PNG: " + block_name)
+		
+		file_name = dir.get_next()
 	
-	textures.sort_custom(func(a, b): return a.name < b.name)
-	return textures
+	dir.list_dir_end()
 
-func collect_block_infos(texture_files: Array) -> Array:
+func load_images(png_files: Array) -> Array:
+	"""Загружает изображения из PNG файлов"""
 	var infos = []
+	var failed = 0
 	
-	for tex in texture_files:
-		var texture: Texture2D = ResourceLoader.load(tex.path, "Texture2D")
-		if texture:
-			var img = texture.get_image()
-			if img:
-				if img.get_format() != Image.FORMAT_RGBA8:
-					img.convert(Image.FORMAT_RGBA8)
-				
-				infos.append({
-					"name": tex.name,
-					"path": tex.path,
-					"image": img,
-					"width": img.get_width(),
-					"height": img.get_height()
-				})
-				print("  📦 ", tex.name, " ", img.get_width(), "x", img.get_height())
+	for file_info in png_files:
+		log.write_line("  Загрузка: " + file_info.path)
+		var img = Image.load_from_file(file_info.path)
+		if img:
+			if img.get_format() != Image.FORMAT_RGBA8:
+				img.convert(Image.FORMAT_RGBA8)
+			
+			infos.append({
+				"name": file_info.name,
+				"image": img,
+				"width": img.get_width(),
+				"height": img.get_height()
+			})
+			log.success("Загружен: " + file_info.name + " " + str(img.get_width()) + "x" + str(img.get_height()))
+		else:
+			log.error("Не удалось загрузить: " + file_info.path)
+			failed += 1
+	
+	if failed > 0:
+		log.warning("Не удалось загрузить " + str(failed) + " файлов")
 	
 	return infos
 
@@ -99,20 +159,18 @@ func optimize_layout(block_infos: Array):
 		var total = block_infos.size()
 		var per_row = ceil(sqrt(total))
 		
-		# Убираем padding из расчета!
 		atlas_width = per_row * size
 		atlas_height = ceil(total / float(per_row)) * size
 		
 		var i = 0
 		for block in block_infos:
-			# Без padding!
 			block.x = (i % per_row) * size
 			block.y = floor(i / per_row) * size
 			i += 1
 		
-		# Выравниваем размеры под степени двойки
 		atlas_width = ceil_to_power_of_two(atlas_width)
 		atlas_height = ceil_to_power_of_two(atlas_height)
+		log.write_line("  Размер атласа: " + str(atlas_width) + "x" + str(atlas_height))
 		return
 	
 	block_infos.sort_custom(func(a, b): return b.height - a.height)
@@ -132,22 +190,20 @@ func optimize_layout(block_infos: Array):
 	
 	trim_atlas(block_infos)
 	
-	# Финальное выравнивание под степени двойки
 	atlas_width = ceil_to_power_of_two(atlas_width)
 	atlas_height = ceil_to_power_of_two(atlas_height)
+	log.write_line("  Размер атласа: " + str(atlas_width) + "x" + str(atlas_height))
 
 func try_pack(blocks: Array, max_w: int, max_h: int) -> bool:
 	var shelves = []
 	
 	for block in blocks:
 		var placed = false
-		# Убираем padding!
 		var bw = block.width
 		var bh = block.height
 		
 		for shelf in shelves:
 			if shelf.height >= bh and shelf.width_used + bw <= max_w:
-				# Без padding!
 				block.x = shelf.width_used
 				block.y = shelf.y
 				shelf.width_used += bw
@@ -165,7 +221,6 @@ func try_pack(blocks: Array, max_w: int, max_h: int) -> bool:
 					"height": bh,
 					"width_used": bw
 				})
-				# Без padding!
 				block.x = 0
 				block.y = new_y
 				placed = true
@@ -180,15 +235,13 @@ func trim_atlas(blocks: Array):
 	var max_y = 0
 	
 	for b in blocks:
-		# Убираем padding из расчета!
 		max_x = max(max_x, b.x + b.width)
 		max_y = max(max_y, b.y + b.height)
 	
 	atlas_width = max_x
 	atlas_height = max_y
-	print("  ✂️ Атлас (обрезано): ", atlas_width, "x", atlas_height)
+	log.write_line("  ✂️ Атлас (обрезано): " + str(atlas_width) + "x" + str(atlas_height))
 
-# НОВАЯ ФУНКЦИЯ: округление до степени двойки
 func ceil_to_power_of_two(value: int) -> int:
 	var power = 1
 	while power < value:
@@ -217,19 +270,25 @@ func create_atlas(block_infos: Array):
 			}
 		}
 		
-		used_texture_paths.append(block.path)
-		print("  ✓ ", block.name, " @ (", block.x, ", ", block.y, ")")
+		log.write_line("    ✓ " + block.name + " @ (" + str(block.x) + ", " + str(block.y) + ")")
 	
-	var atlas_texture = ImageTexture.create_from_image(atlas_image)
-	ResourceSaver.save(atlas_texture, output_folder.path_join("block_atlas.tres"))
+	var atlas_png_path = output_path.path_join("block_atlas.png")
+	var save_result = atlas_image.save_png(atlas_png_path)
+	
+	if save_result == OK:
+		log.success("PNG атлас сохранен: " + atlas_png_path)
+	else:
+		log.error("Ошибка сохранения PNG! Код: " + str(save_result))
 
 func save_coordinates():
-	# Загружаем класс AtlasCoordinates из отдельного файла
 	var AtlasCoordinatesClass = load("res://src/scripts/resources/atlas_coordinates.gd")
+	if not AtlasCoordinatesClass:
+		log.error("Не удалось загрузить класс AtlasCoordinates")
+		return
+	
 	var coords = AtlasCoordinatesClass.new()
 	
 	coords.coordinates = block_coordinates
-	coords.atlas_texture = load(output_folder.path_join("block_atlas.tres"))
 	coords.block_sizes = {}
 	
 	for name in block_coordinates:
@@ -238,12 +297,44 @@ func save_coordinates():
 			"height": block_coordinates[name].height
 		}
 	
-	ResourceSaver.save(coords, output_folder.path_join("block_coordinates.tres"))
-	print("📊 Координаты сохранены")
+	coords.png_filename = "block_atlas.png"
+	coords.png_path = output_path.path_join("block_atlas.png")
+	
+	# Загружаем PNG как текстуру
+	var png_path = output_path.path_join("block_atlas.png")
+	if FileAccess.file_exists(png_path):
+		var img = Image.load_from_file(png_path)
+		coords.atlas_texture = ImageTexture.create_from_image(img)
+		log.success("PNG загружен как текстура")
+	else:
+		log.warning("PNG не найден, создаю пустую текстуру")
+		var empty_img = Image.create(1, 1, false, Image.FORMAT_RGBA8)
+		coords.atlas_texture = ImageTexture.create_from_image(empty_img)
+	
+	var coords_path = output_path.path_join("block_coordinates.tres")
+	var save_result = ResourceSaver.save(coords, coords_path)
+	
+	if save_result == OK:
+		log.success("Координаты сохранены: " + coords_path)
+	else:
+		log.error("Ошибка сохранения координат! Код: " + str(save_result))
 
-func delete_source_files():
-	for path in used_texture_paths:
-		var dir = DirAccess.open(path.get_base_dir())
-		if dir:
-			dir.remove(path.get_file())
-	print("🗑️ Исходники удалены")
+func check_result():
+	var png_path = output_path.path_join("block_atlas.png")
+	var coords_path = output_path.path_join("block_coordinates.tres")
+	
+	if FileAccess.file_exists(png_path):
+		var file = FileAccess.open(png_path, FileAccess.READ)
+		if file:
+			var size = file.get_length()
+			file.close()
+			log.success("PNG создан: " + png_path + " (" + str(size) + " байт)")
+		else:
+			log.success("PNG создан: " + png_path)
+	else:
+		log.error("PNG НЕ СОЗДАН: " + png_path)
+	
+	if ResourceLoader.exists(coords_path):
+		log.success("Координаты созданы: " + coords_path)
+	else:
+		log.error("Координаты НЕ СОЗДАНЫ: " + coords_path)

@@ -26,7 +26,7 @@ lod_fade_duration = 0.5
 normalmap_use_gpu = true
 
 [node name="Player" parent="." unique_id=1646330281 instance=ExtResource("2_uehc5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 105.55415383835431, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 105.55415383835432, 0)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=10588695]
 transform = Transform3D(1, 0, 0, 0, 0.9974805590698308, 0.07094035718642552, 0, -0.07094035718642552, 0.9974805590698308, 0, 362.4501232005832, 0)

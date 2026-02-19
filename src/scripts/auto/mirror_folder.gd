@@ -1,6 +1,7 @@
 @tool
 extends Node
 # Зеркальное копирование с фильтрацией расширений
+# ПЕРЕД КОПИРОВАНИЕМ УДАЛЯЕТ ЦЕЛЕВУЮ ПАПКУ
 
 @export var auto_copy: bool = true
 @export var source_base: String = "res://src/"
@@ -47,15 +48,28 @@ func _start_mirror():
 		print("❌ Исходная папка не существует")
 		return
 	
-	# Создаем целевую папку
-	if not DirAccess.dir_exists_absolute(target):
-		DirAccess.make_dir_recursive_absolute(target)
-		print("📁 Создана целевая папка")
+	# 🔥 ШАГ 1: УДАЛЕНИЕ СТАРОЙ ПАПКИ
+	print("\n🗑️ ШАГ 1: Удаление старой целевой папки")
+	if DirAccess.dir_exists_absolute(target):
+		var delete_result = _delete_folder(target)
+		print("   ✅ Папка удалена (", delete_result, " элементов)")
+	else:
+		print("   📁 Целевая папка не существует, удаление не требуется")
 	
-	# Запускаем копирование с фильтрацией
+	# 🔥 ШАГ 2: СОЗДАНИЕ НОВОЙ ПАПКИ
+	print("\n📁 ШАГ 2: Создание новой целевой папки")
+	var create_result = DirAccess.make_dir_recursive_absolute(target)
+	if create_result == OK:
+		print("   ✅ Папка создана")
+	else:
+		print("   ❌ Ошибка создания папки")
+		return
+	
+	# 🔥 ШАГ 3: КОПИРОВАНИЕ
+	print("\n📋 ШАГ 3: Копирование файлов")
 	var total_stats = _mirror_with_filter(source_base, target, "")
 	
-	print("📊 РЕЗУЛЬТАТ КОПИРОВАНИЯ:")
+	print("📊 ИТОГОВЫЙ РЕЗУЛЬТАТ:")
 	print("   📄 Скопировано: ", total_stats.copied)
 	print("   🚫 Пропущено (исключено): ", total_stats.skipped)
 	print("   📁 Папок создано: ", total_stats.folders)
@@ -67,6 +81,41 @@ func _get_target_path() -> String:
 		return "user://src/"
 	else:
 		return OS.get_executable_path().get_base_dir().path_join("src").path_join("")
+
+func _delete_folder(path: String) -> int:
+	"""Рекурсивно удаляет папку и возвращает количество удаленных элементов"""
+	var deleted_count = 0
+	var dir = DirAccess.open(path)
+	if not dir:
+		return deleted_count
+	
+	dir.list_dir_begin()
+	var item = dir.get_next()
+	
+	while item != "":
+		if item == "." or item == "..":
+			item = dir.get_next()
+			continue
+		
+		var full_path = path.path_join(item)
+		
+		if dir.current_is_dir():
+			# Рекурсивно удаляем вложенную папку
+			deleted_count += _delete_folder(full_path)
+			# Удаляем саму папку
+			DirAccess.remove_absolute(full_path)
+			deleted_count += 1
+			print("   🗑️ Удалена папка: ", item)
+		else:
+			# Удаляем файл
+			DirAccess.remove_absolute(full_path)
+			deleted_count += 1
+			print("   🗑️ Удален файл: ", item)
+		
+		item = dir.get_next()
+	
+	dir.list_dir_end()
+	return deleted_count
 
 func _should_process_folder(folder_path: String) -> bool:
 	"""Проверяет, нужно ли обрабатывать папку"""
@@ -104,12 +153,6 @@ func _mirror_with_filter(source: String, target: String, relative_path: String) 
 	if not dir:
 		return stats
 	
-	# Создаем целевую папку если её нет
-	if not DirAccess.dir_exists_absolute(target):
-		DirAccess.make_dir_absolute(target)
-		stats.folders += 1
-		print("📁 Создана папка: ", target)
-	
 	dir.list_dir_begin()
 	var item = dir.get_next()
 	
@@ -123,7 +166,12 @@ func _mirror_with_filter(source: String, target: String, relative_path: String) 
 		var new_relative = relative_path.path_join(item) if relative_path != "" else item
 		
 		if dir.current_is_dir():
-			# Это папка - рекурсивно обрабатываем
+			# Это папка - создаем и рекурсивно обрабатываем
+			if not DirAccess.dir_exists_absolute(target_item):
+				DirAccess.make_dir_absolute(target_item)
+				stats.folders += 1
+				print("📁 Создана папка: ", target_item)
+			
 			var sub_stats = _mirror_with_filter(source_item, target_item, new_relative)
 			stats.copied += sub_stats.copied
 			stats.skipped += sub_stats.skipped

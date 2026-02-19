@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BlockDefinition" format=3 uid="uid://cwsvfumge877b"]
+
+[ext_resource type="Script" uid="uid://dg7hthm2vl0w6" path="res://src/data/blocks/block_definition.gd" id="1_7pgvp"]
+
+[resource]
+script = ExtResource("1_7pgvp")
+block_name = "dirt"
+model_paths = {
+"default": "res://src/assets/blocks/dirt/dirt.obj"
+}
+hardness = 0.5

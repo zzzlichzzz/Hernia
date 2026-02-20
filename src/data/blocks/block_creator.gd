@@ -106,7 +106,7 @@ func _process_definition(file_path: String) -> int:
 			print("   ✅ Модель скопирована: ", target_model_name)
 		
 		# 🔥 Обновляем определение через PathManager
-		var new_model_path_res = "res://src/assets/blocks/" + target_model_name
+		var new_model_path_res = PathManager.smart("res://src/assets/blocks/" + target_model_name)
 		var updated = _update_definition_model(file_path, new_model_path_res)
 		
 		if updated:

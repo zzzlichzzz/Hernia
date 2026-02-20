@@ -7,7 +7,7 @@ var MesherManagerPath = preload("res://src/data/blocks/mesher_manager_path.gd")
 
 var LIBRARY_PATH = PathManager.smart("res://src/data/blocks/voxel_blocky_library.tres")
 var BLOCKS_FOLDER = PathManager.smart("res://src/data/blocks/definitions/")
-var MODELS_FOLDER = "res://src/assets/blocks/"
+var MODELS_FOLDER = PathManager.smart("res://src/assets/blocks/")
 
 @export var auto_build: bool = true
 @export var debug_mode: bool = true

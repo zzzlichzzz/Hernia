@@ -1,11 +1,10 @@
-[gd_resource type="Resource" script_class="BlockDefinition" format=3 uid="uid://cwsvfumge877b"]
+[gd_resource type="Resource" script_class="BlockDefinition" format=3 uid="uid://pcw132gnyr03"]
 
 [ext_resource type="Script" uid="uid://dg7hthm2vl0w6" path="res://src/data/blocks/block_definition.gd" id="1_7pgvp"]
+[ext_resource type="ArrayMesh" uid="uid://b5fygfrn3qgc6" path="res://src/assets/blocks/models/cube.obj" id="1_yv80w"]
 
 [resource]
 script = ExtResource("1_7pgvp")
 block_name = "dirt"
-model_paths = {
-"default": "res://src/assets/blocks/dirt/dirt.obj"
-}
+model = ExtResource("1_yv80w")
 hardness = 0.5

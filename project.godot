@@ -15,15 +15,16 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="VoxelPrototype"
-run/main_scene="uid://c2yvq0hgjgx8l"
+run/main_scene="uid://b74jlqgmtglti"
 config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 
 [autoload]
 
+PathManager="*uid://d4jfr1mc0xxkf"
 MirrorFolder="*uid://c4wp8feuv50yo"
 AtlasManager="*uid://bob42103h2cmj"
+BlocksRegistry="*uid://b7i0bkdxka7r3"
 MirrorSync="*uid://dmfxasw5y4dg8"
-PathManager="*uid://d4jfr1mc0xxkf"
 
 [file_customization]
 

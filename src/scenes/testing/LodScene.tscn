@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://b74jlqgmtglti"]
 
 [ext_resource type="PackedScene" uid="uid://dxf5dr4bn0yc7" path="res://src/scenes/entities/player/Player.tscn" id="1_8bujj"]
-[ext_resource type="VoxelMesherBlocky" uid="uid://b8h58c7nuxmxc" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
+[ext_resource type="VoxelMesherBlocky" uid="uid://bh8b25wsoqn4n" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_76ycs"]
 frequency = 0.0014
@@ -16,13 +16,6 @@ noise = SubResource("FastNoiseLite_76ycs")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -47.35805506396609, 0)
 generator = SubResource("VoxelGeneratorNoise2D_0fgh8")
 mesher = ExtResource("1_76ycs")
-max_view_distance = 64
-
-[node name="VoxelTerrain" type="VoxelTerrain" parent="VoxelTerrain" unique_id=1813017908]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -47.35805506396609, 0)
-generator = SubResource("VoxelGeneratorNoise2D_0fgh8")
-mesher = ExtResource("1_76ycs")
-bounds = AABB(-536870900, -536870900, -536870900, 1073741800, 1073741800, 1073741800)
 max_view_distance = 64
 
 [node name="Player" parent="." unique_id=1646330281 instance=ExtResource("1_8bujj")]

@@ -5,23 +5,22 @@ extends Node
 # 🔥 Получаем путь к папке с exe (в редакторе это папка Godot.exe)
 var _exe_path = OS.get_executable_path().get_base_dir().path_join("")
 
-# 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С EXE
-var LIBRARY_PATH = _exe_path + "src/data/blocks/voxel_blocky_library.tres"
-var BLOCKS_FOLDER = _exe_path + "src/data/blocks/definitions/"
-var MODELS_FOLDER = _exe_path + "src/assets/blocks/"
+# 🔥 ПУТИ К ФАЙЛАМ РЯДОМ С EXE (для библиотеки и определений)
+var LIBRARY_PATH = _exe_path + "/src/data/blocks/voxel_blocky_library.tres"
+var BLOCKS_FOLDER = _exe_path + "/src/data/blocks/definitions/"
+
+# 🔥 ПУТЬ К МОДЕЛЯМ В ПРОЕКТЕ (НЕ рядом с exe!)
+var MODELS_FOLDER = "res://src/assets/blocks/"
 
 # 🔥 ПУТЬ К МЕШЕРУ ОСТАЕТСЯ В res://
 const MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
 
 @export var auto_build: bool = true
 @export var debug_mode: bool = true
-@export var run_creator_before_build: bool = true
 
 var library: VoxelBlockyLibrary
 var block_count: int = 0
 var mesher_manager: Node
-
-const BLOCK_CREATOR_PATH = "res://src/data/blocks/block_creator.gd"
 
 func _ready():
 	if Engine.is_editor_hint():
@@ -53,9 +52,6 @@ func _build_library():
 		if Engine.is_editor_hint():
 			print("📌 Режим: РЕДАКТОР")
 		print("📁 Путь к EXE: ", _exe_path)
-	
-	if run_creator_before_build:
-		_run_block_creator()
 	
 	if debug_mode:
 		print("\n📁 ШАГ 1: Создание новой библиотеки")
@@ -110,30 +106,6 @@ func _build_library():
 		print("✅ СБОРКА ЗАВЕРШЕНА")
 		print("📊 Всего блоков: ", block_count)
 
-func _run_block_creator():
-	if debug_mode:
-		print("\n🔄 ШАГ 0: Запуск BlockCreator для подготовки моделей")
-	
-	if not ResourceLoader.exists(BLOCK_CREATOR_PATH):
-		if debug_mode:
-			print("⚠️ BlockCreator не найден")
-		return
-	
-	var creator_script = load(BLOCK_CREATOR_PATH)
-	if not creator_script:
-		if debug_mode:
-			print("⚠️ Не удалось загрузить BlockCreator")
-		return
-	
-	var creator = creator_script.new()
-	creator.debug_mode = debug_mode
-	
-	# 🔥 Передаем путь к exe
-	if creator.has_method("set_exe_path"):
-		creator.set_exe_path(_exe_path)
-	
-	creator.run()
-
 func _update_mesher():
 	if mesher_manager and mesher_manager.has_method("_update_mesher"):
 		mesher_manager._update_mesher()
@@ -176,7 +148,7 @@ func _process_block_definition(file_path: String):
 	if debug_mode:
 		print("\n🔧 Обработка: ", file_path.get_file())
 	
-	# 🔥 Загружаем определение из папки рядом с exe
+	# Загружаем определение из папки рядом с exe
 	if not FileAccess.file_exists(file_path):
 		if debug_mode:
 			print("   ❌ Файл не найден: ", file_path)
@@ -193,11 +165,26 @@ func _process_block_definition(file_path: String):
 		print("   📦 Блок: ", def.block_name)
 		print("   🎨 Материал: ", def.material_type)
 	
-	# 🔥 Формируем путь к модели по имени блока в папке рядом с exe
-	var model_path = MODELS_FOLDER + def.block_name + ".obj"
-	if debug_mode:
-		print("   🔍 Поиск модели: ", model_path)
+	# 🔥 ПОЛУЧАЕМ ПУТЬ К МОДЕЛИ ИЗ РЕСУРСА БЛОКА
+	var model_path = ""
 	
+	# Пробуем получить путь из модели в определении
+	if def.model != null:
+		if def.model.has_method("get_resource_path"):
+			model_path = def.model.get_resource_path()
+		elif def.model is ArrayMesh and def.model.resource_path != "":
+			model_path = def.model.resource_path
+	
+	if model_path.is_empty():
+		if debug_mode:
+			print("   ⚠️ В определении не указана модель")
+			print("      Блок будет пропущен")
+		return
+	
+	if debug_mode:
+		print("   🔍 Модель из определения: ", model_path)
+	
+	# Проверяем существование модели в проекте
 	if not ResourceLoader.exists(model_path):
 		if debug_mode:
 			print("   ⚠️ Модель не найдена: ", model_path)

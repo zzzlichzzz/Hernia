@@ -4,3 +4,5 @@
 нейросети : ChatGPT , DeepSeek
 *************************************************************
 Авторские права, игра разрабатывается на аддоне Godot Engine v4.6 stable - godot_voxel от Zulann по лицензии MIT (https://github.com/Zylann/godot_voxel)
+
+Парсер для импорта налету obj от https://github.com/Ezcha/gd-obj

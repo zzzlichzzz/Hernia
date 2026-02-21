@@ -5,6 +5,6 @@
 *************************************************************
 Авторские права, игра разрабатывается на аддоне Godot Engine v4.6 stable - godot_voxel от Zulann по лицензии MIT (https://github.com/Zylann/godot_voxel)
 
-Парсер для импорта налету obj от https://github.com/Ezcha/gd-obj
+Парсер для импорта налету OBJ/MTL от https://github.com/Ezcha/gd-obj
 
 текстур пак взят у моего друга https://modrinth.com/resourcepack/cherry-atom (создан для проекта CherryAtom на майнкрафт 1.21.1)

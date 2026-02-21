@@ -4,6 +4,7 @@ extends VoxelTerrain
 
 @export var auto_update: bool = true
 @export var debug_mode: bool = true
+var game_path = OS.get_executable_path().get_base_dir().path_join("")
 
 func _enter_tree():
 	if Engine.is_editor_hint() and auto_update:
@@ -27,7 +28,7 @@ func _update_mesher():
 		print("\n🔧 VoxelTerrainMod: Установка мешера")
 	
 	# 🔥 ПУТЬ К БИБЛИОТЕКЕ ЧЕРЕЗ OS (рядом с exe)
-	var library_path = PathManager.game("src/data/blocks/voxel_blocky_library.tres")
+	var library_path = game_path + "src/data/blocks/voxel_blocky_library.tres"
 	
 	# 🔥 ПУТЬ К МЕШЕРУ ОБЫЧНЫЙ
 	var mesher_path = "res://src/data/blocks/voxel_mesher_blocky.tres"

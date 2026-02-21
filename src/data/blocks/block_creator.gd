@@ -1,28 +1,43 @@
 @tool
-extends EditorScript
-# Инструмент для создания модели блока из определения (запускается через Execute)
+extends Node
+# Инструмент для создания модели блока из определения (для BlockRegistry)
 
-# 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С ИГРОЙ (ЧЕРЕЗ PathManager.game)
-var BLOCKS_DEFINITIONS = PathManager.game("src/data/blocks/definitions/")
-var MODELS_TARGET = PathManager.game("src/assets/blocks/")
-var MODELS_SOURCE = PathManager.game("src/assets/blocks/models/")
+# 🔥 Получаем путь к папке с exe (в редакторе это папка Godot.exe)
+var _exe_path = OS.get_executable_path().get_base_dir().path_join("")
+
+# 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С EXE
+var BLOCKS_DEFINITIONS = _exe_path + "src/data/blocks/definitions/"
+var MODELS_TARGET = _exe_path + "src/assets/blocks/"
+var MODELS_SOURCE = _exe_path + "src/assets/blocks/models/"
 
 var debug_mode: bool = true
 
-func _run():
-	print("🧱 BLOCK CREATOR TOOL: Запуск создания моделей")
-	print("📁 BLOCKS_DEFINITIONS: ", BLOCKS_DEFINITIONS)
-	print("📁 MODELS_SOURCE: ", MODELS_SOURCE)
-	print("📁 MODELS_TARGET: ", MODELS_TARGET)
+func run():
+	if debug_mode:
+		print("🧱 BLOCK CREATOR: Запуск создания моделей")
+		print("📁 Путь к EXE: ", _exe_path)
+		print("📁 BLOCKS_DEFINITIONS: ", BLOCKS_DEFINITIONS)
+		print("📁 MODELS_SOURCE: ", MODELS_SOURCE)
+		print("📁 MODELS_TARGET: ", MODELS_TARGET)
 	
-	# ШАГ 1: Получаем список всех определений блоков
-	print("\n📁 ШАГ 1: Поиск определений блоков")
-	var definition_files = _find_definition_files()
-	if definition_files.is_empty():
-		print("❌ Нет файлов определений в: ", BLOCKS_DEFINITIONS)
+	# Проверяем существование папок
+	if not DirAccess.dir_exists_absolute(BLOCKS_DEFINITIONS):
+		if debug_mode:
+			print("❌ Папка не найдена: ", BLOCKS_DEFINITIONS)
+			print("   Убедитесь, что папка src/data/blocks/definitions/ существует рядом с EXE")
 		return
 	
-	print("📋 Найдено определений: ", definition_files.size())
+	# ШАГ 1: Получаем список всех определений блоков
+	if debug_mode:
+		print("\n📁 ШАГ 1: Поиск определений блоков")
+	var definition_files = _find_definition_files()
+	if definition_files.is_empty():
+		if debug_mode:
+			print("❌ Нет файлов определений в: ", BLOCKS_DEFINITIONS)
+		return
+	
+	if debug_mode:
+		print("📋 Найдено определений: ", definition_files.size())
 	
 	var processed = 0
 	var skipped = 0
@@ -39,10 +54,11 @@ func _run():
 			2:
 				errors += 1
 	
-	print("📊 РЕЗУЛЬТАТ:")
-	print("   ✅ Обработано: ", processed)
-	print("   ⏭️ Пропущено: ", skipped)
-	print("   ❌ Ошибок: ", errors)
+	if debug_mode:
+		print("📊 РЕЗУЛЬТАТ:")
+		print("   ✅ Обработано: ", processed)
+		print("   ⏭️ Пропущено: ", skipped)
+		print("   ❌ Ошибок: ", errors)
 
 func _process_definition(file_path: String) -> int:
 	"""Обрабатывает один файл определения. Возвращает 0=успех, 1=пропуск, 2=ошибка"""
@@ -74,7 +90,7 @@ func _process_definition(file_path: String) -> int:
 			print("   ❌ Не удалось определить имя файла модели")
 		return 2
 	
-	# Формируем полный путь к исходной модели в папке рядом с игрой
+	# Формируем полный путь к исходной модели в папке рядом с exe
 	var source_model_path = MODELS_SOURCE + source_file_name
 	
 	if debug_mode:
@@ -256,3 +272,10 @@ func _write_file(path: String, content: String) -> bool:
 	file.store_string(content)
 	file.close()
 	return true
+
+# Метод для установки пути к exe (если нужно передать извне)
+func set_exe_path(path: String):
+	_exe_path = path
+	BLOCKS_DEFINITIONS = _exe_path + "src/data/blocks/definitions/"
+	MODELS_TARGET = _exe_path + "src/assets/blocks/"
+	MODELS_SOURCE = _exe_path + "src/assets/blocks/models/"

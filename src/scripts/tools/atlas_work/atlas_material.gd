@@ -81,7 +81,7 @@ func _create_base_material(type: String, config: Dictionary) -> StandardMaterial
 	"""Базовое создание материала с общей логикой"""
 	
 	# Получаем путь к атласу
-	var atlas_png = PathManager.smart("res://src/assets/textures/atlas/block_atlas.png")
+	var atlas_png = PathManager.game("res://src/assets/textures/atlas/block_atlas.png")
 	
 	log.write_line("📁 PNG атлас: " + atlas_png)
 	

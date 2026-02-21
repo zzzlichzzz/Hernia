@@ -27,7 +27,7 @@ func _update_mesher():
 		print("\n🔧 VoxelTerrainMod: Установка мешера")
 	
 	# 🔥 ПУТЬ К БИБЛИОТЕКЕ ЧЕРЕЗ OS (рядом с exe)
-	var library_path = _get_game_path() + "/src/data/blocks/voxel_blocky_library.tres"
+	var library_path = PathManager.game("src/data/blocks/voxel_blocky_library.tres")
 	
 	# 🔥 ПУТЬ К МЕШЕРУ ОБЫЧНЫЙ
 	var mesher_path = "res://src/data/blocks/voxel_mesher_blocky.tres"

@@ -2,15 +2,15 @@
 extends Node
 # Автоматический сборщик библиотеки блоков (реестр блоков)
 
-# 🔥 ПОДКЛЮЧАЕМ МЕНЕДЖЕР МЕШЕРА
-var MesherManagerPath = preload("res://src/data/blocks/mesher_manager_path.gd")
+# 🔥 Получаем путь к папке с exe (в редакторе это папка Godot.exe)
+var _exe_path = PathManager.game("")
 
-# 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С ИГРОЙ (ЧЕРЕЗ PathManager.game)
-var LIBRARY_PATH = PathManager.game("src/data/blocks/voxel_blocky_library.tres")
-var BLOCKS_FOLDER = PathManager.game("src/data/blocks/definitions/")
-var MODELS_FOLDER = PathManager.game("src/assets/blocks/")
+# 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С EXE (даже в редакторе)
+var LIBRARY_PATH = _exe_path + "src/data/blocks/voxel_blocky_library.tres"
+var BLOCKS_FOLDER = _exe_path + "src/data/blocks/definitions/"
+var MODELS_FOLDER = _exe_path + "src/assets/blocks/"
 
-# 🔥 ПУТЬ К МЕШЕРУ ОСТАЕТСЯ В res:// (НЕ МЕНЯЕТСЯ)
+# 🔥 ПУТЬ К МЕШЕРУ ОСТАЕТСЯ В res://
 const MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
 
 @export var auto_build: bool = true
@@ -20,6 +20,9 @@ const MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
 var library: VoxelBlockyLibrary
 var block_count: int = 0
 var mesher_manager: Node
+
+# 🔥 Путь к скрипту создателя блоков
+const BLOCK_CREATOR_PATH = "res://src/data/blocks/block_creator.gd"
 
 func _ready():
 	if Engine.is_editor_hint():
@@ -37,10 +40,12 @@ func _ready():
 func _init_mesher_manager():
 	"""Инициализирует менеджер мешера"""
 	if ResourceLoader.exists("res://src/data/blocks/mesher_manager_path.gd"):
-		mesher_manager = MesherManagerPath.new()
-		add_child(mesher_manager)
-		if debug_mode:
-			print("✅ MesherManagerPath инициализирован")
+		var MesherManagerClass = load("res://src/data/blocks/mesher_manager_path.gd")
+		if MesherManagerClass:
+			mesher_manager = MesherManagerClass.new()
+			add_child(mesher_manager)
+			if debug_mode:
+				print("✅ MesherManagerPath инициализирован")
 	else:
 		if debug_mode:
 			print("⚠️ MesherManagerPath не найден")
@@ -51,11 +56,12 @@ func _build_library():
 		
 		if Engine.is_editor_hint():
 			print("📌 Режим: РЕДАКТОР")
+			print("📁 Путь к EXE: ", _exe_path)
 		else:
 			print("📌 Режим: ЭКСПОРТИРОВАННАЯ ИГРА")
 	
-	# ШАГ 0: Запускаем block_creator для обновления моделей (только в редакторе)
-	if run_creator_before_build and Engine.is_editor_hint():
+	# ШАГ 0: Запускаем block_creator для обновления моделей
+	if run_creator_before_build:
 		_run_block_creator()
 	
 	# ШАГ 1: Создаем новую библиотеку
@@ -86,22 +92,16 @@ func _build_library():
 	for file_path in block_files:
 		_process_block_definition(file_path)
 	
-	# ШАГ 5: Запускаем material_applier для применения материалов (только в редакторе)
-	if Engine.is_editor_hint():
-		if debug_mode:
-			print("\n🎨 ШАГ 5: Применение материалов к библиотеке")
-		_run_material_applier()
-	
-	# ШАГ 6: Запекаем библиотеку
+	# ШАГ 5: Запекаем библиотеку
 	if debug_mode:
-		print("\n🔥 ШАГ 6: Запекание библиотеки")
+		print("\n🔥 ШАГ 5: Запекание библиотеки")
 	library.bake()
 	
-	# ШАГ 7: Сохраняем
+	# ШАГ 6: Сохраняем
 	if debug_mode:
-		print("\n💾 ШАГ 7: Сохранение")
+		print("\n💾 ШАГ 6: Сохранение")
 	
-	# 🔥 Проверяем, можем ли мы писать в целевую папку
+	# Проверяем, можем ли мы писать в целевую папку
 	var target_dir = LIBRARY_PATH.get_base_dir()
 	if not DirAccess.dir_exists_absolute(target_dir):
 		var dir_result = DirAccess.make_dir_recursive_absolute(target_dir)
@@ -116,14 +116,40 @@ func _build_library():
 		print("❌ Ошибка сохранения: ", result)
 		return
 	
-	# ШАГ 8: Обновляем мешер через менеджер
+	# ШАГ 7: Обновляем мешер через менеджер
 	if debug_mode:
-		print("\n🔄 ШАГ 9: Обновление мешера")
+		print("\n🔄 ШАГ 7: Обновление мешера")
 	_update_mesher()
 	
 	if debug_mode:
 		print("✅ СБОРКА ЗАВЕРШЕНА")
 		print("📊 Всего блоков: ", block_count)
+
+func _run_block_creator():
+	"""Запускает создатель блоков"""
+	if debug_mode:
+		print("\n🔄 ШАГ 0: Запуск BlockCreator для подготовки моделей")
+	
+	if not ResourceLoader.exists(BLOCK_CREATOR_PATH):
+		if debug_mode:
+			print("⚠️ BlockCreator не найден по пути: ", BLOCK_CREATOR_PATH)
+		return
+	
+	var creator_script = load(BLOCK_CREATOR_PATH)
+	if not creator_script:
+		if debug_mode:
+			print("⚠️ Не удалось загрузить BlockCreator")
+		return
+	
+	# 🔥 Создаем экземпляр и запускаем
+	var creator = creator_script.new()
+	creator.debug_mode = debug_mode
+	
+	# 🔥 Передаем путь к exe (опционально, если нужно)
+	if creator.has_method("set_exe_path"):
+		creator.set_exe_path(_exe_path)
+	
+	creator._run()
 
 func _update_mesher():
 	"""Обновляет мешер через менеджер"""
@@ -134,56 +160,6 @@ func _update_mesher():
 	else:
 		if debug_mode:
 			print("⚠️ Не удалось обновить мешер")
-
-func _run_block_creator():
-	"""Запускает создатель блоков (только в редакторе)"""
-	if not Engine.is_editor_hint():
-		return
-	
-	if debug_mode:
-		print("\n🔄 ШАГ 0: Запуск BlockCreator для подготовки моделей")
-	
-	var creator_path = "res://src/data/blocks/block_creator.gd"
-	
-	if not ResourceLoader.exists(creator_path):
-		if debug_mode:
-			print("⚠️ BlockCreator не найден по пути: ", creator_path)
-		return
-	
-	var creator_script = load(creator_path)
-	if not creator_script:
-		if debug_mode:
-			print("⚠️ Не удалось загрузить BlockCreator")
-		return
-	
-	var creator = creator_script.new()
-	creator.debug_mode = debug_mode
-	creator.run()
-
-func _run_material_applier():
-	"""Запускает апплаер материалов (только в редакторе)"""
-	if not Engine.is_editor_hint():
-		return
-	
-	if debug_mode:
-		print("\n🎨 Запуск MaterialApplier для применения материалов")
-	
-	var applier_path = "res://src/data/blocks/block_material_applier.gd"
-	
-	if not ResourceLoader.exists(applier_path):
-		if debug_mode:
-			print("⚠️ MaterialApplier не найден по пути: ", applier_path)
-		return
-	
-	var applier_script = load(applier_path)
-	if not applier_script:
-		if debug_mode:
-			print("⚠️ Не удалось загрузить MaterialApplier")
-		return
-	
-	var applier = applier_script.new()
-	applier.debug_mode = debug_mode
-	applier.run()
 
 func _find_block_definitions() -> Array:
 	"""Находит все .tres файлы определений блоков"""

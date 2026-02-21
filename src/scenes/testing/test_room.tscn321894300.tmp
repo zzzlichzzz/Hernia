@@ -1,9 +1,9 @@
 [gd_scene format=3 uid="uid://c2yvq0hgjgx8l"]
 
-[ext_resource type="Script" uid="uid://dumqkpd4y3mbc" path="res://src/scripts/testing/atlas_test_ui/test_atlas_blocks.gd" id="1_bicav"]
+[ext_resource type="Script" uid="uid://dumqkpd4y3mbc" path="res://src/scripts/testing/test_room.gd" id="1_s2ks2"]
 
 [node name="TestRoom" type="Node2D" unique_id=481292379]
-script = ExtResource("1_bicav")
+script = ExtResource("1_s2ks2")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1219024063]
 

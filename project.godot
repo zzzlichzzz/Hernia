@@ -20,11 +20,17 @@ config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 
 [autoload]
 
+<<<<<<< Updated upstream
 PathManager="*uid://d4jfr1mc0xxkf"
 MirrorFolder="*uid://c4wp8feuv50yo"
 AtlasManager="*uid://bob42103h2cmj"
 BlocksRegistry="*uid://b7i0bkdxka7r3"
 MirrorSync="*uid://dmfxasw5y4dg8"
+=======
+PathManager="*uid://ckq3igpgkptlp"
+AtlasManager="*uid://bob42103h2cmj"
+BlocksRegistry="*uid://di50m3fyk76am"
+>>>>>>> Stashed changes
 
 [file_customization]
 

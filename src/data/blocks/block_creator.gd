@@ -2,14 +2,19 @@
 extends Node
 # Скрипт для создания модели блока из определения (вызывается из BlockRegistry)
 
-var BLOCKS_DEFINITIONS = PathManager.smart("res://src/data/blocks/definitions/")
-var MODELS_TARGET = PathManager.smart("res://src/assets/blocks/")
+# 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С ИГРОЙ (ЧЕРЕЗ PathManager.game)
+var BLOCKS_DEFINITIONS = PathManager.game("src/data/blocks/definitions/")
+var MODELS_TARGET = PathManager.game("src/assets/blocks/")
+var MODELS_SOURCE = PathManager.game("src/assets/blocks/models/")  # 🔥 ИСПРАВЛЕНО
 
 var debug_mode: bool = true
 
 func run():
 	if debug_mode:
 		print("🧱 BLOCK CREATOR: Подготовка моделей блоков")
+		print("📁 BLOCKS_DEFINITIONS: ", BLOCKS_DEFINITIONS)
+		print("📁 MODELS_SOURCE: ", MODELS_SOURCE)
+		print("📁 MODELS_TARGET: ", MODELS_TARGET)
 	
 	# ШАГ 1: Получаем список всех определений блоков
 	if debug_mode:
@@ -67,12 +72,15 @@ func _process_definition(file_path: String) -> int:
 	if debug_mode:
 		print("   📦 Блок: ", def.block_name)
 	
-	# Получаем путь к исходной модели
-	var source_model_path = _get_model_path_from_resource(def.model)
-	if source_model_path.is_empty():
+	# 🔥 ИСПРАВЛЕНО: получаем имя файла из пути модели
+	var source_file_name = _get_model_filename_from_path(def.model)
+	if source_file_name.is_empty():
 		if debug_mode:
-			print("   ❌ Не удалось получить путь к модели")
+			print("   ❌ Не удалось определить имя файла модели")
 		return 2
+	
+	# 🔥 ФОРМИРУЕМ ПОЛНЫЙ ПУТЬ К ИСХОДНОЙ МОДЕЛИ В ПАПКЕ РЯДОМ С ИГРОЙ
+	var source_model_path = MODELS_SOURCE + source_file_name
 	
 	if debug_mode:
 		print("   🔍 Исходная модель: ", source_model_path)
@@ -87,6 +95,9 @@ func _process_definition(file_path: String) -> int:
 	var target_model_name = def.block_name + ".obj"
 	var target_model_path = MODELS_TARGET + target_model_name
 	
+	if debug_mode:
+		print("   📁 Целевая модель: ", target_model_path)
+	
 	# Проверяем, нужно ли копировать (если файл уже существует и не изменился)
 	if FileAccess.file_exists(target_model_path):
 		var source_time = FileAccess.get_modified_time(source_model_path)
@@ -97,16 +108,20 @@ func _process_definition(file_path: String) -> int:
 				print("   ⏭️ Модель уже актуальна: ", target_model_name)
 			return 1
 	
-	if debug_mode:
-		print("   📁 Целевая модель: ", target_model_path)
+	# Создаем папку назначения если нужно
+	var target_dir = target_model_path.get_base_dir()
+	if not DirAccess.dir_exists_absolute(target_dir):
+		DirAccess.make_dir_recursive_absolute(target_dir)
+		if debug_mode:
+			print("   📁 Создана папка: ", target_dir)
 	
 	# Копируем модель
 	if _copy_file(source_model_path, target_model_path):
 		if debug_mode:
 			print("   ✅ Модель скопирована: ", target_model_name)
 		
-		# 🔥 Обновляем определение через PathManager
-		var new_model_path_res = PathManager.smart("res://src/assets/blocks/" + target_model_name)
+		# 🔥 Обновляем определение с новым путем
+		var new_model_path_res = "res://src/assets/blocks/" + target_model_name
 		var updated = _update_definition_model(file_path, new_model_path_res)
 		
 		if updated:
@@ -122,11 +137,32 @@ func _process_definition(file_path: String) -> int:
 			print("   ❌ Ошибка копирования")
 		return 2
 
+# 🔥 НОВАЯ ФУНКЦИЯ: получает имя файла из ресурса модели
+func _get_model_filename_from_path(model_resource) -> String:
+	"""Извлекает имя файла из ресурса модели"""
+	if model_resource == null:
+		return ""
+	
+	# Получаем путь из ресурса
+	var path = ""
+	if model_resource.has_method("get_resource_path"):
+		path = model_resource.get_resource_path()
+	elif model_resource is ArrayMesh and model_resource.resource_path != "":
+		path = model_resource.resource_path
+	
+	if path.is_empty():
+		return ""
+	
+	# Извлекаем только имя файла
+	return path.get_file()
+
 func _find_definition_files() -> Array:
 	"""Находит все .tres файлы определений блоков"""
 	var files = []
 	var dir = DirAccess.open(BLOCKS_DEFINITIONS)
 	if not dir:
+		if debug_mode:
+			print("⚠️ Папка не найдена: ", BLOCKS_DEFINITIONS)
 		return files
 	
 	dir.list_dir_begin()
@@ -139,20 +175,6 @@ func _find_definition_files() -> Array:
 	
 	return files
 
-func _get_model_path_from_resource(model_resource) -> String:
-	"""Извлекает путь к файлу из ресурса ArrayMesh"""
-	if model_resource == null:
-		return ""
-	
-	# Получаем путь из ресурса
-	if model_resource.has_method("get_resource_path"):
-		return model_resource.get_resource_path()
-	
-	if model_resource is ArrayMesh and model_resource.resource_path != "":
-		return model_resource.resource_path
-	
-	return ""
-
 func _copy_file(source: String, target: String) -> bool:
 	"""Копирует файл из source в target"""
 	var src_file = FileAccess.open(source, FileAccess.READ)
@@ -162,11 +184,6 @@ func _copy_file(source: String, target: String) -> bool:
 		return false
 	
 	var data = src_file.get_buffer(src_file.get_length())
-	
-	# Создаем папку назначения если нужно
-	var target_dir = target.get_base_dir()
-	if not DirAccess.dir_exists_absolute(target_dir):
-		DirAccess.make_dir_recursive_absolute(target_dir)
 	
 	var dst_file = FileAccess.open(target, FileAccess.WRITE)
 	if not dst_file:

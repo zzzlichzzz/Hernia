@@ -1,14 +1,3 @@
-[gd_resource type="VoxelBlockyLibrary" format=3]
-
-[ext_resource type="ArrayMesh" path="res://src/assets/blocks/dirt.obj" id="1_b7d3v"]
-
-[sub_resource type="VoxelBlockyModelEmpty" id="VoxelBlockyModelEmpty_hm0dg"]
-resource_name = "air"
-
-[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_gcfia"]
-resource_name = "dirt"
-collision_enabled_0 = true
-mesh = ExtResource("1_b7d3v")
+[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://skcfwuwwj5tn"]
 
 [resource]
-models = Array[VoxelBlockyModel]([SubResource("VoxelBlockyModelEmpty_hm0dg"), SubResource("VoxelBlockyModelMesh_gcfia")])

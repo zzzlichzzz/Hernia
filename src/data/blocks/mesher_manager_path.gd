@@ -38,13 +38,6 @@ func _update_mesher():
 	
 	# Загружаем библиотеку
 	var library = _load_library(library_path)
-	if not library:
-		# Если не нашли, пробуем загрузить из res:// как запасной вариант
-		if debug_mode:
-			print("⚠️ Пробую загрузить из res://...")
-		library = _load_library("res://src/data/blocks/voxel_blocky_library.tres")
-		if not library:
-			return
 	
 	# Загружаем или создаем мешер
 	var mesher = _load_or_create_mesher(mesher_path)

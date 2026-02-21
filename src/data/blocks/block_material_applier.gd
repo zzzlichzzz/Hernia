@@ -2,10 +2,10 @@
 extends Node
 # Скрипт для применения материала к блокам и обновления путей мешера
 
-var BLOCKS_FOLDER = PathManager.smart("res://src/data/blocks/definitions/")
-var MODELS_FOLDER = PathManager.smart("res://src/assets/blocks/")
-var MATERIALS_FOLDER = PathManager.smart("res://src/assets/textures/atlas/")
-var LIBRARY_PATH = PathManager.smart("res://src/data/blocks/voxel_blocky_library.tres")
+var BLOCKS_FOLDER = PathManager.game("res://src/data/blocks/definitions/")
+var MODELS_FOLDER = PathManager.game("res://src/assets/blocks/")
+var MATERIALS_FOLDER = PathManager.game("res://src/assets/textures/atlas/")
+var LIBRARY_PATH = PathManager.game("res://src/data/blocks/voxel_blocky_library.tres")
 var MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
 
 var debug_mode: bool = true

@@ -5,9 +5,13 @@ extends Node
 # 🔥 ПОДКЛЮЧАЕМ МЕНЕДЖЕР МЕШЕРА
 var MesherManagerPath = preload("res://src/data/blocks/mesher_manager_path.gd")
 
-var LIBRARY_PATH = PathManager.smart("res://src/data/blocks/voxel_blocky_library.tres")
-var BLOCKS_FOLDER = PathManager.smart("res://src/data/blocks/definitions/")
-var MODELS_FOLDER = PathManager.smart("res://src/assets/blocks/")
+# 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С ИГРОЙ (ЧЕРЕЗ PathManager.game)
+var LIBRARY_PATH = PathManager.game("src/data/blocks/voxel_blocky_library.tres")
+var BLOCKS_FOLDER = PathManager.game("src/data/blocks/definitions/")
+var MODELS_FOLDER = PathManager.game("src/assets/blocks/")
+
+# 🔥 ПУТЬ К МЕШЕРУ ОСТАЕТСЯ В res:// (НЕ МЕНЯЕТСЯ)
+const MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
 
 @export var auto_build: bool = true
 @export var debug_mode: bool = true
@@ -15,28 +19,43 @@ var MODELS_FOLDER = PathManager.smart("res://src/assets/blocks/")
 
 var library: VoxelBlockyLibrary
 var block_count: int = 0
-var mesher_manager: Node  # 🔥 Ссылка на менеджер мешера
+var mesher_manager: Node
 
 func _ready():
-	if auto_build:
-		call_deferred("_build_library")
+	if Engine.is_editor_hint():
+		# В редакторе запускаем как обычно
+		if auto_build:
+			call_deferred("_build_library")
+	else:
+		# В экспортированной игре добавляем задержку
+		if auto_build:
+			await get_tree().create_timer(1.0).timeout
+			call_deferred("_build_library")
 	
-	# 🔥 Инициализируем менеджер мешера
 	_init_mesher_manager()
 
 func _init_mesher_manager():
 	"""Инициализирует менеджер мешера"""
-	mesher_manager = MesherManagerPath.new()
-	add_child(mesher_manager)
-	if debug_mode:
-		print("✅ MesherManagerPath инициализирован")
+	if ResourceLoader.exists("res://src/data/blocks/mesher_manager_path.gd"):
+		mesher_manager = MesherManagerPath.new()
+		add_child(mesher_manager)
+		if debug_mode:
+			print("✅ MesherManagerPath инициализирован")
+	else:
+		if debug_mode:
+			print("⚠️ MesherManagerPath не найден")
 
 func _build_library():
 	if debug_mode:
 		print("🏗️ АВТОСБОРЩИК БИБЛИОТЕКИ БЛОКОВ")
+		
+		if Engine.is_editor_hint():
+			print("📌 Режим: РЕДАКТОР")
+		else:
+			print("📌 Режим: ЭКСПОРТИРОВАННАЯ ИГРА")
 	
-	# ШАГ 0: Запускаем block_creator для обновления моделей
-	if run_creator_before_build:
+	# ШАГ 0: Запускаем block_creator для обновления моделей (только в редакторе)
+	if run_creator_before_build and Engine.is_editor_hint():
 		_run_block_creator()
 	
 	# ШАГ 1: Создаем новую библиотеку
@@ -45,6 +64,7 @@ func _build_library():
 		print("   📍 LIBRARY_PATH: ", LIBRARY_PATH)
 		print("   📍 BLOCKS_FOLDER: ", BLOCKS_FOLDER)
 		print("   📍 MODELS_FOLDER: ", MODELS_FOLDER)
+		print("   📍 MESHER_PATH: ", MESHER_PATH)
 	
 	library = VoxelBlockyLibrary.new()
 	
@@ -66,10 +86,11 @@ func _build_library():
 	for file_path in block_files:
 		_process_block_definition(file_path)
 	
-	# ШАГ 5: Запускаем material_applier для применения материалов к библиотеке
-	if debug_mode:
-		print("\n🎨 ШАГ 5: Применение материалов к библиотеке")
-	_run_material_applier()
+	# ШАГ 5: Запускаем material_applier для применения материалов (только в редакторе)
+	if Engine.is_editor_hint():
+		if debug_mode:
+			print("\n🎨 ШАГ 5: Применение материалов к библиотеке")
+		_run_material_applier()
 	
 	# ШАГ 6: Запекаем библиотеку
 	if debug_mode:
@@ -79,6 +100,14 @@ func _build_library():
 	# ШАГ 7: Сохраняем
 	if debug_mode:
 		print("\n💾 ШАГ 7: Сохранение")
+	
+	# 🔥 Проверяем, можем ли мы писать в целевую папку
+	var target_dir = LIBRARY_PATH.get_base_dir()
+	if not DirAccess.dir_exists_absolute(target_dir):
+		var dir_result = DirAccess.make_dir_recursive_absolute(target_dir)
+		if dir_result == OK and debug_mode:
+			print("   📁 Создана папка: ", target_dir)
+	
 	var result = ResourceSaver.save(library, LIBRARY_PATH)
 	if result == OK:
 		if debug_mode:
@@ -87,11 +116,7 @@ func _build_library():
 		print("❌ Ошибка сохранения: ", result)
 		return
 	
-	# ШАГ 8: Обновляем FileSystem
-	if Engine.is_editor_hint():
-		EditorInterface.get_resource_filesystem().scan()
-	
-	# ШАГ 9: 🔥 Обновляем мешер через менеджер
+	# ШАГ 8: Обновляем мешер через менеджер
 	if debug_mode:
 		print("\n🔄 ШАГ 9: Обновление мешера")
 	_update_mesher()
@@ -100,7 +125,6 @@ func _build_library():
 		print("✅ СБОРКА ЗАВЕРШЕНА")
 		print("📊 Всего блоков: ", block_count)
 
-# 🔥 ФУНКЦИЯ ОБНОВЛЕНИЯ МЕШЕРА
 func _update_mesher():
 	"""Обновляет мешер через менеджер"""
 	if mesher_manager and mesher_manager.has_method("_update_mesher"):
@@ -112,6 +136,10 @@ func _update_mesher():
 			print("⚠️ Не удалось обновить мешер")
 
 func _run_block_creator():
+	"""Запускает создатель блоков (только в редакторе)"""
+	if not Engine.is_editor_hint():
+		return
+	
 	if debug_mode:
 		print("\n🔄 ШАГ 0: Запуск BlockCreator для подготовки моделей")
 	
@@ -133,6 +161,10 @@ func _run_block_creator():
 	creator.run()
 
 func _run_material_applier():
+	"""Запускает апплаер материалов (только в редакторе)"""
+	if not Engine.is_editor_hint():
+		return
+	
 	if debug_mode:
 		print("\n🎨 Запуск MaterialApplier для применения материалов")
 	
@@ -160,7 +192,7 @@ func _find_block_definitions() -> Array:
 	if not dir:
 		if debug_mode:
 			print("⚠️ Папка не найдена: ", BLOCKS_FOLDER)
-			return files
+		return files
 	
 	dir.list_dir_begin()
 	var file_name = dir.get_next()
@@ -227,7 +259,7 @@ func _process_block_definition(file_path: String):
 	if debug_mode:
 		print("   ✅ Mesh загружен: ", model_path)
 	
-	# Добавляем в библиотеку (материал будет применен позже через material_applier)
+	# Добавляем в библиотеку
 	var id = library.add_model(model)
 	if debug_mode:
 		print("   ✅ Блок добавлен с ID: ", id)

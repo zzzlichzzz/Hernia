@@ -26,12 +26,12 @@ func build_atlas() -> bool:
 	
 	# ШАГ 1: Сборка атласа из PNG
 	print("\n📸 ШАГ 1/3: Сборка атласа...")
-	var builder = load(PathManager.smart("res://src/scripts/tools/atlas_work/texture_atlas_builder.gd")).new()
+	var builder = load("res://src/scripts/tools/atlas_work/texture_atlas_builder.gd").new()
 	builder._run()
 	
 	# ШАГ 2: Создание материалов из атласа
 	print("\n🎨 ШАГ 2/3: Создание материалов...")
-	var material_creator = load(PathManager.smart("res://src/scripts/tools/atlas_work/atlas_material.gd")).new()
+	var material_creator = load("res://src/scripts/tools/atlas_work/atlas_material.gd").new()
 	material_creator.create_all_materials()
 	
 	last_build_time = Time.get_datetime_dict_from_system()
@@ -43,15 +43,15 @@ func build_atlas() -> bool:
 
 func get_atlas_coords_path() -> String:
 	"""Возвращает путь к файлу координат атласа"""
-	return PathManager.smart("res://src/assets/textures/atlas/block_coordinates.tres")
+	return PathManager.game("res://src/assets/textures/atlas/block_coordinates.tres")
 
 func get_atlas_png_path() -> String:
 	"""Возвращает путь к PNG атласа"""
-	return PathManager.smart("res://src/assets/textures/atlas/block_atlas.png")
+	return PathManager.game("res://src/assets/textures/atlas/block_atlas.png")
 
 func get_material_path() -> String:
 	"""Возвращает путь к материалу"""
-	return PathManager.smart("res://src/assets/textures/atlas/block_material.tres")
+	return PathManager.game("res://src/assets/textures/atlas/block_material.tres")
 
 func is_atlas_valid() -> bool:
 	"""Проверяет существование файлов атласа"""

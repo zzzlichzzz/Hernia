@@ -1,32 +1,28 @@
 @tool
-extends Node
-# Скрипт для создания модели блока из определения (вызывается из BlockRegistry)
+extends EditorScript
+# Инструмент для создания модели блока из определения (запускается через Execute)
 
 # 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С ИГРОЙ (ЧЕРЕЗ PathManager.game)
 var BLOCKS_DEFINITIONS = PathManager.game("src/data/blocks/definitions/")
 var MODELS_TARGET = PathManager.game("src/assets/blocks/")
-var MODELS_SOURCE = PathManager.game("src/assets/blocks/models/")  # 🔥 ИСПРАВЛЕНО
+var MODELS_SOURCE = PathManager.game("src/assets/blocks/models/")
 
 var debug_mode: bool = true
 
-func run():
-	if debug_mode:
-		print("🧱 BLOCK CREATOR: Подготовка моделей блоков")
-		print("📁 BLOCKS_DEFINITIONS: ", BLOCKS_DEFINITIONS)
-		print("📁 MODELS_SOURCE: ", MODELS_SOURCE)
-		print("📁 MODELS_TARGET: ", MODELS_TARGET)
+func _run():
+	print("🧱 BLOCK CREATOR TOOL: Запуск создания моделей")
+	print("📁 BLOCKS_DEFINITIONS: ", BLOCKS_DEFINITIONS)
+	print("📁 MODELS_SOURCE: ", MODELS_SOURCE)
+	print("📁 MODELS_TARGET: ", MODELS_TARGET)
 	
 	# ШАГ 1: Получаем список всех определений блоков
-	if debug_mode:
-		print("\n📁 ШАГ 1: Поиск определений блоков")
+	print("\n📁 ШАГ 1: Поиск определений блоков")
 	var definition_files = _find_definition_files()
 	if definition_files.is_empty():
-		if debug_mode:
-			print("❌ Нет файлов определений в: ", BLOCKS_DEFINITIONS)
+		print("❌ Нет файлов определений в: ", BLOCKS_DEFINITIONS)
 		return
 	
-	if debug_mode:
-		print("📋 Найдено определений: ", definition_files.size())
+	print("📋 Найдено определений: ", definition_files.size())
 	
 	var processed = 0
 	var skipped = 0
@@ -43,11 +39,10 @@ func run():
 			2:
 				errors += 1
 	
-	if debug_mode:
-		print("📊 РЕЗУЛЬТАТ:")
-		print("   ✅ Обработано: ", processed)
-		print("   ⏭️ Пропущено: ", skipped)
-		print("   ❌ Ошибок: ", errors)
+	print("📊 РЕЗУЛЬТАТ:")
+	print("   ✅ Обработано: ", processed)
+	print("   ⏭️ Пропущено: ", skipped)
+	print("   ❌ Ошибок: ", errors)
 
 func _process_definition(file_path: String) -> int:
 	"""Обрабатывает один файл определения. Возвращает 0=успех, 1=пропуск, 2=ошибка"""
@@ -72,14 +67,14 @@ func _process_definition(file_path: String) -> int:
 	if debug_mode:
 		print("   📦 Блок: ", def.block_name)
 	
-	# 🔥 ИСПРАВЛЕНО: получаем имя файла из пути модели
+	# Получаем имя файла из пути модели
 	var source_file_name = _get_model_filename_from_path(def.model)
 	if source_file_name.is_empty():
 		if debug_mode:
 			print("   ❌ Не удалось определить имя файла модели")
 		return 2
 	
-	# 🔥 ФОРМИРУЕМ ПОЛНЫЙ ПУТЬ К ИСХОДНОЙ МОДЕЛИ В ПАПКЕ РЯДОМ С ИГРОЙ
+	# Формируем полный путь к исходной модели в папке рядом с игрой
 	var source_model_path = MODELS_SOURCE + source_file_name
 	
 	if debug_mode:
@@ -98,7 +93,7 @@ func _process_definition(file_path: String) -> int:
 	if debug_mode:
 		print("   📁 Целевая модель: ", target_model_path)
 	
-	# Проверяем, нужно ли копировать (если файл уже существует и не изменился)
+	# Проверяем, нужно ли копировать
 	if FileAccess.file_exists(target_model_path):
 		var source_time = FileAccess.get_modified_time(source_model_path)
 		var target_time = FileAccess.get_modified_time(target_model_path)
@@ -120,7 +115,7 @@ func _process_definition(file_path: String) -> int:
 		if debug_mode:
 			print("   ✅ Модель скопирована: ", target_model_name)
 		
-		# 🔥 Обновляем определение с новым путем
+		# Обновляем определение с новым путем
 		var new_model_path_res = "res://src/assets/blocks/" + target_model_name
 		var updated = _update_definition_model(file_path, new_model_path_res)
 		
@@ -137,13 +132,11 @@ func _process_definition(file_path: String) -> int:
 			print("   ❌ Ошибка копирования")
 		return 2
 
-# 🔥 НОВАЯ ФУНКЦИЯ: получает имя файла из ресурса модели
 func _get_model_filename_from_path(model_resource) -> String:
 	"""Извлекает имя файла из ресурса модели"""
 	if model_resource == null:
 		return ""
 	
-	# Получаем путь из ресурса
 	var path = ""
 	if model_resource.has_method("get_resource_path"):
 		path = model_resource.get_resource_path()
@@ -153,7 +146,6 @@ func _get_model_filename_from_path(model_resource) -> String:
 	if path.is_empty():
 		return ""
 	
-	# Извлекаем только имя файла
 	return path.get_file()
 
 func _find_definition_files() -> Array:
@@ -184,7 +176,6 @@ func _copy_file(source: String, target: String) -> bool:
 		return false
 	
 	var data = src_file.get_buffer(src_file.get_length())
-	
 	var dst_file = FileAccess.open(target, FileAccess.WRITE)
 	if not dst_file:
 		if debug_mode:

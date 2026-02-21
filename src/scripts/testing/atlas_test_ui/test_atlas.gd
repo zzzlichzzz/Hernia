@@ -7,7 +7,7 @@ extends Node2D
 
 # Ссылка на координаты атласа
 var atlas_coords: AtlasCoordinates = null
-var atlas_path: String = PathManager.smart("res://src/assets/textures/atlas/block_coordinates.tres")
+var atlas_path: String = PathManager.game("res://src/assets/textures/atlas/block_coordinates.tres")
 
 func _ready():
 	# Показываем путь к атласу

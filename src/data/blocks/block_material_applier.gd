@@ -1,352 +1,261 @@
 @tool
-extends Node
-# Скрипт для применения материала к блокам и обновления путей мешера
+extends EditorScript
+# Инструмент для создания модели блока из определения (запускается через Execute)
+# ВСЕГДА использует папку рядом с exe, даже в редакторе
 
-var BLOCKS_FOLDER = PathManager.game("res://src/data/blocks/definitions/")
-var MODELS_FOLDER = PathManager.game("res://src/assets/blocks/")
-var MATERIALS_FOLDER = PathManager.game("res://src/assets/textures/atlas/")
-var LIBRARY_PATH = PathManager.game("res://src/data/blocks/voxel_blocky_library.tres")
+# 🔥 Получаем путь к папке с exe (в редакторе это папка Godot.exe)
+var _exe_path = OS.get_executable_path().get_base_dir().path_join("")
+
+# 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С EXE (даже в редакторе)
+var BLOCKS_DEFINITIONS = _exe_path + "/src/data/blocks/definitions/"
+var MODELS_TARGET = _exe_path + "/src/assets/blocks/"
+var MODELS_SOURCE = _exe_path + "/src/assets/blocks/models/"
+
+# 🔥 ПУТЬ К МЕШЕРУ ОСТАЕТСЯ В res://
 var MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
 
 var debug_mode: bool = true
 
-# Соответствие типов материалов и файлов
-var material_files = {
-	"opaque": "block_material_opaque.tres",
-	"transparent": "block_material_transparent.tres",
-	"foliage": "block_material_foliage.tres"
-}
-
-func run():
-	if debug_mode:
-		print("🎨 BLOCK MATERIAL APPLIER: Применение материалов и обновление путей")
+func _run():
+	print("🧱 BLOCK CREATOR TOOL: Запуск создания моделей")
+	print("📁 Путь к EXE: ", _exe_path)
+	print("📁 BLOCKS_DEFINITIONS: ", BLOCKS_DEFINITIONS)
+	print("📁 MODELS_SOURCE: ", MODELS_SOURCE)
+	print("📁 MODELS_TARGET: ", MODELS_TARGET)
+	print("📁 MESHER_PATH: ", MESHER_PATH)
 	
-	# ШАГ 1: Обновляем путь в мешере
-	_update_mesher_path()
-	
-	# ШАГ 2: Читаем файл библиотеки
-	var content = _read_file(LIBRARY_PATH)
-	if content.is_empty():
-		if debug_mode:
-			print("❌ Не удалось прочитать файл библиотеки")
+	# Проверяем существование папок
+	if not DirAccess.dir_exists_absolute(BLOCKS_DEFINITIONS):
+		print("❌ Папка не найдена: ", BLOCKS_DEFINITIONS)
+		print("   Убедитесь, что папка src/data/blocks/definitions/ существует рядом с EXE")
+		print("   (в редакторе это папка самого Godot.exe)")
 		return
 	
-	if debug_mode:
-		print("📄 Файл библиотеки прочитан")
-	
-	# ШАГ 3: Загружаем все определения блоков
-	var definitions = _load_definitions()
-	if definitions.is_empty():
-		if debug_mode:
-			print("⚠️ Нет определений блоков")
-	
-	# ШАГ 4: Модифицируем содержимое библиотеки
-	var modified_content = _modify_library_content(content, definitions)
-	
-	# ШАГ 5: Сохраняем изменения в библиотеке
-	if modified_content != content:
-		if _write_file(LIBRARY_PATH, modified_content):
-			if debug_mode:
-				print("✅ Библиотека обновлена с материалами")
-		else:
-			if debug_mode:
-				print("❌ Ошибка сохранения библиотеки")
-	else:
-		if debug_mode:
-			print("⏭️ Изменений в библиотеке не требуется")
-
-func _update_mesher_path():
-	"""Обновляет путь к библиотеке в файле мешера"""
-	if debug_mode:
-		print("\n🔧 Обновление пути в мешере: ", MESHER_PATH)
-	
-	# Читаем файл мешера
-	var content = _read_file(MESHER_PATH)
-	if content.is_empty():
-		if debug_mode:
-			print("⚠️ Файл мешера не найден или пуст")
+	# ШАГ 1: Получаем список всех определений блоков
+	print("\n📁 ШАГ 1: Поиск определений блоков")
+	var definition_files = _find_definition_files()
+	if definition_files.is_empty():
+		print("❌ Нет файлов определений в: ", BLOCKS_DEFINITIONS)
 		return
 	
+	print("📋 Найдено определений: ", definition_files.size())
+	
+	var processed = 0
+	var skipped = 0
+	var errors = 0
+	
+	# Обрабатываем каждое определение
+	for file_path in definition_files:
+		var result = _process_definition(file_path)
+		match result:
+			0:
+				processed += 1
+			1:
+				skipped += 1
+			2:
+				errors += 1
+	
+	print("📊 РЕЗУЛЬТАТ:")
+	print("   ✅ Обработано: ", processed)
+	print("   ⏭️ Пропущено: ", skipped)
+	print("   ❌ Ошибок: ", errors)
+
+func _process_definition(file_path: String) -> int:
+	"""Обрабатывает один файл определения. Возвращает 0=успех, 1=пропуск, 2=ошибка"""
 	if debug_mode:
-		print("📄 Файл мешера прочитан")
+		print("\n🔧 Обработка: ", file_path.get_file())
 	
-	# Получаем правильный путь к библиотеке
-	var correct_library_path = LIBRARY_PATH
+	# Загружаем определение
+	var def_resource = load(file_path)
+	if not def_resource or not def_resource is BlockDefinition:
+		if debug_mode:
+			print("   ❌ Неверный формат определения")
+		return 2
 	
-	# Ищем строку с ext_resource типа VoxelBlockyLibrary
-	var lines = content.split("\n")
-	var modified_lines = []
-	var modified = false
+	var def: BlockDefinition = def_resource
 	
-	for line in lines:
-		if line.begins_with("[ext_resource") and line.find("VoxelBlockyLibrary") != -1:
-			# Проверяем, правильный ли уже путь
-			if line.find(correct_library_path) == -1:
-				# Извлекаем uid и id
-				var uid_match = RegEx.new()
-				uid_match.compile('uid="([^"]+)"')
-				var uid_result = uid_match.search(line)
-				
-				var id_match = RegEx.new()
-				id_match.compile('id="([^"]+)"')
-				var id_result = id_match.search(line)
-				
-				var uid = uid_result.get_string(1) if uid_result else ""
-				var id = id_result.get_string(1) if id_result else "1_61eru"
-				
-				# Создаем новую строку с правильным путем
-				var new_line = '[ext_resource type="VoxelBlockyLibrary"'
-				if uid != "":
-					new_line += ' uid="' + uid + '"'
-				new_line += ' path="' + correct_library_path + '" id="' + id + '"]'
-				
-				modified_lines.append(new_line)
-				modified = true
-				if debug_mode:
-					print("   ✅ Путь обновлен: ", new_line)
-			else:
-				modified_lines.append(line)
-		else:
-			modified_lines.append(line)
+	# Проверяем наличие модели
+	if def.model == null:
+		if debug_mode:
+			print("   ⏭️ Модель не выбрана, пропускаем")
+		return 1
 	
-	if modified:
-		var new_content = "\n".join(modified_lines)
-		if _write_file(MESHER_PATH, new_content):
+	if debug_mode:
+		print("   📦 Блок: ", def.block_name)
+	
+	# Получаем имя файла из пути модели
+	var source_file_name = _get_model_filename_from_path(def.model)
+	if source_file_name.is_empty():
+		if debug_mode:
+			print("   ❌ Не удалось определить имя файла модели")
+		return 2
+	
+	# Формируем полный путь к исходной модели в папке рядом с exe
+	var source_model_path = MODELS_SOURCE + source_file_name
+	
+	if debug_mode:
+		print("   🔍 Исходная модель: ", source_model_path)
+	
+	# Проверяем существование исходной модели
+	if not FileAccess.file_exists(source_model_path):
+		if debug_mode:
+			print("   ❌ Исходная модель не найдена: ", source_model_path)
+		return 2
+	
+	# Определяем целевую модель
+	var target_model_name = def.block_name + ".obj"
+	var target_model_path = MODELS_TARGET + target_model_name
+	
+	if debug_mode:
+		print("   📁 Целевая модель: ", target_model_path)
+	
+	# Проверяем, нужно ли копировать
+	if FileAccess.file_exists(target_model_path):
+		var source_time = FileAccess.get_modified_time(source_model_path)
+		var target_time = FileAccess.get_modified_time(target_model_path)
+		
+		if source_time <= target_time:
 			if debug_mode:
-				print("✅ Файл мешера обновлен")
+				print("   ⏭️ Модель уже актуальна: ", target_model_name)
+			return 1
+	
+	# Создаем папку назначения если нужно
+	var target_dir = target_model_path.get_base_dir()
+	if not DirAccess.dir_exists_absolute(target_dir):
+		DirAccess.make_dir_recursive_absolute(target_dir)
+		if debug_mode:
+			print("   📁 Создана папка: ", target_dir)
+	
+	# Копируем модель
+	if _copy_file(source_model_path, target_model_path):
+		if debug_mode:
+			print("   ✅ Модель скопирована: ", target_model_name)
+		
+		# Обновляем определение с новым путем (путь в res:// для совместимости)
+		var new_model_path_res = "res://src/assets/blocks/" + target_model_name
+		var updated = _update_definition_model(file_path, new_model_path_res)
+		
+		if updated:
+			if debug_mode:
+				print("   ✅ Определение обновлено")
+			return 0
 		else:
 			if debug_mode:
-				print("❌ Ошибка сохранения файла мешера")
+				print("   ❌ Ошибка обновления определения")
+			return 2
 	else:
 		if debug_mode:
-			print("⏭️ Путь в мешере уже актуален")
+			print("   ❌ Ошибка копирования")
+		return 2
 
-func _load_definitions() -> Dictionary:
-	"""Загружает все определения блоков и возвращает словарь имя->определение"""
-	var definitions = {}
-	var def_files = _find_definition_files()
+func _get_model_filename_from_path(model_resource) -> String:
+	"""Извлекает имя файла из ресурса модели"""
+	if model_resource == null:
+		return ""
 	
-	for file_path in def_files:
-		var def_resource = load(file_path)
-		if def_resource and def_resource is BlockDefinition:
-			definitions[def_resource.block_name] = def_resource
+	var path = ""
+	if model_resource.has_method("get_resource_path"):
+		path = model_resource.get_resource_path()
+	elif model_resource is ArrayMesh and model_resource.resource_path != "":
+		path = model_resource.resource_path
 	
-	if debug_mode:
-		print("📚 Загружено определений: ", definitions.size())
+	if path.is_empty():
+		return ""
 	
-	return definitions
+	return path.get_file()
 
 func _find_definition_files() -> Array:
 	"""Находит все .tres файлы определений блоков"""
 	var files = []
-	var dir = DirAccess.open(BLOCKS_FOLDER)
+	var dir = DirAccess.open(BLOCKS_DEFINITIONS)
 	if not dir:
+		if debug_mode:
+			print("⚠️ Папка не найдена: ", BLOCKS_DEFINITIONS)
 		return files
 	
 	dir.list_dir_begin()
 	var file_name = dir.get_next()
 	while file_name != "":
 		if file_name.ends_with(".tres") and file_name != "block_definition.gd":
-			files.append(BLOCKS_FOLDER + file_name)
+			files.append(BLOCKS_DEFINITIONS + file_name)
 		file_name = dir.get_next()
 	dir.list_dir_end()
 	
 	return files
 
-func _modify_library_content(content: String, definitions: Dictionary) -> String:
-	"""Модифицирует содержимое библиотеки, добавляя материалы для блоков"""
-	var lines = content.split("\n")
-	var modified_lines = []
-	var ext_resources = {}
-	var mesh_ext_ids = {}  # mesh_ext_id -> block_name
-	var next_ext_id = 1
-	var modified = false
-	var last_mesh_line_index = -1
+func _copy_file(source: String, target: String) -> bool:
+	"""Копирует файл из source в target"""
+	var src_file = FileAccess.open(source, FileAccess.READ)
+	if not src_file:
+		if debug_mode:
+			print("   ❌ Не удалось прочитать: ", source)
+		return false
 	
-	# Сначала собираем все существующие ext_resource и находим последний mesh
-	for i in range(lines.size()):
-		var current_line = lines[i]
-		if current_line.begins_with("[ext_resource"):
-			var id_match = RegEx.new()
-			id_match.compile('id="([^"]+)"')
-			var id_result = id_match.search(current_line)
-			
-			var path_match = RegEx.new()
-			path_match.compile('path="([^"]+)"')
-			var path_result = path_match.search(current_line)
+	var data = src_file.get_buffer(src_file.get_length())
+	var dst_file = FileAccess.open(target, FileAccess.WRITE)
+	if not dst_file:
+		if debug_mode:
+			print("   ❌ Не удалось создать: ", target)
+		return false
+	
+	dst_file.store_buffer(data)
+	return true
+
+func _update_definition_model(def_path: String, new_model_path: String) -> bool:
+	"""Обновляет ссылку на модель в файле определения"""
+	var content = _read_file(def_path)
+	if content.is_empty():
+		return false
+	
+	var lines = content.split("\n")
+	var updated_lines = []
+	var ext_resources = {}
+	var model_ext_id = ""
+	
+	# Компилируем регулярные выражения
+	var id_regex = RegEx.new()
+	id_regex.compile('id="([^"]+)"')
+	
+	var path_regex = RegEx.new()
+	path_regex.compile('path="([^"]+)"')
+	
+	var ext_regex = RegEx.new()
+	ext_regex.compile('ExtResource\\(\\"([^"]+)\\"\\)')
+	
+	# Сначала собираем все внешние ресурсы
+	for line in lines:
+		if line.begins_with("[ext_resource"):
+			var id_result = id_regex.search(line)
+			var path_result = path_regex.search(line)
 			
 			if id_result and path_result:
-				var ext_id = id_result.get_string(1)
-				var path = path_result.get_string(1)
-				ext_resources[ext_id] = path
-				
-				# Определяем максимальный ID
-				if ext_id.is_valid_int():
-					var num = ext_id.to_int()
-					if num >= next_ext_id:
-						next_ext_id = num + 1
-				elif "_" in ext_id:
-					var parts = ext_id.split("_")
-					if parts[0].is_valid_int():
-						var num = parts[0].to_int()
-						if num >= next_ext_id:
-							next_ext_id = num + 1
-				
-				# Запоминаем позицию последнего mesh
-				if path.ends_with(".obj"):
-					last_mesh_line_index = i
-					# Извлекаем имя блока из пути
-					var block_name = path.get_file().trim_suffix(".obj")
-					mesh_ext_ids[ext_id] = block_name
+				ext_resources[path_result.get_string(1)] = id_result.get_string(1)
 	
-	if debug_mode:
-		print("🔍 Найдено mesh ресурсов: ", mesh_ext_ids.size())
-		print("📌 Последний mesh на строке: ", last_mesh_line_index)
+	# Ищем какой ID используется для model
+	for line in lines:
+		if line.begins_with("model = "):
+			var ext_result = ext_regex.search(line)
+			if ext_result:
+				model_ext_id = ext_result.get_string(1)
 	
-	# Проходим по строкам и собираем измененный контент
-	var material_ext_ids = {}
-	
-	# Сначала копируем все строки до последнего mesh
-	for i in range(last_mesh_line_index + 1):
-		modified_lines.append(lines[i])
-	
-	# Добавляем материалы для каждого блока
-	for mesh_ext_id in mesh_ext_ids:
-		var block_name = mesh_ext_ids[mesh_ext_id]
+	# Если нашли ID, удаляем старый ext_resource и добавляем новый
+	if model_ext_id != "":
+		# Фильтруем строки, удаляя старый ext_resource
+		for line in lines:
+			var skip = false
+			if line.begins_with("[ext_resource") and line.find(model_ext_id) != -1:
+				skip = true
+			if not skip:
+				updated_lines.append(line)
 		
-		if block_name in definitions:
-			var def = definitions[block_name]
-			
-			# Определяем тип материала
-			var material_type = _get_material_type_from_def(def)
-			
-			# Формируем путь к материалу
-			var material_file = material_files.get(material_type, material_files["opaque"])
-			var material_path = MATERIALS_FOLDER + material_file
-			
-			# Проверяем, есть ли уже такой материал
-			var material_ext_id = ""
-			for ext_id in ext_resources:
-				if ext_resources[ext_id] == material_path:
-					material_ext_id = ext_id
-					break
-			
-			# Если нет, создаем новый
-			if material_ext_id == "":
-				material_ext_id = str(next_ext_id) + "_" + _random_string(5)
-				next_ext_id += 1
-				var ext_line = '[ext_resource type="Material" path="' + material_path + '" id="' + material_ext_id + '"]'
-				modified_lines.append(ext_line)
-				modified = true
-				if debug_mode:
-					print("   ✅ Добавлен ext_resource для материала: ", material_ext_id)
-	
-	# Добавляем остальные строки после последнего mesh
-	var line_idx = last_mesh_line_index + 1
-	while line_idx < lines.size():
-		var current_line = lines[line_idx]
+		# Добавляем новый ext_resource в начало
+		var new_ext = '[ext_resource type="ArrayMesh" path="' + new_model_path + '" id="' + model_ext_id + '"]'
+		updated_lines.insert(1, new_ext)
 		
-		# Модифицируем подресурсы, добавляя material_override
-		if current_line.begins_with("[sub_resource type=\"VoxelBlockyModelMesh\""):
-			modified_lines.append(current_line)
-			
-			# Собираем следующие строки до следующего подресурса или [resource]
-			var j = line_idx + 1
-			var resource_lines = []
-			var block_name = ""
-			
-			while j < lines.size() and not lines[j].begins_with("[sub_resource") and not lines[j].begins_with("[resource]"):
-				resource_lines.append(lines[j])
-				
-				# Ищем resource_name
-				if lines[j].begins_with("resource_name = "):
-					var name_match = RegEx.new()
-					name_match.compile('resource_name = "([^"]+)"')
-					var name_result = name_match.search(lines[j])
-					if name_result:
-						block_name = name_result.get_string(1)
-				
-				j += 1
-			
-			# Если нашли имя блока и есть определение
-			if block_name != "" and block_name in definitions:
-				var def = definitions[block_name]
-				
-				# Определяем тип материала
-				var material_type = _get_material_type_from_def(def)
-				
-				# Формируем путь к материалу
-				var material_file = material_files.get(material_type, material_files["opaque"])
-				var material_path = MATERIALS_FOLDER + material_file
-				
-				# Находим ID материала
-				var material_ext_id = ""
-				for ext_id in ext_resources:
-					if ext_resources[ext_id] == material_path:
-						material_ext_id = ext_id
-						break
-				
-				# Если не нашли среди существующих, ищем среди новых
-				if material_ext_id == "":
-					for mod_line in modified_lines:
-						if mod_line.begins_with("[ext_resource") and material_path in mod_line:
-							var id_match = RegEx.new()
-							id_match.compile('id="([^"]+)"')
-							var id_result = id_match.search(mod_line)
-							if id_result:
-								material_ext_id = id_result.get_string(1)
-								break
-				
-				# Проверяем, есть ли уже material_override в resource_lines
-				var has_override = false
-				for rl in resource_lines:
-					if rl.begins_with("material_override_"):
-						has_override = true
-						break
-				
-				if not has_override and material_ext_id != "":
-					# Добавляем строку material_override
-					resource_lines.insert(0, 'material_override_0 = ExtResource("' + material_ext_id + '")')
-					modified = true
-					if debug_mode:
-						print("   ✅ Добавлен material_override для блока: ", block_name)
-			
-			# Добавляем все строки ресурса
-			for rl in resource_lines:
-				modified_lines.append(rl)
-			
-			# Продолжаем с того места, где остановились
-			line_idx = j
-		else:
-			modified_lines.append(current_line)
-			line_idx += 1
+		var new_content = "\n".join(updated_lines)
+		return _write_file(def_path, new_content)
 	
-	if modified:
-		return "\n".join(modified_lines)
-	else:
-		return content
-
-func _get_material_type_from_def(def: BlockDefinition) -> String:
-	"""Извлекает тип материала из определения блока"""
-	if "material_type" in def and def.get("material_type") != null:
-		return def.material_type
-	elif "material_type_enum" in def:
-		match def.material_type_enum:
-			def.MaterialType.OPAQUE:
-				return "opaque"
-			def.MaterialType.TRANSPARENT:
-				return "transparent"
-			def.MaterialType.FOLIAGE:
-				return "foliage"
-	return "opaque"
-
-func _random_string(length: int) -> String:
-	"""Генерирует случайную строку заданной длины"""
-	var chars = "abcdefghijklmnopqrstuvwxyz"
-	var result = ""
-	for i in range(length):
-		result += chars[randi() % chars.length()]
-	return result
+	return false
 
 func _read_file(path: String) -> String:
 	"""Читает файл и возвращает содержимое"""

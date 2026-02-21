@@ -13,7 +13,7 @@ class_name AtlasCoordinates
 func get_png_path() -> String:
 	if png_path != "":
 		return png_path
-	return PathManager.smart("res://src/assets/textures/atlas/" + png_filename)
+	return PathManager.game("res://src/assets/textures/atlas/" + png_filename)
 
 # Метод для загрузки PNG как текстуры
 func load_png_as_texture() -> Texture2D:

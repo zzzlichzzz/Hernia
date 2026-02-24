@@ -234,6 +234,7 @@ func _process_block_definition(file_path: String):
 	
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 =======
@@ -242,6 +243,9 @@ func _process_block_definition(file_path: String):
 =======
 	# 🔥 Загружаем определение из папки рядом с exe
 >>>>>>> Stashed changes
+=======
+	# Загружаем определение из проекта
+>>>>>>> parent of 74d575f (исправил наложение текстур)
 =======
 	# Загружаем определение из проекта
 >>>>>>> parent of 74d575f (исправил наложение текстур)
@@ -266,8 +270,12 @@ func _process_block_definition(file_path: String):
 	
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 	# Получаем путь к модели
+=======
+	# Получаем путь к модели из ресурса блока
+>>>>>>> parent of 74d575f (исправил наложение текстур)
 =======
 	# Получаем путь к модели из ресурса блока
 >>>>>>> parent of 74d575f (исправил наложение текстур)
@@ -316,6 +324,7 @@ func _process_block_definition(file_path: String):
 	model.mesh = mesh_resource
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 	model.culls_neighbors = def.culls_neighbors
@@ -331,6 +340,12 @@ func _process_block_definition(file_path: String):
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+=======
+	
+	# 🔥 УСТАНАВЛИВАЕМ ПАРАМЕТРЫ РЕНДЕРИНГА
+	model.culls_neighbors = def.culls_neighbors  # Важно!
+	model.transparency_index = def.transparency_index  # 0 для opaque
+>>>>>>> parent of 74d575f (исправил наложение текстур)
 =======
 	
 	# 🔥 УСТАНАВЛИВАЕМ ПАРАМЕТРЫ РЕНДЕРИНГА

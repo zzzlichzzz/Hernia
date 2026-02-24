@@ -2,6 +2,7 @@
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 [ext_resource type="ArrayMesh" uid="uid://dt146u35jqk7b" path="res://src/assets/blocks/models/cube.obj" id="1_70b3x"]
@@ -11,6 +12,9 @@
 =======
 [ext_resource type="ArrayMesh" uid="uid://dhwnfsfnlwlh2" path="res://src/assets/blocks/models/cube.obj" id="1_70b3x"]
 >>>>>>> Stashed changes
+=======
+[ext_resource type="ArrayMesh" uid="uid://dhwnfsfnlwlh2" path="res://src/assets/blocks/models/cube.obj" id="1_70b3x"]
+>>>>>>> parent of 74d575f (исправил наложение текстур)
 =======
 [ext_resource type="ArrayMesh" uid="uid://dhwnfsfnlwlh2" path="res://src/assets/blocks/models/cube.obj" id="1_70b3x"]
 >>>>>>> parent of 74d575f (исправил наложение текстур)

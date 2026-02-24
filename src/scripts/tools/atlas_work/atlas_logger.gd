@@ -1,4 +1,5 @@
 extends RefCounted
+class_name AtlasLogger
 # Простой логгер для записи в файл в user://
 
 var log_file: FileAccess

@@ -31,7 +31,7 @@ func build_atlas() -> bool:
 	
 	# ШАГ 2: Создание материалов из атласа
 	print("\n🎨 ШАГ 2/3: Создание материалов...")
-	var material_creator = load("res://src/scripts/tools/atlas_work/atlas_material.gd").new()
+	var material_creator = load("res://src/scripts/tools/atlas_work/atlas_material_generator.gd").new()
 	material_creator.create_all_materials()
 	
 	last_build_time = Time.get_datetime_dict_from_system()

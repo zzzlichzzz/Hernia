@@ -6,8 +6,9 @@ extends Node2D
 @onready var path_label = $CanvasLayer/Control/VBoxContainer/Label
 
 # Ссылка на координаты атласа
+var game_path = OS.get_executable_path().get_base_dir().path_join("")
 var atlas_coords: AtlasCoordinates = null
-var atlas_path: String = PathManager.game("res://src/assets/textures/atlas/block_coordinates.tres")
+var atlas_path = game_path + "src/assets/textures/atlas/block_coordinates.tres"
 
 func _ready():
 	# Показываем путь к атласу
@@ -30,7 +31,7 @@ func update_path_display():
 	if not path_label:
 		return
 	
-	var full_path = PathManager.smart("res://src/assets/textures/atlas/")
+	var full_path = PathManager.game("res://src/assets/textures/atlas/")
 	path_label.text = "📁 Атлас в: " + full_path
 	path_label.modulate = Color(0.8, 0.8, 0.8)
 
@@ -102,7 +103,7 @@ func display_block_info(block_name: String):
 	add_result("📌 Полный путь PNG:", atlas_coords.get_png_path())
 	
 	# Системная информация
-	var real_path = PathManager.smart("res://src/assets/textures/atlas/")
+	var real_path = PathManager.game("res://src/assets/textures/atlas/")
 	add_result("💻 На диске:", real_path)
 
 func add_preview_to_results(block_name: String, data: Dictionary):
@@ -125,18 +126,21 @@ func add_preview_to_results(block_name: String, data: Dictionary):
 	spacer.custom_minimum_size = Vector2(50, 0)
 	image_container.add_child(spacer)
 	
-	# Загружаем PNG и создаем текстуру
+	# 🔥 ЗАГРУЗКА ИЗОБРАЖЕНИЯ
 	var png_path = atlas_coords.get_png_path()
 	var texture = null
 	
 	if FileAccess.file_exists(png_path):
 		var img = Image.load_from_file(png_path)
 		if img:
-			# Вырезаем регион блока из атласа
+			# Проверяем границы
 			if data.x + data.width <= img.get_width() and data.y + data.height <= img.get_height():
 				var region_img = Image.create(data.width, data.height, false, img.get_format())
 				region_img.blit_rect(img, Rect2i(data.x, data.y, data.width, data.height), Vector2i(0, 0))
 				texture = ImageTexture.create_from_image(region_img)
+				print("✅ Регион вырезан: ", data.x, ",", data.y, " ", data.width, "x", data.height)
+			else:
+				print("⚠️ Регион выходит за границы: атлас ", img.get_width(), "x", img.get_height())
 	
 	if texture:
 		var preview = TextureRect.new()
@@ -167,6 +171,7 @@ func add_preview_to_results(block_name: String, data: Dictionary):
 		error_label.modulate = Color(1, 0.3, 0.3)
 		error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		image_container.add_child(error_label)
+		print("❌ Ошибка загрузки PNG: ", png_path)
 	
 	preview_block.add_child(image_container)
 	

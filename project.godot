@@ -25,6 +25,10 @@ MirrorFolder="*uid://dd3hdlmkc0f4g"
 AtlasManager="*uid://e8behdqx0b0a"
 BlocksRegistry="*uid://di50m3fyk76am"
 
+[editor_plugins]
+
+enabled=PackedStringArray()
+
 [file_customization]
 
 folder_colors={

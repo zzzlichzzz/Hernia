@@ -1,5 +1,5 @@
 @tool
-extends Node
+extends ScriptEditor
 # Зеркало - копирует папку src из проекта в папку РЯДОМ С EXE
 
 @export var enabled: bool = true

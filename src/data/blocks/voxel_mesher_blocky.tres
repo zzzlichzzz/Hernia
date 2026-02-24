@@ -1,6 +1,6 @@
-[gd_resource type="VoxelMesherBlocky" format=3]
+[gd_resource type="VoxelMesherBlocky" format=3 uid="uid://bfb1l76y4gpwc"]
 
-[ext_resource type="VoxelBlockyLibrary" path="D:/vajno/Godot/Godot v4.6 voxel/src/data/blocks/voxel_blocky_library.tres" id="1_61eru"]
+[ext_resource type="VoxelBlockyLibrary" path="C:/Users/kirikws/Desktop/godot/src/data/blocks/voxel_blocky_library.tres" id="1_61eru"]
 
 [resource]
 library = ExtResource("1_61eru")

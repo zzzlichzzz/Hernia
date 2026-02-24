@@ -2,7 +2,11 @@
 
 [ext_resource type="Script" uid="uid://c4qx5vqwkdro2" path="res://src/data/blocks/block_definition.gd" id="1_8s106"]
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 [ext_resource type="ArrayMesh" uid="uid://dt146u35jqk7b" path="res://src/assets/blocks/models/cube.obj" id="1_yv80w"]
+=======
+[ext_resource type="ArrayMesh" uid="uid://dhwnfsfnlwlh2" path="res://src/assets/blocks/models/cube.obj" id="1_yv80w"]
+>>>>>>> Stashed changes
 =======
 [ext_resource type="ArrayMesh" uid="uid://dhwnfsfnlwlh2" path="res://src/assets/blocks/models/cube.obj" id="1_yv80w"]
 >>>>>>> Stashed changes

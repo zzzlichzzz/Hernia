@@ -27,7 +27,11 @@ func _update_mesher():
 	
 	# 🔥 ИСПРАВЛЕНО: используем OS напрямую, без PathManager
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 	var library_path = OS.get_executable_path().get_base_dir().path_join("src/data/blocks/voxel_blocky_library.tres")
+=======
+	var library_path = _get_exe_path() + "/src/data/blocks/voxel_blocky_library.tres"
+>>>>>>> Stashed changes
 =======
 	var library_path = _get_exe_path() + "/src/data/blocks/voxel_blocky_library.tres"
 >>>>>>> Stashed changes
@@ -63,7 +67,10 @@ func _update_mesher():
 			print("⚠️ Ошибка сохранения мешера: ", save_result)
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 # 🔥 ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ ПУТИ К ПАПКЕ С EXE
 func _get_exe_path() -> String:
 	# ВСЕГДА возвращает путь к папке с exe (в редакторе - папка Godot.exe)

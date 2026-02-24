@@ -2,7 +2,11 @@
 
 [ext_resource type="PackedScene" uid="uid://dxf5dr4bn0yc7" path="res://src/scenes/entities/player/Player.tscn" id="1_8bujj"]
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 [ext_resource type="VoxelMesherBlocky" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
+=======
+[ext_resource type="VoxelMesherBlocky" uid="uid://bfb1l76y4gpwc" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
+>>>>>>> Stashed changes
 =======
 [ext_resource type="VoxelMesherBlocky" uid="uid://bfb1l76y4gpwc" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
 >>>>>>> Stashed changes

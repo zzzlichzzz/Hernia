@@ -1,7 +1,11 @@
 [gd_resource type="Resource" script_class="BlockDefinition" format=3 uid="uid://66nf2igowrrw"]
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 [ext_resource type="ArrayMesh" uid="uid://dt146u35jqk7b" path="res://src/assets/blocks/models/cube.obj" id="1_70b3x"]
+=======
+[ext_resource type="ArrayMesh" uid="uid://dhwnfsfnlwlh2" path="res://src/assets/blocks/models/cube.obj" id="1_70b3x"]
+>>>>>>> Stashed changes
 =======
 [ext_resource type="ArrayMesh" uid="uid://dhwnfsfnlwlh2" path="res://src/assets/blocks/models/cube.obj" id="1_70b3x"]
 >>>>>>> Stashed changes
@@ -11,7 +15,10 @@
 script = ExtResource("2_bkbuw")
 block_name = "stone"
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 texture_name = "stone"
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 model = ExtResource("1_70b3x")

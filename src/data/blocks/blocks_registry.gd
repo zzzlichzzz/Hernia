@@ -6,13 +6,19 @@ extends Node
 var _exe_path = OS.get_executable_path().get_base_dir().path_join("")
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 # 🔥 ПУТЬ К БИБЛИОТЕКЕ РЯДОМ С EXE
 var LIBRARY_PATH = _exe_path + "/src/data/blocks/voxel_blocky_library.tres"
 =======
+=======
+>>>>>>> Stashed changes
 # 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С EXE
 var LIBRARY_PATH = _exe_path + "/src/data/blocks/voxel_blocky_library.tres"
 var BLOCKS_FOLDER = _exe_path + "/src/data/blocks/definitions/"
 var MODELS_FOLDER = _exe_path + "/src/assets/blocks/"
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 # 🔥 ПУТИ К ОПРЕДЕЛЕНИЯМ В ПРОЕКТЕ (НЕ рядом с exe!)
@@ -32,7 +38,10 @@ var block_count: int = 0
 var mesher_manager: Node
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 const BLOCK_CREATOR_PATH = "res://src/data/blocks/block_creator.gd"
 
 >>>>>>> Stashed changes
@@ -68,6 +77,12 @@ func _build_library():
 		print("📁 Путь к EXE: ", _exe_path)
 	
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+	if run_creator_before_build:
+		_run_block_creator()
+	
+>>>>>>> Stashed changes
 =======
 	if run_creator_before_build:
 		_run_block_creator()
@@ -119,7 +134,10 @@ func _build_library():
 		return
 	
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 	# 🔥 ШАГ 7: Запускаем MaterialApplier для применения материалов
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 	if debug_mode:
@@ -138,6 +156,9 @@ func _build_library():
 func _run_material_applier():
 =======
 func _run_block_creator():
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 	if debug_mode:
 		print("\n🎨 Запуск MaterialApplier для применения материалов")
@@ -164,6 +185,9 @@ func _run_block_creator():
 		creator.set_exe_path(_exe_path)
 	
 	creator.run()
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 func _update_mesher():
@@ -208,6 +232,10 @@ func _process_block_definition(file_path: String):
 		print("\n🔧 Обработка: ", file_path.get_file())
 	
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+	# 🔥 Загружаем определение из папки рядом с exe
+>>>>>>> Stashed changes
 =======
 	# 🔥 Загружаем определение из папки рядом с exe
 >>>>>>> Stashed changes
@@ -229,6 +257,7 @@ func _process_block_definition(file_path: String):
 		print("   🔲 Коллизия: ", "включена" if def.collision_enabled else "отключена")
 		print("   📏 AABB: ", def.collision_aabbs)
 	
+<<<<<<< Updated upstream
 	# Получаем путь к модели
 	var model_path = ""
 	if def.model != null:
@@ -245,6 +274,8 @@ func _process_block_definition(file_path: String):
 	
 <<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 	# 🔥 Формируем путь к модели по имени блока в папке рядом с exe
 	var model_path = MODELS_FOLDER + def.block_name + ".obj"
 >>>>>>> Stashed changes
@@ -267,6 +298,7 @@ func _process_block_definition(file_path: String):
 	model.resource_name = def.block_name
 	model.mesh = mesh_resource
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 	model.culls_neighbors = def.culls_neighbors
 	model.transparency_index = def.transparency_index
 	
@@ -276,6 +308,8 @@ func _process_block_definition(file_path: String):
 	# Устанавливаем флаг коллизии для первого AABB (индекс 0)
 	# Используем set, так как прямое свойство collision_enabled отсутствует
 	model.set("collision_enabled_0", def.collision_enabled)
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 	

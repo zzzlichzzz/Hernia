@@ -1,7 +1,17 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 [gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://cuhrfkdvb2uqh"]
 
 [resource]
+=======
+[gd_resource type="VoxelBlockyLibrary" format=3]
+
+[sub_resource type="VoxelBlockyModelEmpty" id="VoxelBlockyModelEmpty_rhbfg"]
+resource_name = "air"
+
+[resource]
+models = Array[VoxelBlockyModel]([SubResource("VoxelBlockyModelEmpty_rhbfg")])
+>>>>>>> Stashed changes
 =======
 [gd_resource type="VoxelBlockyLibrary" format=3]
 

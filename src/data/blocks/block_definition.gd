@@ -1,31 +1,27 @@
 extends Resource
 class_name BlockDefinition
+# Определение блока для последующей сборки в библиотеку
 
 @export var block_name: String = ""
 @export var texture_name: String = ""
-
-# Модель блока (ArrayMesh)
 @export var model: ArrayMesh
 
-# Параметры рендеринга для godot_voxel
-@export var culls_neighbors: bool = true   # Отсекать ли грани соседей
-@export var transparency_index: int = 0    # 0 = непрозрачный, >0 = прозрачный
+# 🔥 НОВЫЕ ПАРАМЕТРЫ ДЛЯ УПРАВЛЕНИЯ РЕНДЕРИНГОМ
+@export var culls_neighbors: bool = true  # Должен ли этот блок отсекать грани соседей
+@export var transparency_index: int = 0    # 0 = непрозрачный, >0 = прозрачный [citation:5][citation:9]
 
-# Тип материала для шейдера
 enum MaterialType { OPAQUE, TRANSPARENT, FOLIAGE }
 @export var material_type_enum: MaterialType = MaterialType.OPAQUE
-var material_type: String = "opaque"  # автоматически устанавливается из enum
+var material_type: String = "opaque"
 
-# Коллизия
-@export var collision_enabled: bool = true                     # Включена ли коллизия для блока
-@export var collision_aabbs: Array[AABB] = [AABB(Vector3(0, 0, 0), Vector3(1, 1, 1))]  # По умолчанию полный куб
-@export var collision_mask: int = 1                            # Маска коллизии (битовая)
-
-# Прочие свойства
 @export var transparent: bool = false
 @export var solid: bool = true
 @export var hardness: float = 1.0
 @export var rotation_type: int = 0
+
+@export var collision_aabbs: Array = []
+@export var collision_mask: int = 1
+
 @export var is_fluid: bool = false
 @export var viscosity: float = 0.8
 

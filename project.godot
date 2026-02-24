@@ -31,7 +31,6 @@ enabled=PackedStringArray()
 [file_customization]
 
 folder_colors={
-"res://common/": "red",
 "res://src/": "green"
 }
 

@@ -1,29 +1,19 @@
 shader_type spatial;
 
-render_mode blend_mix, unshaded, cull_back, shadows_disabled;
+// ✅ ВАЖНО: cull_back отсекает невидимые стороны
+render_mode blend_mix, unshaded, shadows_disabled, cull_back;
 
 uniform sampler2D atlas_texture : filter_nearest, repeat_disable;
 uniform vec2 block_uv_offset;
 uniform vec2 block_uv_size;
 
 void fragment() {
-	// Размер атласа в пикселях
-	vec2 atlas_size = vec2(textureSize(atlas_texture, 0));
+	vec2 uv = vec2(
+		block_uv_offset.x + (UV.x * block_uv_size.x),
+		block_uv_offset.y + (UV.y * block_uv_size.y)
+	);
 	
-	// Сколько текселей занимает текстура этого блока
-	vec2 block_texels = block_uv_size * atlas_size;
-	
-	// Привязка UV к центру ближайшего текселя (texel snapping)
-	vec2 snapped_uv = (floor(UV * block_texels) + 0.5) / block_texels;
-	
-	// Ограничиваем, чтобы не залезть в соседнюю текстуру атласа
-	vec2 half_texel = 0.5 / block_texels;
-	snapped_uv = clamp(snapped_uv, half_texel, 1.0 - half_texel);
-	
-	// Итоговые координаты в атласе
-	vec2 final_uv = block_uv_offset + snapped_uv * block_uv_size;
-	
-	vec4 color = texture(atlas_texture, final_uv);
+	vec4 color = texture(atlas_texture, uv);
 	ALBEDO = color.rgb;
 	ALPHA = 1.0;
 }

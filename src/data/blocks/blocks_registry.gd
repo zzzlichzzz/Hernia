@@ -228,9 +228,11 @@ func _add_air():
 	block_count += 1
 
 func _process_block_definition(file_path: String):
+	"""Обрабатывает один файл определения блока из проекта"""
 	if debug_mode:
 		print("\n🔧 Обработка: ", file_path.get_file())
 	
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 =======
@@ -239,6 +241,9 @@ func _process_block_definition(file_path: String):
 =======
 	# 🔥 Загружаем определение из папки рядом с exe
 >>>>>>> Stashed changes
+=======
+	# Загружаем определение из проекта
+>>>>>>> parent of 74d575f (исправил наложение текстур)
 	if not FileAccess.file_exists(file_path):
 		if debug_mode:
 			print("   ❌ Файл не найден: ", file_path)
@@ -254,12 +259,15 @@ func _process_block_definition(file_path: String):
 	if debug_mode:
 		print("   📦 Блок: ", def.block_name)
 		print("   🎨 Материал: ", def.material_type)
-		print("   🔲 Коллизия: ", "включена" if def.collision_enabled else "отключена")
-		print("   📏 AABB: ", def.collision_aabbs)
 	
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 	# Получаем путь к модели
+=======
+	# Получаем путь к модели из ресурса блока
+>>>>>>> parent of 74d575f (исправил наложение текстур)
 	var model_path = ""
+	
 	if def.model != null:
 		if def.model.has_method("get_resource_path"):
 			model_path = def.model.get_resource_path()
@@ -282,6 +290,7 @@ func _process_block_definition(file_path: String):
 	if debug_mode:
 		print("   🔍 Модель из определения: ", model_path)
 	
+	# Проверяем существование модели в проекте
 	if not ResourceLoader.exists(model_path):
 		if debug_mode:
 			print("   ⚠️ Модель не найдена: ", model_path)
@@ -297,6 +306,7 @@ func _process_block_definition(file_path: String):
 	var model = VoxelBlockyModelMesh.new()
 	model.resource_name = def.block_name
 	model.mesh = mesh_resource
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 	model.culls_neighbors = def.culls_neighbors
@@ -312,10 +322,15 @@ func _process_block_definition(file_path: String):
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+=======
+	
+	# 🔥 УСТАНАВЛИВАЕМ ПАРАМЕТРЫ РЕНДЕРИНГА
+	model.culls_neighbors = def.culls_neighbors  # Важно!
+	model.transparency_index = def.transparency_index  # 0 для opaque
+>>>>>>> parent of 74d575f (исправил наложение текстур)
 	
 	if debug_mode:
 		print("   ✅ Mesh загружен: ", model_path)
-		print("   ✅ Коллизия настроена")
 	
 	var id = library.add_model(model)
 	if debug_mode:

@@ -1,45 +1,36 @@
 extends Resource
 class_name BlockDefinition
-# Определение блока для последующей сборки в библиотеку
 
 @export var block_name: String = ""
+@export var texture_name: String = ""
 
-# Модель выбирается через стандартный ResourcePicker Godot
+# Модель блока (ArrayMesh)
 @export var model: ArrayMesh
 
-# Для сложных блоков: можно указать несколько вариантов
-@export var variant_models: Dictionary = {
-	# "x": ExtResource("..."),
-	# "y": ExtResource("..."),
-	# "z": ExtResource("...")
-}
+# Параметры рендеринга для godot_voxel
+@export var culls_neighbors: bool = true   # Отсекать ли грани соседей
+@export var transparency_index: int = 0    # 0 = непрозрачный, >0 = прозрачный
 
-# 🔥 ВАРИАНТ 1: Используем enum для выбора материала (ПРОСТОЙ)
+# Тип материала для шейдера
 enum MaterialType { OPAQUE, TRANSPARENT, FOLIAGE }
 @export var material_type_enum: MaterialType = MaterialType.OPAQUE
+var material_type: String = "opaque"  # автоматически устанавливается из enum
 
-# 🔥 ВАРИАНТ 2: Динамический выпадающий список строк (СЛОЖНЫЙ)
-# Поле для хранения выбранного материала (строкой)
-var material_type: String = "opaque"
+# Коллизия
+@export var collision_enabled: bool = true                     # Включена ли коллизия для блока
+@export var collision_aabbs: Array[AABB] = [AABB(Vector3(0, 0, 0), Vector3(1, 1, 1))]  # По умолчанию полный куб
+@export var collision_mask: int = 1                            # Маска коллизии (битовая)
 
+# Прочие свойства
 @export var transparent: bool = false
 @export var solid: bool = true
 @export var hardness: float = 1.0
-@export var rotation_type: int = 0  # 0 = none, 1 = axial, 2 = y
-
-# Для сложных коллизий (опционально)
-@export var collision_aabbs: Array = []  # массив AABB
-@export var collision_mask: int = 1
-
-# Для жидкостей
+@export var rotation_type: int = 0
 @export var is_fluid: bool = false
 @export var viscosity: float = 0.8
 
-# 🔥 Добавляем динамический выпадающий список для material_type
 func _get_property_list() -> Array:
 	var properties = []
-	
-	# Добавляем material_type как выпадающий список строк
 	properties.append({
 		"name": "material_type",
 		"type": TYPE_STRING,
@@ -47,14 +38,11 @@ func _get_property_list() -> Array:
 		"hint_string": "opaque,transparent,foliage",
 		"usage": PROPERTY_USAGE_DEFAULT
 	})
-	
 	return properties
 
-# 🔥 Синхронизация между enum и строкой (опционально)
 func _set(property: StringName, value) -> bool:
 	match property:
 		"material_type_enum":
-			# При изменении enum обновляем строку
 			match value:
 				MaterialType.OPAQUE:
 					material_type = "opaque"
@@ -68,7 +56,6 @@ func _set(property: StringName, value) -> bool:
 func _get(property: StringName):
 	match property:
 		"material_type_enum":
-			# При чтении enum конвертируем строку
 			match material_type:
 				"opaque":
 					return MaterialType.OPAQUE

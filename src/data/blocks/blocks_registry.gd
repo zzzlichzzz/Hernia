@@ -5,23 +5,24 @@ extends Node
 # 🔥 Получаем путь к папке с exe (в редакторе это папка Godot.exe)
 var _exe_path = OS.get_executable_path().get_base_dir().path_join("")
 
-# 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С EXE
-var LIBRARY_PATH = _exe_path + "src/data/blocks/voxel_blocky_library.tres"
-var BLOCKS_FOLDER = _exe_path + "src/data/blocks/definitions/"
-var MODELS_FOLDER = _exe_path + "src/assets/blocks/"
+# 🔥 ПУТЬ К БИБЛИОТЕКЕ РЯДОМ С EXE
+var LIBRARY_PATH = _exe_path + "/src/data/blocks/voxel_blocky_library.tres"
 
-# 🔥 ПУТЬ К МЕШЕРУ ОСТАЕТСЯ В res://
+# 🔥 ПУТИ К ОПРЕДЕЛЕНИЯМ В ПРОЕКТЕ (НЕ рядом с exe!)
+var BLOCKS_FOLDER = "res://src/data/blocks/definitions/"
+
+# 🔥 ПУТЬ К МОДЕЛЯМ В ПРОЕКТЕ
+var MODELS_FOLDER = "res://src/assets/blocks/"
+
+# 🔥 ПУТЬ К МЕШЕРУ В ПРОЕКТЕ
 const MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
 
 @export var auto_build: bool = true
 @export var debug_mode: bool = true
-@export var run_creator_before_build: bool = true
 
 var library: VoxelBlockyLibrary
 var block_count: int = 0
 var mesher_manager: Node
-
-const BLOCK_CREATOR_PATH = "res://src/data/blocks/block_creator.gd"
 
 func _ready():
 	if Engine.is_editor_hint():
@@ -54,15 +55,12 @@ func _build_library():
 			print("📌 Режим: РЕДАКТОР")
 		print("📁 Путь к EXE: ", _exe_path)
 	
-	if run_creator_before_build:
-		_run_block_creator()
-	
 	if debug_mode:
 		print("\n📁 ШАГ 1: Создание новой библиотеки")
-		print("   📍 LIBRARY_PATH: ", LIBRARY_PATH)
-		print("   📍 BLOCKS_FOLDER: ", BLOCKS_FOLDER)
-		print("   📍 MODELS_FOLDER: ", MODELS_FOLDER)
-		print("   📍 MESHER_PATH: ", MESHER_PATH)
+		print("   📍 LIBRARY_PATH (exe): ", LIBRARY_PATH)
+		print("   📍 BLOCKS_FOLDER (проект): ", BLOCKS_FOLDER)
+		print("   📍 MODELS_FOLDER (проект): ", MODELS_FOLDER)
+		print("   📍 MESHER_PATH (проект): ", MESHER_PATH)
 	
 	library = VoxelBlockyLibrary.new()
 	
@@ -102,37 +100,24 @@ func _build_library():
 		print("❌ Ошибка сохранения: ", result)
 		return
 	
+	# 🔥 ШАГ 7: Запускаем MaterialApplier для применения материалов
 	if debug_mode:
-		print("\n🔄 ШАГ 7: Обновление мешера")
+		print("\n🎨 ШАГ 7: Применение материалов к библиотеке")
+	_run_material_applier()
+	
+	if debug_mode:
+		print("\n🔄 ШАГ 8: Обновление мешера")
 	_update_mesher()
 	
 	if debug_mode:
 		print("✅ СБОРКА ЗАВЕРШЕНА")
 		print("📊 Всего блоков: ", block_count)
 
-func _run_block_creator():
+func _run_material_applier():
 	if debug_mode:
-		print("\n🔄 ШАГ 0: Запуск BlockCreator для подготовки моделей")
+		print("\n🎨 Запуск MaterialApplier для применения материалов")
 	
-	if not ResourceLoader.exists(BLOCK_CREATOR_PATH):
-		if debug_mode:
-			print("⚠️ BlockCreator не найден")
-		return
-	
-	var creator_script = load(BLOCK_CREATOR_PATH)
-	if not creator_script:
-		if debug_mode:
-			print("⚠️ Не удалось загрузить BlockCreator")
-		return
-	
-	var creator = creator_script.new()
-	creator.debug_mode = debug_mode
-	
-	# 🔥 Передаем путь к exe
-	if creator.has_method("set_exe_path"):
-		creator.set_exe_path(_exe_path)
-	
-	creator.run()
+	BlockMaterialApplier.apply(debug_mode)
 
 func _update_mesher():
 	if mesher_manager and mesher_manager.has_method("_update_mesher"):
@@ -144,7 +129,7 @@ func _update_mesher():
 			print("⚠️ Не удалось обновить мешер")
 
 func _find_block_definitions() -> Array:
-	"""Находит все .tres файлы определений блоков"""
+	"""Находит все .tres файлы определений блоков в проекте"""
 	var files = []
 	var dir = DirAccess.open(BLOCKS_FOLDER)
 	if not dir:
@@ -172,11 +157,9 @@ func _add_air():
 	block_count += 1
 
 func _process_block_definition(file_path: String):
-	"""Обрабатывает один файл определения блока"""
 	if debug_mode:
 		print("\n🔧 Обработка: ", file_path.get_file())
 	
-	# 🔥 Загружаем определение из папки рядом с exe
 	if not FileAccess.file_exists(file_path):
 		if debug_mode:
 			print("   ❌ Файл не найден: ", file_path)
@@ -192,11 +175,25 @@ func _process_block_definition(file_path: String):
 	if debug_mode:
 		print("   📦 Блок: ", def.block_name)
 		print("   🎨 Материал: ", def.material_type)
+		print("   🔲 Коллизия: ", "включена" if def.collision_enabled else "отключена")
+		print("   📏 AABB: ", def.collision_aabbs)
 	
-	# 🔥 Формируем путь к модели по имени блока в папке рядом с exe
-	var model_path = MODELS_FOLDER + def.block_name + ".obj"
+	# Получаем путь к модели
+	var model_path = ""
+	if def.model != null:
+		if def.model.has_method("get_resource_path"):
+			model_path = def.model.get_resource_path()
+		elif def.model is ArrayMesh and def.model.resource_path != "":
+			model_path = def.model.resource_path
+	
+	if model_path.is_empty():
+		if debug_mode:
+			print("   ⚠️ В определении не указана модель")
+			print("      Блок будет пропущен")
+		return
+	
 	if debug_mode:
-		print("   🔍 Поиск модели: ", model_path)
+		print("   🔍 Модель из определения: ", model_path)
 	
 	if not ResourceLoader.exists(model_path):
 		if debug_mode:
@@ -213,9 +210,19 @@ func _process_block_definition(file_path: String):
 	var model = VoxelBlockyModelMesh.new()
 	model.resource_name = def.block_name
 	model.mesh = mesh_resource
+	model.culls_neighbors = def.culls_neighbors
+	model.transparency_index = def.transparency_index
+	
+	# Устанавливаем массив AABB (работает напрямую)
+	model.collision_aabbs = def.collision_aabbs
+	
+	# Устанавливаем флаг коллизии для первого AABB (индекс 0)
+	# Используем set, так как прямое свойство collision_enabled отсутствует
+	model.set("collision_enabled_0", def.collision_enabled)
 	
 	if debug_mode:
 		print("   ✅ Mesh загружен: ", model_path)
+		print("   ✅ Коллизия настроена")
 	
 	var id = library.add_model(model)
 	if debug_mode:

@@ -1,274 +1,204 @@
 @tool
-extends EditorScript
-# Инструмент для создания модели блока из определения (запускается через Execute)
-# ВСЕГДА использует папку рядом с exe, даже в редакторе
+extends Node
+class_name BlockMaterialApplier
 
-# 🔥 Получаем путь к папке с exe (в редакторе это папка Godot.exe)
-var _exe_path = OS.get_executable_path().get_base_dir().path_join("")
+# Прямой путь к папке с exe
+var _game_path = OS.get_executable_path().get_base_dir().path_join("")
 
-# 🔥 ВСЕ ПУТИ ВЕДУТ В ПАПКУ РЯДОМ С EXE (даже в редакторе)
-var BLOCKS_DEFINITIONS = _exe_path + "/src/data/blocks/definitions/"
-var MODELS_TARGET = _exe_path + "/src/assets/blocks/"
-var MODELS_SOURCE = _exe_path + "/src/assets/blocks/models/"
-
-# 🔥 ПУТЬ К МЕШЕРУ ОСТАЕТСЯ В res://
-var MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
+var BLOCKS_FOLDER = "res://src/data/blocks/definitions/"
+var LIBRARY_PATH = _game_path + "/src/data/blocks/voxel_blocky_library.tres"
 
 var debug_mode: bool = true
 
-func _run():
-	print("🧱 BLOCK CREATOR TOOL: Запуск создания моделей")
-	print("📁 Путь к EXE: ", _exe_path)
-	print("📁 BLOCKS_DEFINITIONS: ", BLOCKS_DEFINITIONS)
-	print("📁 MODELS_SOURCE: ", MODELS_SOURCE)
-	print("📁 MODELS_TARGET: ", MODELS_TARGET)
-	print("📁 MESHER_PATH: ", MESHER_PATH)
-	
-	# Проверяем существование папок
-	if not DirAccess.dir_exists_absolute(BLOCKS_DEFINITIONS):
-		print("❌ Папка не найдена: ", BLOCKS_DEFINITIONS)
-		print("   Убедитесь, что папка src/data/blocks/definitions/ существует рядом с EXE")
-		print("   (в редакторе это папка самого Godot.exe)")
-		return
-	
-	# ШАГ 1: Получаем список всех определений блоков
-	print("\n📁 ШАГ 1: Поиск определений блоков")
-	var definition_files = _find_definition_files()
-	if definition_files.is_empty():
-		print("❌ Нет файлов определений в: ", BLOCKS_DEFINITIONS)
-		return
-	
-	print("📋 Найдено определений: ", definition_files.size())
-	
-	var processed = 0
-	var skipped = 0
-	var errors = 0
-	
-	# Обрабатываем каждое определение
-	for file_path in definition_files:
-		var result = _process_definition(file_path)
-		match result:
-			0:
-				processed += 1
-			1:
-				skipped += 1
-			2:
-				errors += 1
-	
-	print("📊 РЕЗУЛЬТАТ:")
-	print("   ✅ Обработано: ", processed)
-	print("   ⏭️ Пропущено: ", skipped)
-	print("   ❌ Ошибок: ", errors)
+# Используем AtlasMaterialGenerator
+var _atlas_material_generator: AtlasMaterialGenerator = null
 
-func _process_definition(file_path: String) -> int:
-	"""Обрабатывает один файл определения. Возвращает 0=успех, 1=пропуск, 2=ошибка"""
+func run():
 	if debug_mode:
-		print("\n🔧 Обработка: ", file_path.get_file())
+		print("🎨 BLOCK MATERIAL APPLIER: Применение материалов с текстурами из атласа")
+		print("📁 _game_path: ", _game_path)
+		print("📁 LIBRARY_PATH: ", LIBRARY_PATH)
 	
-	# Загружаем определение
-	var def_resource = load(file_path)
-	if not def_resource or not def_resource is BlockDefinition:
+	_init_atlas_material_generator()
+	if not _atlas_material_generator:
 		if debug_mode:
-			print("   ❌ Неверный формат определения")
-		return 2
+			print("❌ Не удалось инициализировать AtlasMaterialGenerator")
+		return
 	
-	var def: BlockDefinition = def_resource
-	
-	# Проверяем наличие модели
-	if def.model == null:
+	var library = load(LIBRARY_PATH)
+	if not library:
 		if debug_mode:
-			print("   ⏭️ Модель не выбрана, пропускаем")
-		return 1
+			print("❌ Не удалось загрузить библиотеку: ", LIBRARY_PATH)
+		return
 	
-	if debug_mode:
-		print("   📦 Блок: ", def.block_name)
+	var model_count = library.models.size() if "models" in library else 0
+	var definitions = _load_definitions()
 	
-	# Получаем имя файла из пути модели
-	var source_file_name = _get_model_filename_from_path(def.model)
-	if source_file_name.is_empty():
+	# Загружаем координаты атласа один раз
+	var atlas_coords = _load_atlas_coords()
+	if not atlas_coords:
 		if debug_mode:
-			print("   ❌ Не удалось определить имя файла модели")
-		return 2
+			print("❌ Не удалось загрузить координаты атласа")
+		return
 	
-	# Формируем полный путь к исходной модели в папке рядом с exe
-	var source_model_path = MODELS_SOURCE + source_file_name
+	var applied_count = 0
+	var materials_cache = {}
 	
-	if debug_mode:
-		print("   🔍 Исходная модель: ", source_model_path)
-	
-	# Проверяем существование исходной модели
-	if not FileAccess.file_exists(source_model_path):
-		if debug_mode:
-			print("   ❌ Исходная модель не найдена: ", source_model_path)
-		return 2
-	
-	# Определяем целевую модель
-	var target_model_name = def.block_name + ".obj"
-	var target_model_path = MODELS_TARGET + target_model_name
-	
-	if debug_mode:
-		print("   📁 Целевая модель: ", target_model_path)
-	
-	# Проверяем, нужно ли копировать
-	if FileAccess.file_exists(target_model_path):
-		var source_time = FileAccess.get_modified_time(source_model_path)
-		var target_time = FileAccess.get_modified_time(target_model_path)
+	for i in range(model_count):
+		var model = library.models[i] if "models" in library else null
+		if not model or model.resource_name == "air":
+			continue
 		
-		if source_time <= target_time:
-			if debug_mode:
-				print("   ⏭️ Модель уже актуальна: ", target_model_name)
-			return 1
-	
-	# Создаем папку назначения если нужно
-	var target_dir = target_model_path.get_base_dir()
-	if not DirAccess.dir_exists_absolute(target_dir):
-		DirAccess.make_dir_recursive_absolute(target_dir)
+		var block_name = model.resource_name
 		if debug_mode:
-			print("   📁 Создана папка: ", target_dir)
+			print("\n🔧 Обработка: ", block_name)
+		
+		if block_name in definitions:
+			var def = definitions[block_name]
+			var material_type = _get_material_type_from_def(def)
+			
+			# Получаем имя текстуры
+			var texture_name = def.texture_name
+			if texture_name.is_empty():
+				texture_name = block_name
+			
+			# 🔥 ИСПРАВЛЕНО: используем ShaderMaterial
+			var material: ShaderMaterial
+			if material_type in materials_cache:
+				material = materials_cache[material_type]
+			else:
+				material = _load_material(material_type)
+				if material:
+					materials_cache[material_type] = material
+				else:
+					if debug_mode:
+						print("   ⚠️ Не удалось загрузить материал типа: ", material_type)
+					continue
+			
+			# Проверяем наличие текстуры в атласе
+			if texture_name in atlas_coords.coordinates:
+				var data = atlas_coords.coordinates[texture_name]
+				var offset = Vector2(data.uv.left, data.uv.top)
+				var size = Vector2(
+					data.uv.right - data.uv.left,
+					data.uv.bottom - data.uv.top
+				)
+				
+				if debug_mode:
+					print("   ✅ Текстура '", texture_name, "' найдена:")
+					print("      offset: (", offset.x, ", ", offset.y, ")")
+					print("      size: (", size.x, ", ", size.y, ")")
+				
+				# Создаем копию материала с уникальными UV
+				var block_material = material.duplicate()
+				block_material.set_shader_parameter("block_uv_offset", offset)
+				block_material.set_shader_parameter("block_uv_size", size)
+				
+				# Применяем к модели
+				if model is VoxelBlockyModelMesh:
+					var surface_count = model.mesh.get_surface_count() if model.mesh else 1
+					for surface_idx in range(surface_count):
+						model.set_material_override(surface_idx, block_material)
+					
+					if debug_mode:
+						print("   ✅ Материал с UV применен к модели")
+					applied_count += 1
+			else:
+				if debug_mode:
+					print("   ⚠️ Текстура '", texture_name, "' не найдена в атласе, применяю материал без UV")
+				
+				# Применяем обычный материал без UV
+				if model is VoxelBlockyModelMesh:
+					var surface_count = model.mesh.get_surface_count() if model.mesh else 1
+					for surface_idx in range(surface_count):
+						model.set_material_override(surface_idx, material)
+					
+					if debug_mode:
+						print("   ✅ Обычный материал применен к модели")
+					applied_count += 1
 	
-	# Копируем модель
-	if _copy_file(source_model_path, target_model_path):
-		if debug_mode:
-			print("   ✅ Модель скопирована: ", target_model_name)
-		
-		# Обновляем определение с новым путем (путь в res:// для совместимости)
-		var new_model_path_res = "res://src/assets/blocks/" + target_model_name
-		var updated = _update_definition_model(file_path, new_model_path_res)
-		
-		if updated:
-			if debug_mode:
-				print("   ✅ Определение обновлено")
-			return 0
-		else:
-			if debug_mode:
-				print("   ❌ Ошибка обновления определения")
-			return 2
+	if applied_count > 0:
+		var result = ResourceSaver.save(library, LIBRARY_PATH)
+		if result == OK and debug_mode:
+			print("\n✅ Библиотека сохранена (", applied_count, " моделей)")
 	else:
 		if debug_mode:
-			print("   ❌ Ошибка копирования")
-		return 2
+			print("\n⚠️ Нет примененных материалов")
 
-func _get_model_filename_from_path(model_resource) -> String:
-	"""Извлекает имя файла из ресурса модели"""
-	if model_resource == null:
-		return ""
+# Загрузка координат атласа
+func _load_atlas_coords() -> Resource:
+	var coords_path = _game_path + "/src/assets/textures/atlas/block_coordinates.tres"
+	if FileAccess.file_exists(coords_path):
+		if debug_mode:
+			print("📁 Загрузка координат из: ", coords_path)
+		return load(coords_path)
+	else:
+		if debug_mode:
+			print("⚠️ Координаты не найдены: ", coords_path)
+	return null
+
+func _init_atlas_material_generator():
+	var generator_path = "res://src/scripts/tools/atlas_work/atlas_material_generator.gd"
+	if ResourceLoader.exists(generator_path):
+		var generator_script = load(generator_path)
+		if generator_script:
+			_atlas_material_generator = generator_script.new()
+
+# 🔥 ИСПРАВЛЕНО: возвращаем ShaderMaterial
+func _load_material(material_type: String) -> ShaderMaterial:
+	match material_type:
+		"opaque":
+			return AtlasMaterialGenerator.get_opaque()
+		"transparent":
+			return AtlasMaterialGenerator.get_transparent()
+		"foliage":
+			return AtlasMaterialGenerator.get_foliage()
+	return null
+
+func _load_definitions() -> Dictionary:
+	var definitions = {}
+	var def_files = _find_definition_files()
 	
-	var path = ""
-	if model_resource.has_method("get_resource_path"):
-		path = model_resource.get_resource_path()
-	elif model_resource is ArrayMesh and model_resource.resource_path != "":
-		path = model_resource.resource_path
+	for file_path in def_files:
+		var def_resource = load(file_path)
+		if def_resource and def_resource is BlockDefinition:
+			definitions[def_resource.block_name] = def_resource
+			if debug_mode:
+				print("   📦 Загружено определение: ", def_resource.block_name, 
+					  " (текстура: ", def_resource.texture_name, ")")
 	
-	if path.is_empty():
-		return ""
-	
-	return path.get_file()
+	return definitions
 
 func _find_definition_files() -> Array:
-	"""Находит все .tres файлы определений блоков"""
 	var files = []
-	var dir = DirAccess.open(BLOCKS_DEFINITIONS)
+	var dir = DirAccess.open(BLOCKS_FOLDER)
 	if not dir:
-		if debug_mode:
-			print("⚠️ Папка не найдена: ", BLOCKS_DEFINITIONS)
 		return files
 	
 	dir.list_dir_begin()
 	var file_name = dir.get_next()
 	while file_name != "":
 		if file_name.ends_with(".tres") and file_name != "block_definition.gd":
-			files.append(BLOCKS_DEFINITIONS + file_name)
+			files.append(BLOCKS_FOLDER + file_name)
 		file_name = dir.get_next()
 	dir.list_dir_end()
 	
 	return files
 
-func _copy_file(source: String, target: String) -> bool:
-	"""Копирует файл из source в target"""
-	var src_file = FileAccess.open(source, FileAccess.READ)
-	if not src_file:
-		if debug_mode:
-			print("   ❌ Не удалось прочитать: ", source)
-		return false
-	
-	var data = src_file.get_buffer(src_file.get_length())
-	var dst_file = FileAccess.open(target, FileAccess.WRITE)
-	if not dst_file:
-		if debug_mode:
-			print("   ❌ Не удалось создать: ", target)
-		return false
-	
-	dst_file.store_buffer(data)
-	return true
+func _get_material_type_from_def(def: BlockDefinition) -> String:
+	if "material_type" in def and def.get("material_type") != null:
+		return def.material_type
+	if "material_type_enum" in def:
+		match def.material_type_enum:
+			def.MaterialType.OPAQUE:
+				return "opaque"
+			def.MaterialType.TRANSPARENT:
+				return "transparent"
+			def.MaterialType.FOLIAGE:
+				return "foliage"
+	return "opaque"
 
-func _update_definition_model(def_path: String, new_model_path: String) -> bool:
-	"""Обновляет ссылку на модель в файле определения"""
-	var content = _read_file(def_path)
-	if content.is_empty():
-		return false
-	
-	var lines = content.split("\n")
-	var updated_lines = []
-	var ext_resources = {}
-	var model_ext_id = ""
-	
-	# Компилируем регулярные выражения
-	var id_regex = RegEx.new()
-	id_regex.compile('id="([^"]+)"')
-	
-	var path_regex = RegEx.new()
-	path_regex.compile('path="([^"]+)"')
-	
-	var ext_regex = RegEx.new()
-	ext_regex.compile('ExtResource\\(\\"([^"]+)\\"\\)')
-	
-	# Сначала собираем все внешние ресурсы
-	for line in lines:
-		if line.begins_with("[ext_resource"):
-			var id_result = id_regex.search(line)
-			var path_result = path_regex.search(line)
-			
-			if id_result and path_result:
-				ext_resources[path_result.get_string(1)] = id_result.get_string(1)
-	
-	# Ищем какой ID используется для model
-	for line in lines:
-		if line.begins_with("model = "):
-			var ext_result = ext_regex.search(line)
-			if ext_result:
-				model_ext_id = ext_result.get_string(1)
-	
-	# Если нашли ID, удаляем старый ext_resource и добавляем новый
-	if model_ext_id != "":
-		# Фильтруем строки, удаляя старый ext_resource
-		for line in lines:
-			var skip = false
-			if line.begins_with("[ext_resource") and line.find(model_ext_id) != -1:
-				skip = true
-			if not skip:
-				updated_lines.append(line)
-		
-		# Добавляем новый ext_resource в начало
-		var new_ext = '[ext_resource type="ArrayMesh" path="' + new_model_path + '" id="' + model_ext_id + '"]'
-		updated_lines.insert(1, new_ext)
-		
-		var new_content = "\n".join(updated_lines)
-		return _write_file(def_path, new_content)
-	
-	return false
-
-func _read_file(path: String) -> String:
-	"""Читает файл и возвращает содержимое"""
-	var file = FileAccess.open(path, FileAccess.READ)
-	if not file:
-		return ""
-	return file.get_as_text()
-
-func _write_file(path: String, content: String) -> bool:
-	"""Записывает содержимое в файл"""
-	var file = FileAccess.open(path, FileAccess.WRITE)
-	if not file:
-		return false
-	file.store_string(content)
-	file.close()
-	return true
+static func apply(debug: bool = true):
+	var instance = BlockMaterialApplier.new()
+	instance.debug_mode = debug
+	instance.run()

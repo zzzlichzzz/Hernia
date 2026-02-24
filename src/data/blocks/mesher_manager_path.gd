@@ -4,7 +4,6 @@ extends VoxelTerrain
 
 @export var auto_update: bool = true
 @export var debug_mode: bool = true
-var game_path = OS.get_executable_path().get_base_dir().path_join("")
 
 func _enter_tree():
 	if Engine.is_editor_hint() and auto_update:
@@ -15,7 +14,6 @@ func _ready():
 		call_deferred("_delayed_update")
 
 func _delayed_update():
-	# Небольшая задержка для гарантии загрузки всех автозагрузок
 	await get_tree().create_timer(0.1).timeout
 	_update_mesher()
 
@@ -27,33 +25,31 @@ func _update_mesher():
 	if debug_mode:
 		print("\n🔧 VoxelTerrainMod: Установка мешера")
 	
-	# 🔥 ПУТЬ К БИБЛИОТЕКЕ ЧЕРЕЗ OS (рядом с exe)
-	var library_path = game_path + "src/data/blocks/voxel_blocky_library.tres"
+	# 🔥 ИСПРАВЛЕНО: используем OS напрямую, без PathManager
+	var library_path = OS.get_executable_path().get_base_dir().path_join("src/data/blocks/voxel_blocky_library.tres")
 	
-	# 🔥 ПУТЬ К МЕШЕРУ ОБЫЧНЫЙ
 	var mesher_path = "res://src/data/blocks/voxel_mesher_blocky.tres"
 	
 	if debug_mode:
-		print("📁 Путь к библиотеке (через OS): ", library_path)
+		print("📁 Путь к библиотеке: ", library_path)
 		print("📁 Путь к мешеру: ", mesher_path)
 	
-	# Загружаем библиотеку
 	var library = _load_library(library_path)
+	if library == null:
+		if debug_mode:
+			print("❌ Не удалось загрузить библиотеку")
+		return
 	
-	# Загружаем или создаем мешер
 	var mesher = _load_or_create_mesher(mesher_path)
 	
-	# Устанавливаем библиотеку в мешер
 	mesher.library = library
 	if debug_mode:
 		print("✅ Библиотека установлена в мешер")
 	
-	# Устанавливаем мешер в террейн
 	self.mesher = mesher
 	if debug_mode:
 		print("✅ Мешер установлен в террейн")
 	
-	# Сохраняем мешер (опционально)
 	var save_result = ResourceSaver.save(mesher, mesher_path)
 	if save_result == OK:
 		if debug_mode:
@@ -61,11 +57,6 @@ func _update_mesher():
 	else:
 		if debug_mode:
 			print("⚠️ Ошибка сохранения мешера: ", save_result)
-
-# 🔥 ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ ПУТИ К ПАПКЕ ИГРЫ
-func _get_game_path() -> String:
-		# В экспортированной игре - папка с exe
-		return OS.get_executable_path().get_base_dir().path_join("")
 
 func _load_library(path: String) -> VoxelBlockyLibrary:
 	if not ResourceLoader.exists(path):

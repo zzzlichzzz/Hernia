@@ -1,4 +1,4 @@
-[gd_resource type="VoxelMesherBlocky" format=3 uid="uid://bfb1l76y4gpwc"]
+[gd_resource type="VoxelMesherBlocky" format=3]
 
 [ext_resource type="VoxelBlockyLibrary" path="C:/Users/kirikws/Desktop/godot/src/data/blocks/voxel_blocky_library.tres" id="1_61eru"]
 

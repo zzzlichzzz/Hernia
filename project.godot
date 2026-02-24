@@ -21,7 +21,6 @@ config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 [autoload]
 
 PathManager="*uid://ckq3igpgkptlp"
-MirrorFolder="*uid://dd3hdlmkc0f4g"
 AtlasManager="*uid://e8behdqx0b0a"
 BlocksRegistry="*uid://di50m3fyk76am"
 
@@ -32,6 +31,7 @@ enabled=PackedStringArray()
 [file_customization]
 
 folder_colors={
+"res://common/": "red",
 "res://src/": "green"
 }
 

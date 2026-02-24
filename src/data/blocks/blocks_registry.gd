@@ -157,11 +157,9 @@ func _add_air():
 	block_count += 1
 
 func _process_block_definition(file_path: String):
-	"""Обрабатывает один файл определения блока из проекта"""
 	if debug_mode:
 		print("\n🔧 Обработка: ", file_path.get_file())
 	
-	# Загружаем определение из проекта
 	if not FileAccess.file_exists(file_path):
 		if debug_mode:
 			print("   ❌ Файл не найден: ", file_path)
@@ -177,10 +175,11 @@ func _process_block_definition(file_path: String):
 	if debug_mode:
 		print("   📦 Блок: ", def.block_name)
 		print("   🎨 Материал: ", def.material_type)
+		print("   🔲 Коллизия: ", "включена" if def.collision_enabled else "отключена")
+		print("   📏 AABB: ", def.collision_aabbs)
 	
-	# Получаем путь к модели из ресурса блока
+	# Получаем путь к модели
 	var model_path = ""
-	
 	if def.model != null:
 		if def.model.has_method("get_resource_path"):
 			model_path = def.model.get_resource_path()
@@ -196,7 +195,6 @@ func _process_block_definition(file_path: String):
 	if debug_mode:
 		print("   🔍 Модель из определения: ", model_path)
 	
-	# Проверяем существование модели в проекте
 	if not ResourceLoader.exists(model_path):
 		if debug_mode:
 			print("   ⚠️ Модель не найдена: ", model_path)
@@ -212,13 +210,19 @@ func _process_block_definition(file_path: String):
 	var model = VoxelBlockyModelMesh.new()
 	model.resource_name = def.block_name
 	model.mesh = mesh_resource
+	model.culls_neighbors = def.culls_neighbors
+	model.transparency_index = def.transparency_index
 	
-	# 🔥 УСТАНАВЛИВАЕМ ПАРАМЕТРЫ РЕНДЕРИНГА
-	model.culls_neighbors = def.culls_neighbors  # Важно!
-	model.transparency_index = def.transparency_index  # 0 для opaque
+	# Устанавливаем массив AABB (работает напрямую)
+	model.collision_aabbs = def.collision_aabbs
+	
+	# Устанавливаем флаг коллизии для первого AABB (индекс 0)
+	# Используем set, так как прямое свойство collision_enabled отсутствует
+	model.set("collision_enabled_0", def.collision_enabled)
 	
 	if debug_mode:
 		print("   ✅ Mesh загружен: ", model_path)
+		print("   ✅ Коллизия настроена")
 	
 	var id = library.add_model(model)
 	if debug_mode:

@@ -2,79 +2,64 @@
 extends Node
 # Создает PNG атлас из PNG текстур в папке src рядом с игрой
 
-const AtlasLogger = preload("res://src/scripts/tools/atlas_work/atlas_logger.gd")
-var log: AtlasLogger
-
-@export var source_blocks_folder: String = "src/assets/textures/blocks/"  # Относительно папки игры
-@export var atlas_output_folder: String = "src/assets/textures/atlas/"    # Относительно папки игры
+@export var source_path: String = "src/assets/textures/blocks/"  # Относительно папки игры
+@export var output_path: String = "src/assets/textures/atlas/"    # Относительно папки игры
 @export var allow_mixed_sizes: bool = true
 
 # Глобальные переменные
-var source_path: String
-var output_path: String
 var block_coordinates: Dictionary = {}
 var atlas_width: int = 0
 var atlas_height: int = 0
 
-func _init():
-	log = AtlasLogger.new("atlas_build_log.txt")
-
 func _run():
 	# Определяем базовый путь к папке игры
-	var game_folder = get_game_folder()
-	source_path = game_folder.path_join(source_blocks_folder)
-	output_path = game_folder.path_join(atlas_output_folder)
 	
-	log.section("ЗАПУСК СБОРЩИКА АТЛАСА")
-	log.write_line("📁 Папка игры: " + game_folder)
-	log.write_line("📁 Исходная папка с блоками: " + source_path)
-	log.write_line("📁 Папка для атласа: " + output_path)
+	print("ЗАПУСК СБОРЩИКА АТЛАСА")
+	print("📁 Исходная папка с блоками: " + source_path)
+	print("📁 Папка для атласа: " + output_path)
 	
 	# Создаем выходную папку
 	if not DirAccess.dir_exists_absolute(output_path):
 		DirAccess.make_dir_recursive_absolute(output_path)
-		log.success("Создана папка для атласа")
+		print("Создана папка для атласа")
 	
 	# ШАГ 1: Поиск PNG файлов в папке рядом с игрой
-	log.section("ШАГ 1: Поиск PNG в папке игры")
+	print("ШАГ 1: Поиск PNG в папке игры")
 	var png_files = find_png_files(source_path)
 	if png_files.is_empty():
-		log.error("НЕТ PNG ФАЙЛОВ! Путь: " + source_path)
-		log.close()
+		print("НЕТ PNG ФАЙЛОВ! Путь: " + source_path)
 		return
 	
-	log.success("Найдено PNG: " + str(png_files.size()))
+	print("Найдено PNG: " + str(png_files.size()))
 	for f in png_files:
-		log.write_line("   - " + f.name + " (" + f.path + ")")
+		print("   - " + f.name + " (" + f.path + ")")
 	
 	# ШАГ 2: Загрузка изображений
-	log.section("ШАГ 2: Загрузка изображений")
+	print("ШАГ 2: Загрузка изображений")
 	var block_infos = load_images(png_files)
 	if block_infos.is_empty():
-		log.error("НЕ УДАЛОСЬ ЗАГРУЗИТЬ ИЗОБРАЖЕНИЯ")
-		log.close()
+		print("НЕ УДАЛОСЬ ЗАГРУЗИТЬ ИЗОБРАЖЕНИЯ")
 		return
 	
-	log.success("Загружено блоков: " + str(block_infos.size()))
+	print("Загружено блоков: " + str(block_infos.size()))
 	
 	# ШАГ 3: Оптимизация размещения
-	log.section("ШАГ 3: Оптимизация размещения")
+	print("ШАГ 3: Оптимизация размещения")
 	optimize_layout(block_infos)
 	
 	# ШАГ 4: Создание атласа
-	log.section("ШАГ 4: Создание атласа")
+	print("ШАГ 4: Создание атласа")
 	create_atlas(block_infos)
 	
 	# ШАГ 5: Сохранение координат
-	log.section("ШАГ 5: Сохранение координат")
+	print("ШАГ 5: Сохранение координат")
 	save_coordinates()
 	
 	# ШАГ 6: Проверка результата
-	log.section("ШАГ 6: Проверка результата")
+	print("ШАГ 6: Проверка результата")
 	check_result()
 	
-	log.success("СБОРКА ЗАВЕРШЕНА")
-	log.close()
+	print("СБОРКА ЗАВЕРШЕНА")
 
 func get_game_folder() -> String:
 	"""Возвращает путь к папке, где находится игра"""
@@ -116,7 +101,7 @@ func _find_png_files_recursive(folder: String, files: Array):
 					"name": block_name,
 					"path": full_path
 				})
-				log.write_line("    Найден PNG: " + block_name)
+				print("    Найден PNG: " + block_name)
 		
 		file_name = dir.get_next()
 	
@@ -128,7 +113,7 @@ func load_images(png_files: Array) -> Array:
 	var failed = 0
 	
 	for file_info in png_files:
-		log.write_line("  Загрузка: " + file_info.path)
+		print("  Загрузка: " + file_info.path)
 		var img = Image.load_from_file(file_info.path)
 		if img:
 			if img.get_format() != Image.FORMAT_RGBA8:
@@ -140,13 +125,13 @@ func load_images(png_files: Array) -> Array:
 				"width": img.get_width(),
 				"height": img.get_height()
 			})
-			log.success("Загружен: " + file_info.name + " " + str(img.get_width()) + "x" + str(img.get_height()))
+			print("Загружен: " + file_info.name + " " + str(img.get_width()) + "x" + str(img.get_height()))
 		else:
-			log.error("Не удалось загрузить: " + file_info.path)
+			print("Не удалось загрузить: " + file_info.path)
 			failed += 1
 	
 	if failed > 0:
-		log.warning("Не удалось загрузить " + str(failed) + " файлов")
+		print("Не удалось загрузить " + str(failed) + " файлов")
 	
 	return infos
 
@@ -170,7 +155,7 @@ func optimize_layout(block_infos: Array):
 		
 		atlas_width = ceil_to_power_of_two(atlas_width)
 		atlas_height = ceil_to_power_of_two(atlas_height)
-		log.write_line("  Размер атласа: " + str(atlas_width) + "x" + str(atlas_height))
+		print("  Размер атласа: " + str(atlas_width) + "x" + str(atlas_height))
 		return
 	
 	block_infos.sort_custom(func(a, b): return b.height - a.height)
@@ -192,7 +177,7 @@ func optimize_layout(block_infos: Array):
 	
 	atlas_width = ceil_to_power_of_two(atlas_width)
 	atlas_height = ceil_to_power_of_two(atlas_height)
-	log.write_line("  Размер атласа: " + str(atlas_width) + "x" + str(atlas_height))
+	print("  Размер атласа: " + str(atlas_width) + "x" + str(atlas_height))
 
 func try_pack(blocks: Array, max_w: int, max_h: int) -> bool:
 	var shelves = []
@@ -240,7 +225,7 @@ func trim_atlas(blocks: Array):
 	
 	atlas_width = max_x
 	atlas_height = max_y
-	log.write_line("  ✂️ Атлас (обрезано): " + str(atlas_width) + "x" + str(atlas_height))
+	print("  ✂️ Атлас (обрезано): " + str(atlas_width) + "x" + str(atlas_height))
 
 func ceil_to_power_of_two(value: int) -> int:
 	var power = 1
@@ -270,20 +255,20 @@ func create_atlas(block_infos: Array):
 			}
 		}
 		
-		log.write_line("    ✓ " + block.name + " @ (" + str(block.x) + ", " + str(block.y) + ")")
+		print("    ✓ " + block.name + " @ (" + str(block.x) + ", " + str(block.y) + ")")
 	
 	var atlas_png_path = output_path.path_join("block_atlas.png")
 	var save_result = atlas_image.save_png(atlas_png_path)
 	
 	if save_result == OK:
-		log.success("PNG атлас сохранен: " + atlas_png_path)
+		print("PNG атлас сохранен: " + atlas_png_path)
 	else:
-		log.error("Ошибка сохранения PNG! Код: " + str(save_result))
+		print("Ошибка сохранения PNG! Код: " + str(save_result))
 
 func save_coordinates():
 	var AtlasCoordinatesClass = load("res://src/scripts/resources/atlas_coordinates.gd")
 	if not AtlasCoordinatesClass:
-		log.error("Не удалось загрузить класс AtlasCoordinates")
+		print("Не удалось загрузить класс AtlasCoordinates")
 		return
 	
 	var coords = AtlasCoordinatesClass.new()
@@ -305,9 +290,9 @@ func save_coordinates():
 	if FileAccess.file_exists(png_path):
 		var img = Image.load_from_file(png_path)
 		coords.atlas_texture = ImageTexture.create_from_image(img)
-		log.success("PNG загружен как текстура")
+		print("PNG загружен как текстура")
 	else:
-		log.warning("PNG не найден, создаю пустую текстуру")
+		print("PNG не найден, создаю пустую текстуру")
 		var empty_img = Image.create(1, 1, false, Image.FORMAT_RGBA8)
 		coords.atlas_texture = ImageTexture.create_from_image(empty_img)
 	
@@ -315,9 +300,9 @@ func save_coordinates():
 	var save_result = ResourceSaver.save(coords, coords_path)
 	
 	if save_result == OK:
-		log.success("Координаты сохранены: " + coords_path)
+		print("Координаты сохранены: " + coords_path)
 	else:
-		log.error("Ошибка сохранения координат! Код: " + str(save_result))
+		print("Ошибка сохранения координат! Код: " + str(save_result))
 
 func check_result():
 	var png_path = output_path.path_join("block_atlas.png")
@@ -328,13 +313,13 @@ func check_result():
 		if file:
 			var size = file.get_length()
 			file.close()
-			log.success("PNG создан: " + png_path + " (" + str(size) + " байт)")
+			print("PNG создан: " + png_path + " (" + str(size) + " байт)")
 		else:
-			log.success("PNG создан: " + png_path)
+			print("PNG создан: " + png_path)
 	else:
-		log.error("PNG НЕ СОЗДАН: " + png_path)
+		print("PNG НЕ СОЗДАН: " + png_path)
 	
 	if ResourceLoader.exists(coords_path):
-		log.success("Координаты созданы: " + coords_path)
+		print("Координаты созданы: " + coords_path)
 	else:
-		log.error("Координаты НЕ СОЗДАНЫ: " + coords_path)
+		print("Координаты НЕ СОЗДАНЫ: " + coords_path)

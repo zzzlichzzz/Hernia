@@ -18,12 +18,6 @@ config/name="VoxelPrototype"
 run/main_scene="uid://b74jlqgmtglti"
 config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 
-[autoload]
-
-PathManager="*uid://ckq3igpgkptlp"
-AtlasManager="*uid://e8behdqx0b0a"
-BlocksRegistry="*uid://di50m3fyk76am"
-
 [editor_plugins]
 
 enabled=PackedStringArray()

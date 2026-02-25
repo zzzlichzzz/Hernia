@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://b74jlqgmtglti"]
 
 [ext_resource type="PackedScene" uid="uid://dxf5dr4bn0yc7" path="res://src/scenes/entities/player/Player.tscn" id="1_8bujj"]
-[ext_resource type="VoxelMesherBlocky" uid="uid://b8h58c7nuxmxc" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
+[ext_resource type="VoxelMesherBlocky" uid="uid://dcprqlo7ta2tm" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_76ycs"]
 frequency = 0.0014

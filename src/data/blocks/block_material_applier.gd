@@ -2,11 +2,8 @@
 extends Node
 class_name BlockMaterialApplier
 
-# Прямой путь к папке с exe
-var _game_path = OS.get_executable_path().get_base_dir().path_join("")
-
 var BLOCKS_FOLDER = "res://src/data/blocks/definitions/"
-var LIBRARY_PATH = _game_path + "/src/data/blocks/voxel_blocky_library.tres"
+var LIBRARY_PATH = "res://src/data/blocks/voxel_blocky_library.tres"
 
 var debug_mode: bool = true
 
@@ -16,7 +13,6 @@ var _atlas_material_generator: AtlasMaterialGenerator = null
 func run():
 	if debug_mode:
 		print("🎨 BLOCK MATERIAL APPLIER: Применение материалов с текстурами из атласа")
-		print("📁 _game_path: ", _game_path)
 		print("📁 LIBRARY_PATH: ", LIBRARY_PATH)
 	
 	_init_atlas_material_generator()
@@ -127,7 +123,7 @@ func run():
 
 # Загрузка координат атласа
 func _load_atlas_coords() -> Resource:
-	var coords_path = _game_path + "/src/assets/textures/atlas/block_coordinates.tres"
+	var coords_path = "res://src/assets/textures/atlas/block_coordinates.tres"
 	if FileAccess.file_exists(coords_path):
 		if debug_mode:
 			print("📁 Загрузка координат из: ", coords_path)

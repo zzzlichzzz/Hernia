@@ -2,7 +2,7 @@ shader_type spatial;
 
 render_mode blend_mix, unshaded, cull_back, depth_draw_always;
 
-uniform sampler2D atlas_texture : filter_nearest, repeat_disable;
+uniform sampler2D atlas_texture : source_color, filter_nearest, repeat_disable;
 uniform vec2 block_uv_offset;
 uniform vec2 block_uv_size;
 
@@ -19,5 +19,5 @@ void fragment() {
 	
 	vec4 color = texture(atlas_texture, final_uv);
 	ALBEDO = color.rgb;
-	ALPHA = color.a; // Альфа-канал текстуры управляет прозрачностью
+	ALPHA = color.a;
 }

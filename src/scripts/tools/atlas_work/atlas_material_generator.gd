@@ -57,27 +57,25 @@ func create_all_materials() -> Dictionary:
 	return results
 
 func _load_atlas_texture() -> Texture2D:
-	var atlas_png = "res://src/assets/textures/atlas/block_atlas.png"
+	var atlas_path = "res://src/assets/textures/atlas/block_atlas.png"
 	
-	if not FileAccess.file_exists(atlas_png):
-		print("PNG атлас не найден: " + atlas_png)
+	# ✅ Загружаем через систему ресурсов Godot — 
+	# она применяет импорт-настройки (sRGB, фильтрация и т.д.)
+	if not ResourceLoader.exists(atlas_path):
+		print("Атлас не найден: " + atlas_path)
 		return null
 	
-	var img = Image.load_from_file(atlas_png)
-	if not img:
-		print("Не удалось загрузить изображение")
+	var texture = load(atlas_path) as Texture2D
+	if texture == null:
+		print("Не удалось загрузить текстуру атласа")
 		return null
 	
-	var texture = ImageTexture.create_from_image(img)
 	print("Текстура атласа загружена: " + str(texture.get_width()) + "x" + str(texture.get_height()))
 	return texture
 
 func _create_opaque_material(atlas_texture: Texture2D) -> ShaderMaterial:
 	var material = ShaderMaterial.new()
 	material.shader = _opaque_shader
-	
-	# 🔥 УБРАНО: material.texture_filter - не работает с ShaderMaterial
-	# Фильтрация задается в шейдере через filter_nearest
 	
 	material.set_shader_parameter("atlas_texture", atlas_texture)
 	material.set_shader_parameter("block_uv_offset", Vector2(0, 0))
@@ -114,7 +112,7 @@ func _create_foliage_material(atlas_texture: Texture2D) -> ShaderMaterial:
 	material.set_shader_parameter("atlas_texture", atlas_texture)
 	material.set_shader_parameter("block_uv_offset", Vector2(0, 0))
 	material.set_shader_parameter("block_uv_size", Vector2(1, 1))
-	material.set_shader_parameter("alpha_scissor_threshold", 0.6)
+	material.set_shader_parameter("alpha_scissor_threshold", 0.5)
 	
 	var path = "res://src/assets/textures/atlas/" + material_names[MATERIAL_FOLIAGE]
 	var result = ResourceSaver.save(material, path)

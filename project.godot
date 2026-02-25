@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="VoxelPrototype"
-run/main_scene="uid://b74jlqgmtglti"
+run/main_scene="uid://dihny7k8illyy"
 config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 
 [editor_plugins]

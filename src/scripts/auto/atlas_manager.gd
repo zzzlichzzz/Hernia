@@ -26,7 +26,7 @@ func build_atlas() -> bool:
 	
 	# ШАГ 1: Сборка атласа из PNG
 	print("\n📸 ШАГ 1/3: Сборка атласа...")
-	var builder = load("res://src/scripts/tools/atlas_work/texture_atlas_builder.gd").new()
+	var builder = load("res://src/scripts/tools/atlas_work/atlas_builder.gd").new()
 	builder._run()
 	
 	# ШАГ 2: Создание материалов из атласа
@@ -43,24 +43,36 @@ func build_atlas() -> bool:
 
 func get_atlas_coords_path() -> String:
 	"""Возвращает путь к файлу координат атласа"""
-	return PathManager.game("res://src/assets/textures/atlas/block_coordinates.tres")
+	return "res://src/assets/textures/atlas/block_coordinates.tres"
 
 func get_atlas_png_path() -> String:
 	"""Возвращает путь к PNG атласа"""
-	return PathManager.game("res://src/assets/textures/atlas/block_atlas.png")
+	return "res://src/assets/textures/atlas/block_atlas.png"
 
-func get_material_path() -> String:
-	"""Возвращает путь к материалу"""
-	return PathManager.game("res://src/assets/textures/atlas/block_material.tres")
+func get_material_path(type: String = "opaque") -> String:
+	"""Возвращает путь к материалу по типу (opaque/transparent/foliage)"""
+	var material_names = {
+		"opaque": "block_material_opaque.tres",
+		"transparent": "block_material_transparent.tres",
+		"foliage": "block_material_foliage.tres"
+	}
+	var filename = material_names.get(type, material_names["opaque"])
+	return "res://src/assets/textures/atlas/" + filename
 
 func is_atlas_valid() -> bool:
 	"""Проверяет существование файлов атласа"""
 	return ResourceLoader.exists(get_atlas_coords_path()) \
 		and FileAccess.file_exists(get_atlas_png_path())
 
-func is_material_valid() -> bool:
-	"""Проверяет существование материала"""
-	return ResourceLoader.exists(get_material_path())
+func is_material_valid(type: String = "opaque") -> bool:
+	"""Проверяет существование материала указанного типа"""
+	return ResourceLoader.exists(get_material_path(type))
+
+func are_all_materials_valid() -> bool:
+	"""Проверяет существование всех трёх материалов"""
+	return is_material_valid("opaque") \
+		and is_material_valid("transparent") \
+		and is_material_valid("foliage")
 
 func get_last_build_time() -> String:
 	if last_build_time.is_empty():
@@ -70,7 +82,7 @@ func get_last_build_time() -> String:
 		last_build_time.hour, last_build_time.minute, last_build_time.second
 	]
 
-# Статический метод для быстрого вызова
+# Статический метод для быстрого вызова сборки
 static func build():
 	var instance = Engine.get_main_loop().root.get_node_or_null("/root/AtlasManager")
 	if instance:
@@ -78,9 +90,19 @@ static func build():
 	else:
 		print("❌ AtlasManager не найден")
 
-# Статический метод для получения материала
-static func get_material():
+# Статический метод для получения материала по типу
+static func get_material(type: String = "opaque"):
 	var instance = Engine.get_main_loop().root.get_node_or_null("/root/AtlasManager")
-	if instance and instance.is_material_valid():
-		return load(instance.get_material_path())
+	if instance and instance.is_material_valid(type):
+		return load(instance.get_material_path(type))
 	return null
+
+# Статические методы для каждого типа (для удобства)
+static func get_opaque_material():
+	return get_material("opaque")
+
+static func get_transparent_material():
+	return get_material("transparent")
+
+static func get_foliage_material():
+	return get_material("foliage")

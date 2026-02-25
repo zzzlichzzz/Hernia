@@ -2,19 +2,10 @@
 extends Node
 # Автоматический сборщик библиотеки блоков (реестр блоков)
 
-# 🔥 Получаем путь к папке с exe (в редакторе это папка Godot.exe)
-var _exe_path = OS.get_executable_path().get_base_dir().path_join("")
-
-# 🔥 ПУТЬ К БИБЛИОТЕКЕ РЯДОМ С EXE
-var LIBRARY_PATH = _exe_path + "/src/data/blocks/voxel_blocky_library.tres"
-
-# 🔥 ПУТИ К ОПРЕДЕЛЕНИЯМ В ПРОЕКТЕ (НЕ рядом с exe!)
+# 🔥 ИСПРАВЛЕНО: теперь всё сохраняется внутри проекта
+var LIBRARY_PATH = "res://src/data/blocks/voxel_blocky_library.tres"
 var BLOCKS_FOLDER = "res://src/data/blocks/definitions/"
-
-# 🔥 ПУТЬ К МОДЕЛЯМ В ПРОЕКТЕ
 var MODELS_FOLDER = "res://src/assets/blocks/"
-
-# 🔥 ПУТЬ К МЕШЕРУ В ПРОЕКТЕ
 const MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
 
 @export var auto_build: bool = true
@@ -53,11 +44,10 @@ func _build_library():
 		
 		if Engine.is_editor_hint():
 			print("📌 Режим: РЕДАКТОР")
-		print("📁 Путь к EXE: ", _exe_path)
 	
 	if debug_mode:
 		print("\n📁 ШАГ 1: Создание новой библиотеки")
-		print("   📍 LIBRARY_PATH (exe): ", LIBRARY_PATH)
+		print("   📍 LIBRARY_PATH (проект): ", LIBRARY_PATH)
 		print("   📍 BLOCKS_FOLDER (проект): ", BLOCKS_FOLDER)
 		print("   📍 MODELS_FOLDER (проект): ", MODELS_FOLDER)
 		print("   📍 MESHER_PATH (проект): ", MESHER_PATH)
@@ -86,6 +76,7 @@ func _build_library():
 	if debug_mode:
 		print("\n💾 ШАГ 6: Сохранение")
 	
+	# Создаём папку внутри проекта, если нужно
 	var target_dir = LIBRARY_PATH.get_base_dir()
 	if not DirAccess.dir_exists_absolute(target_dir):
 		var dir_result = DirAccess.make_dir_recursive_absolute(target_dir)
@@ -106,10 +97,6 @@ func _build_library():
 	_run_material_applier()
 	
 	if debug_mode:
-		print("\n🔄 ШАГ 8: Обновление мешера")
-	_update_mesher()
-	
-	if debug_mode:
 		print("✅ СБОРКА ЗАВЕРШЕНА")
 		print("📊 Всего блоков: ", block_count)
 
@@ -117,16 +104,40 @@ func _run_material_applier():
 	if debug_mode:
 		print("\n🎨 Запуск MaterialApplier для применения материалов")
 	
-	BlockMaterialApplier.apply(debug_mode)
-
-func _update_mesher():
-	if mesher_manager and mesher_manager.has_method("_update_mesher"):
-		mesher_manager._update_mesher()
+	var applier_path = "res://src/scripts/tools/block_library/block_material_applier.gd"
+	if ResourceLoader.exists(applier_path):
 		if debug_mode:
-			print("✅ Мешер обновлен через менеджер")
+			print("📁 Файл найден: ", applier_path)
+		
+		var resource = load(applier_path)
+		if debug_mode:
+			print("📦 Тип загруженного ресурса: ", typeof(resource))
+			print("📦 Класс ресурса: ", resource.get_class())
+			print("📦 Это GDScript? ", resource is GDScript)
+		
+		# 🔥 ИСПРАВЛЕНО: проверяем, что это действительно GDScript
+		if resource is GDScript:
+			# Вместо вызова статического метода, создаём экземпляр
+			var instance = resource.new()
+			if instance.has_method("run"):
+				instance.debug_mode = debug_mode
+				instance.run()
+				if debug_mode:
+					print("✅ BlockMaterialApplier.run() завершил работу")
+			elif instance.has_method("apply"):
+				instance.debug_mode = debug_mode
+				instance.apply()
+				if debug_mode:
+					print("✅ BlockMaterialApplier.apply() завершил работу")
+			else:
+				if debug_mode:
+					print("❌ Нет подходящих методов в экземпляре")
+		else:
+			if debug_mode:
+				print("❌ Загруженный ресурс не является GDScript!")
 	else:
 		if debug_mode:
-			print("⚠️ Не удалось обновить мешер")
+			print("⚠️ BlockMaterialApplier не найден по пути: ", applier_path)
 
 func _find_block_definitions() -> Array:
 	"""Находит все .tres файлы определений блоков в проекте"""
@@ -174,7 +185,8 @@ func _process_block_definition(file_path: String):
 	var def: BlockDefinition = def_resource
 	if debug_mode:
 		print("   📦 Блок: ", def.block_name)
-		print("   🎨 Материал: ", def.material_type)
+		# 🔥 ИСПРАВЛЕНО: используем material_type_enum вместо material_type
+		print("   🎨 Материал: ", def.material_type_enum)
 		print("   🔲 Коллизия: ", "включена" if def.collision_enabled else "отключена")
 		print("   📏 AABB: ", def.collision_aabbs)
 	
@@ -213,11 +225,10 @@ func _process_block_definition(file_path: String):
 	model.culls_neighbors = def.culls_neighbors
 	model.transparency_index = def.transparency_index
 	
-	# Устанавливаем массив AABB (работает напрямую)
+	# Устанавливаем массив AABB
 	model.collision_aabbs = def.collision_aabbs
 	
 	# Устанавливаем флаг коллизии для первого AABB (индекс 0)
-	# Используем set, так как прямое свойство collision_enabled отсутствует
 	model.set("collision_enabled_0", def.collision_enabled)
 	
 	if debug_mode:

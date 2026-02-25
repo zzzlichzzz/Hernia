@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://b74jlqgmtglti"]
 
 [ext_resource type="PackedScene" uid="uid://dxf5dr4bn0yc7" path="res://src/scenes/entities/player/Player.tscn" id="1_8bujj"]
-[ext_resource type="VoxelMesherBlocky" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
+[ext_resource type="VoxelMesherBlocky" uid="uid://ct0w3vonehobq" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_76ycs"]
 frequency = 0.0014
@@ -12,7 +12,7 @@ noise = SubResource("FastNoiseLite_76ycs")
 
 [node name="LodScene" type="WorldEnvironment" unique_id=327434639]
 
-[node name="VoxelTerrain" type="VoxelTerrain" parent="." unique_id=2120458056]
+[node name="VoxelTerrain" type="VoxelTerrain" parent="." unique_id=644169296]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -47.35805506396609, 0)
 generator = SubResource("VoxelGeneratorNoise2D_0fgh8")
 mesher = ExtResource("1_76ycs")

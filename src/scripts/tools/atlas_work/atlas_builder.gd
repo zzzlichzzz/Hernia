@@ -1,12 +1,13 @@
 @tool
 extends Node
-# Создает PNG атлас из PNG текстур в папке src рядом с игрой
+# Создает PNG атлас из PNG текстур внутри проекта (папка res://src/assets/textures/blocks/)
+# Результат сохраняется в res://src/assets/textures/atlas/
 
 const AtlasLogger = preload("res://src/scripts/tools/atlas_work/atlas_logger.gd")
 var log: AtlasLogger
 
-@export var source_blocks_folder: String = "src/assets/textures/blocks/"  # Относительно папки игры
-@export var atlas_output_folder: String = "src/assets/textures/atlas/"    # Относительно папки игры
+@export var source_blocks_folder: String = "res://src/assets/textures/blocks/"
+@export var atlas_output_folder: String = "res://src/assets/textures/atlas/"
 @export var allow_mixed_sizes: bool = true
 
 # Глобальные переменные
@@ -17,26 +18,23 @@ var atlas_width: int = 0
 var atlas_height: int = 0
 
 func _init():
-	log = AtlasLogger.new("atlas_build_log.txt")
+	log = AtlasLogger.new("user://atlas_build_log.txt")  # Лог в user://
 
 func _run():
-	# Определяем базовый путь к папке игры
-	var game_folder = get_game_folder()
-	source_path = game_folder.path_join(source_blocks_folder)
-	output_path = game_folder.path_join(atlas_output_folder)
+	source_path = source_blocks_folder
+	output_path = atlas_output_folder
 	
 	log.section("ЗАПУСК СБОРЩИКА АТЛАСА")
-	log.write_line("📁 Папка игры: " + game_folder)
 	log.write_line("📁 Исходная папка с блоками: " + source_path)
 	log.write_line("📁 Папка для атласа: " + output_path)
 	
-	# Создаем выходную папку
+	# Создаем выходную папку (если не существует)
 	if not DirAccess.dir_exists_absolute(output_path):
 		DirAccess.make_dir_recursive_absolute(output_path)
 		log.success("Создана папка для атласа")
 	
-	# ШАГ 1: Поиск PNG файлов в папке рядом с игрой
-	log.section("ШАГ 1: Поиск PNG в папке игры")
+	# ШАГ 1: Поиск PNG файлов внутри проекта
+	log.section("ШАГ 1: Поиск PNG в папке проекта")
 	var png_files = find_png_files(source_path)
 	if png_files.is_empty():
 		log.error("НЕТ PNG ФАЙЛОВ! Путь: " + source_path)
@@ -76,17 +74,8 @@ func _run():
 	log.success("СБОРКА ЗАВЕРШЕНА")
 	log.close()
 
-func get_game_folder() -> String:
-	"""Возвращает путь к папке, где находится игра"""
-	if Engine.is_editor_hint():
-		# В редакторе используем user:// для тестов
-		return "user://"
-	else:
-		# В экспортированной игре - папка с exe
-		return OS.get_executable_path().get_base_dir().path_join("")
-
 func find_png_files(folder: String) -> Array:
-	"""Ищет все PNG файлы в папке и подпапках"""
+	"""Ищет все PNG файлы в папке и подпапках внутри проекта"""
 	var files = []
 	_find_png_files_recursive(folder, files)
 	files.sort_custom(func(a, b): return a.name < b.name)
@@ -123,7 +112,7 @@ func _find_png_files_recursive(folder: String, files: Array):
 	dir.list_dir_end()
 
 func load_images(png_files: Array) -> Array:
-	"""Загружает изображения из PNG файлов"""
+	"""Загружает изображения из PNG файлов (пути внутри проекта)"""
 	var infos = []
 	var failed = 0
 	
@@ -151,6 +140,7 @@ func load_images(png_files: Array) -> Array:
 	return infos
 
 func optimize_layout(block_infos: Array):
+	# (без изменений, только убрана зависимость от get_game_folder)
 	if block_infos.is_empty():
 		return
 	
@@ -195,6 +185,7 @@ func optimize_layout(block_infos: Array):
 	log.write_line("  Размер атласа: " + str(atlas_width) + "x" + str(atlas_height))
 
 func try_pack(blocks: Array, max_w: int, max_h: int) -> bool:
+	# (без изменений)
 	var shelves = []
 	
 	for block in blocks:
@@ -231,6 +222,7 @@ func try_pack(blocks: Array, max_w: int, max_h: int) -> bool:
 	return true
 
 func trim_atlas(blocks: Array):
+	# (без изменений)
 	var max_x = 0
 	var max_y = 0
 	
@@ -243,6 +235,7 @@ func trim_atlas(blocks: Array):
 	log.write_line("  ✂️ Атлас (обрезано): " + str(atlas_width) + "x" + str(atlas_height))
 
 func ceil_to_power_of_two(value: int) -> int:
+	# (без изменений)
 	var power = 1
 	while power < value:
 		power *= 2

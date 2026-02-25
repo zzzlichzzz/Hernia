@@ -25,14 +25,16 @@ var _foliage_shader: Shader = preload("res://src/shaders/blocks/block_foliage.gd
 var _atlas_coords: AtlasCoordinates = null
 
 func _init():
-	log = AtlasLogger.new("atlas_material_log.txt")
+	log = AtlasLogger.new("user://atlas_material_log.txt")  # Лог в user://
 	_load_atlas_coords()
 
 func _load_atlas_coords():
-	var coords_path = PathManager.game("res://src/assets/textures/atlas/block_coordinates.tres")
+	var coords_path = "res://src/assets/textures/atlas/block_coordinates.tres"
 	if ResourceLoader.exists(coords_path):
 		_atlas_coords = load(coords_path)
 		log.success("Координаты атласа загружены")
+	else:
+		log.warning("Файл координат не найден, материалы будут созданы с дефолтными UV")
 
 func create_all_materials() -> Dictionary:
 	log.section("СОЗДАНИЕ МАТЕРИАЛОВ (СТИЛЬ ДЕМО - ШЕЙДЕРНАЯ ВЕРСИЯ)")
@@ -60,7 +62,7 @@ func create_all_materials() -> Dictionary:
 	return results
 
 func _load_atlas_texture() -> Texture2D:
-	var atlas_png = PathManager.game("res://src/assets/textures/atlas/block_atlas.png")
+	var atlas_png = "res://src/assets/textures/atlas/block_atlas.png"
 	
 	if not FileAccess.file_exists(atlas_png):
 		log.error("PNG атлас не найден: " + atlas_png)
@@ -79,20 +81,19 @@ func _create_opaque_material(atlas_texture: Texture2D) -> ShaderMaterial:
 	var material = ShaderMaterial.new()
 	material.shader = _opaque_shader
 	
-	# 🔥 УБРАНО: material.texture_filter - не работает с ShaderMaterial
-	# Фильтрация задается в шейдере через filter_nearest
-	
 	material.set_shader_parameter("atlas_texture", atlas_texture)
 	material.set_shader_parameter("block_uv_offset", Vector2(0, 0))
 	material.set_shader_parameter("block_uv_size", Vector2(1, 1))
 	
-	var path = PathManager.game("res://src/assets/textures/atlas/" + material_names[MATERIAL_OPAQUE])
+	var path = "res://src/assets/textures/atlas/" + material_names[MATERIAL_OPAQUE]
 	var result = ResourceSaver.save(material, path)
 	
 	if result == OK:
 		log.success("Непрозрачный материал сохранен: " + path)
 		return material
-	return null
+	else:
+		log.error("Ошибка сохранения непрозрачного материала: " + str(result))
+		return null
 
 func _create_transparent_material(atlas_texture: Texture2D) -> ShaderMaterial:
 	var material = ShaderMaterial.new()
@@ -102,13 +103,15 @@ func _create_transparent_material(atlas_texture: Texture2D) -> ShaderMaterial:
 	material.set_shader_parameter("block_uv_offset", Vector2(0, 0))
 	material.set_shader_parameter("block_uv_size", Vector2(1, 1))
 	
-	var path = PathManager.game("res://src/assets/textures/atlas/" + material_names[MATERIAL_TRANSPARENT])
+	var path = "res://src/assets/textures/atlas/" + material_names[MATERIAL_TRANSPARENT]
 	var result = ResourceSaver.save(material, path)
 	
 	if result == OK:
 		log.success("Прозрачный материал сохранен: " + path)
 		return material
-	return null
+	else:
+		log.error("Ошибка сохранения прозрачного материала: " + str(result))
+		return null
 
 func _create_foliage_material(atlas_texture: Texture2D) -> ShaderMaterial:
 	var material = ShaderMaterial.new()
@@ -119,29 +122,31 @@ func _create_foliage_material(atlas_texture: Texture2D) -> ShaderMaterial:
 	material.set_shader_parameter("block_uv_size", Vector2(1, 1))
 	material.set_shader_parameter("alpha_scissor_threshold", 0.6)
 	
-	var path = PathManager.game("res://src/assets/textures/atlas/" + material_names[MATERIAL_FOLIAGE])
+	var path = "res://src/assets/textures/atlas/" + material_names[MATERIAL_FOLIAGE]
 	var result = ResourceSaver.save(material, path)
 	
 	if result == OK:
 		log.success("Материал для растительности сохранен: " + path)
 		return material
-	return null
+	else:
+		log.error("Ошибка сохранения материала для растительности: " + str(result))
+		return null
 
 # Статические методы для получения материалов
 static func get_opaque() -> ShaderMaterial:
-	var path = PathManager.game("res://src/assets/textures/atlas/block_material_opaque.tres")
+	var path = "res://src/assets/textures/atlas/block_material_opaque.tres"
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null
 	
 static func get_transparent() -> ShaderMaterial:
-	var path = PathManager.game("res://src/assets/textures/atlas/block_material_transparent.tres")
+	var path = "res://src/assets/textures/atlas/block_material_transparent.tres"
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null
 	
 static func get_foliage() -> ShaderMaterial:
-	var path = PathManager.game("res://src/assets/textures/atlas/block_material_foliage.tres")
+	var path = "res://src/assets/textures/atlas/block_material_foliage.tres"
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null

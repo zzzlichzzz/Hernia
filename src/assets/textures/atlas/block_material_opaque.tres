@@ -1,6 +1,6 @@
-[gd_resource type="ShaderMaterial" format=3 uid="uid://cejcha3b0n44m"]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://b2druibec52jd"]
 
-[ext_resource type="Shader" uid="uid://dulw00g7k64cw" path="res://src/shaders/blocks/block_opaque.gdshader" id="1_uk2dy"]
+[ext_resource type="Shader" uid="uid://dulw00g7k64cw" path="res://src/shaders/blocks/block_opaque.gdshader" id="1_ygkm7"]
 
 [sub_resource type="Image" id="Image_ygkm7"]
 data = {
@@ -11,12 +11,12 @@ data = {
 "width": 256
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_x7n4a"]
+[sub_resource type="ImageTexture" id="ImageTexture_7gf5t"]
 image = SubResource("Image_ygkm7")
 
 [resource]
 render_priority = 0
-shader = ExtResource("1_uk2dy")
-shader_parameter/atlas_texture = SubResource("ImageTexture_x7n4a")
+shader = ExtResource("1_ygkm7")
+shader_parameter/atlas_texture = SubResource("ImageTexture_7gf5t")
 shader_parameter/block_uv_offset = Vector2(0, 0)
 shader_parameter/block_uv_size = Vector2(1, 1)

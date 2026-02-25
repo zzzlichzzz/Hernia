@@ -2,11 +2,8 @@
 extends Node
 # Автоматический сборщик библиотеки блоков (реестр блоков)
 
-# 🔥 Получаем путь к папке с exe (в редакторе это папка Godot.exe)
-var _exe_path = OS.get_executable_path().get_base_dir().path_join("")
-
 # 🔥 ПУТЬ К БИБЛИОТЕКЕ РЯДОМ С EXE
-var LIBRARY_PATH = _exe_path + "/src/data/blocks/voxel_blocky_library.tres"
+var LIBRARY_PATH = "res://src/data/blocks/voxel_blocky_library.tres"
 
 # 🔥 ПУТИ К ОПРЕДЕЛЕНИЯМ В ПРОЕКТЕ (НЕ рядом с exe!)
 var BLOCKS_FOLDER = "res://src/data/blocks/definitions/"
@@ -53,7 +50,6 @@ func _build_library():
 		
 		if Engine.is_editor_hint():
 			print("📌 Режим: РЕДАКТОР")
-		print("📁 Путь к EXE: ", _exe_path)
 	
 	if debug_mode:
 		print("\n📁 ШАГ 1: Создание новой библиотеки")

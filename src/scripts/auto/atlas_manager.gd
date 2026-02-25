@@ -43,15 +43,15 @@ func build_atlas() -> bool:
 
 func get_atlas_coords_path() -> String:
 	"""Возвращает путь к файлу координат атласа"""
-	return PathManager.game("res://src/assets/textures/atlas/block_coordinates.tres")
+	return "res://src/assets/textures/atlas/block_coordinates.tres"
 
 func get_atlas_png_path() -> String:
 	"""Возвращает путь к PNG атласа"""
-	return PathManager.game("res://src/assets/textures/atlas/block_atlas.png")
+	return "res://src/assets/textures/atlas/block_atlas.png"
 
 func get_material_path() -> String:
 	"""Возвращает путь к материалу"""
-	return PathManager.game("res://src/assets/textures/atlas/block_material.tres")
+	return "res://src/assets/textures/atlas/block_material.tres"
 
 func is_atlas_valid() -> bool:
 	"""Проверяет существование файлов атласа"""

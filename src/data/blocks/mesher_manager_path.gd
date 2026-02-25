@@ -25,8 +25,7 @@ func _update_mesher():
 	if debug_mode:
 		print("\n🔧 VoxelTerrainMod: Установка мешера")
 	
-	# 🔥 ИСПРАВЛЕНО: используем OS напрямую, без PathManager
-	var library_path = OS.get_executable_path().get_base_dir().path_join("src/data/blocks/voxel_blocky_library.tres")
+	var library_path = "res://src/data/blocks/voxel_blocky_library.tres"
 	
 	var mesher_path = "res://src/data/blocks/voxel_mesher_blocky.tres"
 	

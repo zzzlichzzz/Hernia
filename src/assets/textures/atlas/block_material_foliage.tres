@@ -1,6 +1,6 @@
-[gd_resource type="ShaderMaterial" format=3 uid="uid://iu62aafllxdq"]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://bapfbcl5444om"]
 
-[ext_resource type="Shader" uid="uid://dp3hyxaii08dc" path="res://src/shaders/blocks/block_foliage.gdshader" id="1_3ryon"]
+[ext_resource type="Shader" uid="uid://dp3hyxaii08dc" path="res://src/shaders/blocks/block_foliage.gdshader" id="1_kq5sb"]
 
 [sub_resource type="Image" id="Image_kq5sb"]
 data = {
@@ -11,13 +11,13 @@ data = {
 "width": 256
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_x7n4a"]
+[sub_resource type="ImageTexture" id="ImageTexture_7gf5t"]
 image = SubResource("Image_kq5sb")
 
 [resource]
 render_priority = 0
-shader = ExtResource("1_3ryon")
-shader_parameter/atlas_texture = SubResource("ImageTexture_x7n4a")
+shader = ExtResource("1_kq5sb")
+shader_parameter/atlas_texture = SubResource("ImageTexture_7gf5t")
 shader_parameter/block_uv_offset = Vector2(0, 0)
 shader_parameter/block_uv_size = Vector2(1, 1)
 shader_parameter/alpha_scissor_threshold = 0.6

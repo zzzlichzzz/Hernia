@@ -1,0 +1,43 @@
+работа с атласом 
+
+-текстуры только нижний регистр
+
+BlockManager
+
+BlockManager.get_uv("block_name") 
+
+BlockManager.get_texture("block_name")
+
+---------------------------------
+AtlasManager.build_atlas() - вызов сборки атласа
+
+AtlasManager.is_atlas_valid()  # true/false - существует ли атлас
+
+AtlasManager.get_last_build_time()  # Время последней сборки
+
+----------------------------------
+РАБОТА С КООРДИНАТАМИ АТЛАСА
+
+# Загрузить координаты атласа
+var atlas_coords = preload("res://src/assets/textures/atlas/block_coordinates.tres")
+
+# ПОЛУЧИТЬ UV КООРДИНАТЫ (ДЛЯ ШЕЙДЕРА)
+var uv = atlas_coords.get_uv("stone")  # Rect2(left, top, width, height)
+material.set_shader_parameter("block_uv", uv)
+
+# ПОЛУЧИТЬ ГОТОВУЮ TEXTURE ДЛЯ SPRITE
+var texture = atlas_coords.get_atlas_texture_for_block("название блока")
+sprite.texture = texture
+
+# ПОЛУЧИТЬ РАЗМЕР БЛОКА В ПИКСЕЛЯХ
+var size = atlas_coords.get_block_size("stone")  # Vector2(32, 32)
+
+# ПРЯМОЙ ДОСТУП К ДАННЫМ
+if atlas_coords.coordinates.has("stone"):
+	var data = atlas_coords.coordinates["stone"]
+	print(data.x)        # позиция X в атласе (пиксели)
+	print(data.y)        # позиция Y в атласе (пиксели)
+	print(data.width)    # ширина блока
+	print(data.height)   # высота блока
+	print(data.uv.left)  # UV left (0.0-1.0)
+	print(data.uv.top)   # UV top

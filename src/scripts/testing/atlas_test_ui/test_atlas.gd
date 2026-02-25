@@ -6,9 +6,9 @@ extends Node2D
 @onready var path_label = $CanvasLayer/Control/VBoxContainer/Label
 
 # Ссылка на координаты атласа
-var game_path = OS.get_executable_path().get_base_dir().path_join("")
+var AtlasManager = "res://src/scripts/auto/atlas_manager.gd"
 var atlas_coords: AtlasCoordinates = null
-var atlas_path = game_path + "src/assets/textures/atlas/block_coordinates.tres"
+var atlas_path = "src/assets/textures/atlas/block_coordinates.tres"
 
 func _ready():
 	# Показываем путь к атласу
@@ -31,7 +31,7 @@ func update_path_display():
 	if not path_label:
 		return
 	
-	var full_path = PathManager.game("res://src/assets/textures/atlas/")
+	var full_path = "res://src/assets/textures/atlas/"
 	path_label.text = "📁 Атлас в: " + full_path
 	path_label.modulate = Color(0.8, 0.8, 0.8)
 
@@ -103,7 +103,7 @@ func display_block_info(block_name: String):
 	add_result("📌 Полный путь PNG:", atlas_coords.get_png_path())
 	
 	# Системная информация
-	var real_path = PathManager.game("res://src/assets/textures/atlas/")
+	var real_path = "res://src/assets/textures/atlas/"
 	add_result("💻 На диске:", real_path)
 
 func add_preview_to_results(block_name: String, data: Dictionary):

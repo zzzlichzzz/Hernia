@@ -1,24 +1,25 @@
 @tool
 extends Node
 class_name AtlasMaterialGenerator
-# Создает шейдерные материалы из атласа для разных типов блоков (стиль демо)
 
 const AtlasCoordinates = preload("res://src/scripts/resources/atlas_coordinates.gd")
 
 @export var material_names: Dictionary = {
 	"opaque": "block_material_opaque.tres",
 	"transparent": "block_material_transparent.tres",
-	"foliage": "block_material_foliage.tres"
+	"foliage": "block_material_foliage.tres",
+	"multi_face": "block_material_multi_face.tres"
 }
 
 const MATERIAL_OPAQUE = "opaque"
 const MATERIAL_TRANSPARENT = "transparent"
 const MATERIAL_FOLIAGE = "foliage"
+const MATERIAL_MULTI_FACE = "multi_face"
 
-# Загружаем шейдеры для разных типов
 var _opaque_shader: Shader = preload("res://src/shaders/blocks/block_opaque.gdshader")
 var _transparent_shader: Shader = preload("res://src/shaders/blocks/block_transparent.gdshader")
 var _foliage_shader: Shader = preload("res://src/shaders/blocks/block_foliage.gdshader")
+var _multi_face_shader: Shader = preload("res://src/shaders/blocks/block_multi_face.gdshader")
 
 var _atlas_coords: AtlasCoordinates = null
 
@@ -32,35 +33,30 @@ func _load_atlas_coords():
 		print("Координаты атласа загружены")
 
 func create_all_materials() -> Dictionary:
-	print("СОЗДАНИЕ МАТЕРИАЛОВ (СТИЛЬ ДЕМО - ШЕЙДЕРНАЯ ВЕРСИЯ)")
+	print("СОЗДАНИЕ МАТЕРИАЛОВ")
 	
 	var results = {}
 	
-	# Загружаем текстуру
 	var atlas_texture = _load_atlas_texture()
 	if not atlas_texture:
 		print("Не удалось загрузить текстуру атласа")
 		return results
 	
-	# Создаем все три типа материалов
-	results[MATERIAL_OPAQUE] = _create_opaque_material(atlas_texture)
-	results[MATERIAL_TRANSPARENT] = _create_transparent_material(atlas_texture)
+	results[MATERIAL_OPAQUE] = _create_shader_material(atlas_texture, _opaque_shader, MATERIAL_OPAQUE)
+	results[MATERIAL_TRANSPARENT] = _create_shader_material(atlas_texture, _transparent_shader, MATERIAL_TRANSPARENT)
 	results[MATERIAL_FOLIAGE] = _create_foliage_material(atlas_texture)
+	results[MATERIAL_MULTI_FACE] = _create_multi_face_material(atlas_texture)
 	
-	# Проверяем результат
 	var created_count = 0
 	for type in results:
 		if results[type] != null:
 			created_count += 1
 	
-	print("Создано материалов: " + str(created_count) + "/3")
+	print("Создано материалов: " + str(created_count) + "/4")
 	return results
 
 func _load_atlas_texture() -> Texture2D:
 	var atlas_path = "res://src/assets/textures/atlas/block_atlas.png"
-	
-	# ✅ Загружаем через систему ресурсов Godot — 
-	# она применяет импорт-настройки (sRGB, фильтрация и т.д.)
 	if not ResourceLoader.exists(atlas_path):
 		print("Атлас не найден: " + atlas_path)
 		return null
@@ -73,35 +69,19 @@ func _load_atlas_texture() -> Texture2D:
 	print("Текстура атласа загружена: " + str(texture.get_width()) + "x" + str(texture.get_height()))
 	return texture
 
-func _create_opaque_material(atlas_texture: Texture2D) -> ShaderMaterial:
+func _create_shader_material(atlas_texture: Texture2D, shader: Shader, type_name: String) -> ShaderMaterial:
 	var material = ShaderMaterial.new()
-	material.shader = _opaque_shader
+	material.shader = shader
 	
 	material.set_shader_parameter("atlas_texture", atlas_texture)
 	material.set_shader_parameter("block_uv_offset", Vector2(0, 0))
 	material.set_shader_parameter("block_uv_size", Vector2(1, 1))
 	
-	var path = "res://src/assets/textures/atlas/" + material_names[MATERIAL_OPAQUE]
+	var path = "res://src/assets/textures/atlas/" + material_names[type_name]
 	var result = ResourceSaver.save(material, path)
 	
 	if result == OK:
-		print("Непрозрачный материал сохранен: " + path)
-		return material
-	return null
-
-func _create_transparent_material(atlas_texture: Texture2D) -> ShaderMaterial:
-	var material = ShaderMaterial.new()
-	material.shader = _transparent_shader
-	
-	material.set_shader_parameter("atlas_texture", atlas_texture)
-	material.set_shader_parameter("block_uv_offset", Vector2(0, 0))
-	material.set_shader_parameter("block_uv_size", Vector2(1, 1))
-	
-	var path = "res://src/assets/textures/atlas/" + material_names[MATERIAL_TRANSPARENT]
-	var result = ResourceSaver.save(material, path)
-	
-	if result == OK:
-		print("Прозрачный материал сохранен: " + path)
+		print("Материал сохранен: " + path)
 		return material
 	return null
 
@@ -122,21 +102,49 @@ func _create_foliage_material(atlas_texture: Texture2D) -> ShaderMaterial:
 		return material
 	return null
 
-# Статические методы для получения материалов
+func _create_multi_face_material(atlas_texture: Texture2D) -> ShaderMaterial:
+	var material = ShaderMaterial.new()
+	material.shader = _multi_face_shader
+	
+	material.set_shader_parameter("atlas_texture", atlas_texture)
+	material.set_shader_parameter("top_uv_offset", Vector2(0, 0))
+	material.set_shader_parameter("top_uv_size", Vector2(1, 1))
+	material.set_shader_parameter("bottom_uv_offset", Vector2(0, 0))
+	material.set_shader_parameter("bottom_uv_size", Vector2(1, 1))
+	material.set_shader_parameter("side_uv_offset", Vector2(0, 0))
+	material.set_shader_parameter("side_uv_size", Vector2(1, 1))
+	material.set_shader_parameter("overlay_uv_offset", Vector2(0, 0))
+	material.set_shader_parameter("overlay_uv_size", Vector2(0, 0))
+	material.set_shader_parameter("overlay_enabled", false)
+	
+	var path = "res://src/assets/textures/atlas/" + material_names[MATERIAL_MULTI_FACE]
+	var result = ResourceSaver.save(material, path)
+	
+	if result == OK:
+		print("Многоликий материал сохранен: " + path)
+		return material
+	return null
+
 static func get_opaque() -> ShaderMaterial:
 	var path = "res://src/assets/textures/atlas/block_material_opaque.tres"
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null
-	
+
 static func get_transparent() -> ShaderMaterial:
 	var path = "res://src/assets/textures/atlas/block_material_transparent.tres"
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null
-	
+
 static func get_foliage() -> ShaderMaterial:
 	var path = "res://src/assets/textures/atlas/block_material_foliage.tres"
+	if ResourceLoader.exists(path):
+		return load(path)
+	return null
+
+static func get_multi_face() -> ShaderMaterial:
+	var path = "res://src/assets/textures/atlas/block_material_multi_face.tres"
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null

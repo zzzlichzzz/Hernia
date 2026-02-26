@@ -1,6 +1,8 @@
-# Blender v2.83.0 OBJ File: unit_cube.obj
-# www.blender.org
+# Standard cube for shader-based multi-face rendering
+# Single material, 6 faces with 0-1 UV each
+# Shader determines texture by normal direction
 o Cube
+
 v 1.000000 1.000000 1.000000
 v 1.000000 0.000000 1.000000
 v 0.000000 1.000000 1.000000
@@ -9,16 +11,19 @@ v 1.000000 1.000000 0.000000
 v 1.000000 0.000000 0.000000
 v 0.000000 1.000000 0.000000
 v 0.000000 0.000000 0.000000
+
 vt 0.000000 0.000000
 vt 1.000000 0.000000
 vt 1.000000 1.000000
 vt 0.000000 1.000000
+
 vn 0.0000 1.0000 0.0000
 vn -1.0000 0.0000 0.0000
 vn 0.0000 0.0000 -1.0000
 vn 0.0000 -1.0000 0.0000
 vn 0.0000 0.0000 1.0000
 vn 1.0000 0.0000 0.0000
+
 s off
 f 1/1/1 5/2/1 7/3/1 3/4/1
 f 4/1/2 3/2/2 7/3/2 8/4/2

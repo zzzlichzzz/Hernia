@@ -1,0 +1,8 @@
+newmtl mat_top
+Kd 0.0 1.0 0.0
+
+newmtl mat_bottom
+Kd 0.5 0.3 0.1
+
+newmtl mat_sides
+Kd 1.0 1.0 1.0

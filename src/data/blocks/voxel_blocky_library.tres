@@ -1,9 +1,9 @@
-[gd_resource type="VoxelBlockyLibrary" format=3]
+[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://c11ll560bf04k"]
 
-[ext_resource type="Shader" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_jw5bb"]
-[ext_resource type="Texture2D" path="res://src/assets/textures/atlas/block_atlas.png" id="2_cn41p"]
-[ext_resource type="ArrayMesh" path="res://src/assets/blocks/models/cube.obj" id="3_vmbgv"]
-[ext_resource type="Shader" path="res://src/shaders/blocks/block_opaque.gdshader" id="4_7m0mw"]
+[ext_resource type="Shader" uid="uid://byk6fbd65qy58" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_jw5bb"]
+[ext_resource type="Texture2D" uid="uid://btsf18kgvsgbf" path="res://src/assets/textures/atlas/block_atlas.png" id="2_cn41p"]
+[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/blocks/models/cube.obj" id="3_vmbgv"]
+[ext_resource type="Shader" uid="uid://dulw00g7k64cw" path="res://src/shaders/blocks/block_opaque.gdshader" id="4_7m0mw"]
 
 [sub_resource type="VoxelBlockyModelEmpty" id="VoxelBlockyModelEmpty_bnw2r"]
 resource_name = "air"

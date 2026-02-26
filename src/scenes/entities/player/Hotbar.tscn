@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://cnwqn0s8f7ml3"]
+
+[ext_resource type="PackedScene" uid="uid://qaqqg7olt6pr" path="res://src/scenes/entities/player/HotbarSlot.tscn" id="2_v8qxb"]
+[ext_resource type="Texture2D" uid="uid://dqwi33hpxfoo0" path="res://src/assets/textures/gui/hotbar_slot_select.png" id="3_oigtb"]
+
+[node name="HotBar" type="CenterContainer" unique_id=17073395]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -97.0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=747561492]
+layout_mode = 2
+
+[node name="HotbarSlot" parent="HBoxContainer" unique_id=2065950043 instance=ExtResource("2_v8qxb")]
+layout_mode = 2
+
+[node name="HotbarSlotSelect" type="TextureRect" parent="HBoxContainer/HotbarSlot" unique_id=327625189]
+layout_mode = 0
+texture = ExtResource("3_oigtb")
+expand_mode = 1
+
+[node name="HotbarSlot2" parent="HBoxContainer" unique_id=1558603425 instance=ExtResource("2_v8qxb")]
+layout_mode = 2
+
+[node name="HotbarSlot3" parent="HBoxContainer" unique_id=1630734629 instance=ExtResource("2_v8qxb")]
+layout_mode = 2
+
+[node name="HotbarSlot4" parent="HBoxContainer" unique_id=1765576617 instance=ExtResource("2_v8qxb")]
+layout_mode = 2
+
+[node name="HotbarSlot5" parent="HBoxContainer" unique_id=1984472867 instance=ExtResource("2_v8qxb")]
+layout_mode = 2
+
+[node name="HotbarSlot6" parent="HBoxContainer" unique_id=1269922135 instance=ExtResource("2_v8qxb")]
+layout_mode = 2
+
+[node name="HotbarSlot7" parent="HBoxContainer" unique_id=1375299215 instance=ExtResource("2_v8qxb")]
+layout_mode = 2
+
+[node name="HotbarSlot8" parent="HBoxContainer" unique_id=2018268682 instance=ExtResource("2_v8qxb")]
+layout_mode = 2
+
+[node name="HotbarSlot9" parent="HBoxContainer" unique_id=512621534 instance=ExtResource("2_v8qxb")]
+layout_mode = 2

@@ -1,4 +1,4 @@
-[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://c11ll560bf04k"]
+[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://cnpjarpfhx8sm"]
 
 [ext_resource type="Shader" uid="uid://byk6fbd65qy58" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_jw5bb"]
 [ext_resource type="Texture2D" uid="uid://btsf18kgvsgbf" path="res://src/assets/textures/atlas/block_atlas.png" id="2_cn41p"]
@@ -23,7 +23,7 @@ shader_parameter/overlay_uv_size = Vector2(0.125, 0.125)
 shader_parameter/overlay_enabled = true
 
 [sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_jjnj3"]
-resource_name = "grass_block"
+resource_name = "блок травы"
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
 material_override_0 = SubResource("ShaderMaterial_36qk5")
 collision_enabled_0 = true
@@ -37,7 +37,7 @@ shader_parameter/block_uv_offset = Vector2(0.25, 0)
 shader_parameter/block_uv_size = Vector2(0.125, 0.125)
 
 [sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_plqvt"]
-resource_name = "dirt"
+resource_name = "земля"
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
 material_override_0 = SubResource("ShaderMaterial_s4m86")
 collision_enabled_0 = true
@@ -51,7 +51,7 @@ shader_parameter/block_uv_offset = Vector2(0.5, 0.125)
 shader_parameter/block_uv_size = Vector2(0.125, 0.125)
 
 [sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_bbfiv"]
-resource_name = "stone"
+resource_name = "камень"
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
 material_override_0 = SubResource("ShaderMaterial_snhp3")
 collision_enabled_0 = true

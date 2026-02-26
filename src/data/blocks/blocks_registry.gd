@@ -1,5 +1,6 @@
 @tool
 extends Node
+class_name BlockRegistry
 
 var LIBRARY_PATH = "res://src/data/blocks/voxel_blocky_library.tres"
 var BLOCKS_FOLDER = "res://src/data/blocks/definitions/"

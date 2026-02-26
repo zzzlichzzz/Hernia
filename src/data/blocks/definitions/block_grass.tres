@@ -5,7 +5,7 @@
 
 [resource]
 script = ExtResource("1_ox7y0")
-block_name = "grass_block"
+block_name = "блок травы"
 texture_name = "dirt"
 texture_top = "grass_block_top"
 texture_bottom = "dirt"

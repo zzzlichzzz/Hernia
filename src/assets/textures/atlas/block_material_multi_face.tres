@@ -1,0 +1,18 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_w58wp"]
+[ext_resource type="Texture2D" path="res://src/assets/textures/atlas/block_atlas.png" id="2_j2n8l"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_w58wp")
+shader_parameter/atlas_texture = ExtResource("2_j2n8l")
+shader_parameter/top_uv_offset = Vector2(0, 0)
+shader_parameter/top_uv_size = Vector2(1, 1)
+shader_parameter/bottom_uv_offset = Vector2(0, 0)
+shader_parameter/bottom_uv_size = Vector2(1, 1)
+shader_parameter/side_uv_offset = Vector2(0, 0)
+shader_parameter/side_uv_size = Vector2(1, 1)
+shader_parameter/overlay_uv_offset = Vector2(0, 0)
+shader_parameter/overlay_uv_size = Vector2(0, 0)
+shader_parameter/overlay_enabled = false

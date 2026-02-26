@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://cuemsvwvyjat5"]
+
+[ext_resource type="Texture2D" uid="uid://dy0k0q16fj38v" path="res://src/assets/textures/gui/crosshair.png" id="1_ja4c2"]
+
+[node name="crosshair" type="CenterContainer" unique_id=923928767]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="crosshair" type="TextureRect" parent="." unique_id=1897067554]
+layout_mode = 2
+texture = ExtResource("1_ja4c2")

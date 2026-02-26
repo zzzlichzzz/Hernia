@@ -5,6 +5,6 @@
 
 [resource]
 script = ExtResource("2_bkbuw")
-block_name = "stone"
+block_name = "камень"
 texture_name = "stone"
 model = ExtResource("1_70b3x")

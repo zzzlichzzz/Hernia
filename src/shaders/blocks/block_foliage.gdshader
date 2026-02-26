@@ -2,7 +2,7 @@ shader_type spatial;
 
 render_mode blend_mix, unshaded, cull_disabled;
 
-uniform sampler2D atlas_texture : filter_nearest, repeat_disable;
+uniform sampler2D atlas_texture : source_color, filter_nearest, repeat_disable;
 uniform vec2 block_uv_offset;
 uniform vec2 block_uv_size;
 uniform float alpha_scissor_threshold : hint_range(0.0, 1.0) = 0.5;
@@ -20,11 +20,10 @@ void fragment() {
 	
 	vec4 color = texture(atlas_texture, final_uv);
 	
-	// Альфа-тест: отбрасываем прозрачные пиксели
 	if (color.a < alpha_scissor_threshold) {
 		discard;
 	}
 	
 	ALBEDO = color.rgb;
-	ALPHA = 1.0; // После теста — полностью непрозрачный
+	ALPHA = 1.0;
 }

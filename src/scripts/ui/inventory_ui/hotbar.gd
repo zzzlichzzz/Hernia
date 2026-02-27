@@ -1,33 +1,33 @@
 extends Control
 
-@export var player_path: NodePath = ""
+@export var inventory_path: NodePath = ""  # путь к узлу CreativeInventory
 @onready var slots_container = $HBoxContainer
 
-var _player: Node = null
+var _inventory: Node = null
 var _slot_controls: Array[Control] = []
 
 func _ready():
-	_find_player()
-	if _player:
-		if _player.has_signal("hotbar_updated"):
-			_player.hotbar_updated.connect(_on_hotbar_updated)
-		if _player.has_signal("selected_slot_changed"):
-			_player.selected_slot_changed.connect(_on_selected_slot_changed)
+	_find_inventory()
+	if _inventory:
+		if _inventory.has_signal("hotbar_updated"):
+			_inventory.hotbar_updated.connect(_on_hotbar_updated)
+		if _inventory.has_signal("selected_slot_changed"):
+			_inventory.selected_slot_changed.connect(_on_selected_slot_changed)
 		_initialize_slots()
 	else:
-		push_error("hotbar.gd: игрок не найден")
+		push_error("hotbar.gd: инвентарь не найден")
 
-func _find_player():
-	if player_path:
-		_player = get_node(player_path)
-		if _player: return
-	_player = _find_player_recursive(get_tree().current_scene)
+func _find_inventory():
+	if inventory_path:
+		_inventory = get_node(inventory_path)
+		if _inventory: return
+	_inventory = _find_inventory_recursive(get_tree().current_scene)
 
-func _find_player_recursive(node: Node) -> Node:
-	if node is CharacterBody3D:
+func _find_inventory_recursive(node: Node) -> Node:
+	if node.has_method("get_selected_block_info"):  # признак CreativeInventory
 		return node
 	for child in node.get_children():
-		var found = _find_player_recursive(child)
+		var found = _find_inventory_recursive(child)
 		if found:
 			return found
 	return null
@@ -43,8 +43,8 @@ func _initialize_slots():
 		_slot_controls.append(slot)
 	
 	_update_all_slots()
-	if _player:
-		_on_selected_slot_changed(_player.selected_slot)
+	if _inventory:
+		_on_selected_slot_changed(_inventory.selected_slot)
 
 func _create_slot(index: int) -> Control:
 	var panel = Panel.new()
@@ -92,9 +92,9 @@ func _update_slot(index: int):
 	if not icon:
 		return
 	
-	if _player and _player.hotbar_items.size() > index:
-		var item = _player.hotbar_items[index]
-		if item and item.has("texture"):
+	if _inventory and _inventory.hotbar_items.size() > index:
+		var item = _inventory.hotbar_items[index]
+		if item and item.has("texture") and item.texture:
 			icon.texture = item.texture
 			icon.show()
 		else:
@@ -108,7 +108,10 @@ func _highlight_slot(index: int, selected: bool):
 		return
 	var panel = _slot_controls[index]
 	var style = panel.get_theme_stylebox("panel").duplicate()
-	style.border_color = Color.WHITE if selected else Color(0.5, 0.5, 0.5)
+	if selected:
+		style.border_color = Color.WHITE
+	else:
+		style.border_color = Color(0.5, 0.5, 0.5)
 	panel.add_theme_stylebox_override("panel", style)
 
 func _on_hotbar_updated(index: int):

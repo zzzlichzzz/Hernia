@@ -5,6 +5,6 @@
 
 [resource]
 script = ExtResource("1_8s106")
-block_name = "земля"
+block_name = "dirt"
 texture_name = "dirt"
 model = ExtResource("1_yv80w")

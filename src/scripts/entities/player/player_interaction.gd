@@ -14,8 +14,8 @@ var _voxel_size: float = 1.0
 
 var _break_timer: float = 0.0
 var _place_timer: float = 0.0
-var _player: Node = null
-var _selected_block_id: int = 0  # 0 = воздух (ничего не ставить)
+var _inventory: Node = null
+var _selected_block_id: int = 0  # 0 = воздух
 
 signal block_broken(position: Vector3i, block_id: int)
 signal block_placed(position: Vector3i, block_id: int)
@@ -25,30 +25,31 @@ signal terrain_lost()
 
 func _ready():
 	await get_tree().process_frame
-	_find_player()
+	_find_inventory()
 	if search_terrain_on_ready:
 		_find_and_setup_terrain()
 	get_tree().node_added.connect(_on_node_added)
 
-func _find_player():
+func _find_inventory():
+	# Ищем CreativeInventory среди детей родителя (игрока)
 	var parent = get_parent()
-	while parent:
-		if parent is CharacterBody3D:
-			_player = parent
-			if _player.has_signal("selected_slot_changed"):
-				_player.selected_slot_changed.connect(_on_player_selected_slot_changed)
-				_update_selected_block_from_player()
-			break
-		parent = parent.get_parent()
-	if not _player:
-		push_warning("PlayerInteraction: игрок не найден")
+	if parent:
+		for child in parent.get_children():
+			if child.has_method("get_selected_block_info"):
+				_inventory = child
+				if _inventory.has_signal("selected_slot_changed"):
+					_inventory.selected_slot_changed.connect(_on_selected_slot_changed)
+				_update_selected_block_from_inventory()
+				break
+	if not _inventory:
+		push_warning("PlayerInteraction: CreativeInventory не найден")
 
-func _on_player_selected_slot_changed(_index: int):
-	_update_selected_block_from_player()
+func _on_selected_slot_changed(_index: int):
+	_update_selected_block_from_inventory()
 
-func _update_selected_block_from_player():
-	if _player and _player.has_method("get_selected_block_info"):
-		var info = _player.get_selected_block_info()
+func _update_selected_block_from_inventory():
+	if _inventory:
+		var info = _inventory.get_selected_block_info()
 		if not info.is_empty() and info.has("id") and info.id != -1:
 			_selected_block_id = info.id
 			print("PlayerInteraction: выбран блок ID ", _selected_block_id)

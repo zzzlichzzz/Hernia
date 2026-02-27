@@ -1,68 +1,122 @@
 extends Control
 
+@export var player_path: NodePath = ""
 @onready var slots_container = $HBoxContainer
-var player: Node
+
+var _player: Node = null
+var _slot_controls: Array[Control] = []
 
 func _ready():
-	# Поиск игрока
-	player = _find_player(get_tree().get_current_scene())
-	if player:
-		player.hotbar_changed.connect(_on_player_hotbar_changed)
-		_initialize_hotbar(player.available_blocks)
+	_find_player()
+	if _player:
+		if _player.has_signal("hotbar_updated"):
+			_player.hotbar_updated.connect(_on_hotbar_updated)
+		if _player.has_signal("selected_slot_changed"):
+			_player.selected_slot_changed.connect(_on_selected_slot_changed)
+		_initialize_slots()
 	else:
-		push_error("Player не найден! Убедитесь, что в сцене есть CharacterBody3D с именем 'Player' или добавьте его в группу 'player'.")
+		push_error("hotbar.gd: игрок не найден")
 
-func _find_player(node: Node) -> Node:
+func _find_player():
+	if player_path:
+		_player = get_node(player_path)
+		if _player: return
+	_player = _find_player_recursive(get_tree().current_scene)
+
+func _find_player_recursive(node: Node) -> Node:
 	if node is CharacterBody3D:
 		return node
 	for child in node.get_children():
-		var found = _find_player(child)
+		var found = _find_player_recursive(child)
 		if found:
 			return found
 	return null
 
-func _initialize_hotbar(blocks: Array):
-	# Очистка старых слотов
+func _initialize_slots():
 	for child in slots_container.get_children():
 		child.queue_free()
-
-	# Создание слотов
-	for i in range(blocks.size()):
-		var slot = create_slot(blocks[i]["icon"], str(i + 1))
+	_slot_controls.clear()
+	
+	for i in range(9):
+		var slot = _create_slot(i)
 		slots_container.add_child(slot)
-		if i == 0:
-			set_slot_selected(slot, true)
+		_slot_controls.append(slot)
+	
+	_update_all_slots()
+	if _player:
+		_on_selected_slot_changed(_player.selected_slot)
 
-func create_slot(icon_texture: Texture2D, number_text: String) -> Control:
+func _create_slot(index: int) -> Control:
 	var panel = Panel.new()
-	panel.size = Vector2(60, 60)
-	panel.add_theme_stylebox_override("panel", get_theme_stylebox("panel", "Panel"))
-
-	var texture_rect = TextureRect.new()
-	texture_rect.texture = icon_texture
-	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-	texture_rect.size = Vector2(40, 40)
-	texture_rect.position = Vector2(10, 10)
-	panel.add_child(texture_rect)
-
+	panel.size = Vector2(44, 44)
+	panel.set_meta("slot_index", index)
+	
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.2, 0.2, 0.2, 0.8)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.5, 0.5, 0.5)
+	panel.add_theme_stylebox_override("panel", style)
+	
+	var icon = TextureRect.new()
+	icon.name = "Icon"
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(36, 36)
+	icon.position = Vector2(4, 4)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(icon)
+	
 	var label = Label.new()
-	label.text = number_text
+	label.text = str(index + 1)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	label.size = Vector2(50, 50)
-	label.position = Vector2(5, 5)
+	label.size = Vector2(40, 40)
+	label.position = Vector2(2, 2)
 	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_font_size_override("font_size", 10)
 	panel.add_child(label)
-
+	
 	return panel
 
-func set_slot_selected(slot: Control, selected: bool):
-	if selected:
-		slot.modulate = Color.YELLOW
-	else:
-		slot.modulate = Color.WHITE
+func _update_all_slots():
+	for i in range(min(9, _slot_controls.size())):
+		_update_slot(i)
 
-func _on_player_hotbar_changed(active_index: int):
-	for i in range(slots_container.get_child_count()):
-		var slot = slots_container.get_child(i)
-		set_slot_selected(slot, i == active_index)
+func _update_slot(index: int):
+	if index < 0 or index >= _slot_controls.size():
+		return
+	var panel = _slot_controls[index]
+	var icon = panel.get_node("Icon") as TextureRect
+	if not icon:
+		return
+	
+	if _player and _player.hotbar_items.size() > index:
+		var item = _player.hotbar_items[index]
+		if item and item.has("texture"):
+			icon.texture = item.texture
+			icon.show()
+		else:
+			icon.texture = null
+			icon.hide()
+	else:
+		icon.hide()
+
+func _highlight_slot(index: int, selected: bool):
+	if index < 0 or index >= _slot_controls.size():
+		return
+	var panel = _slot_controls[index]
+	var style = panel.get_theme_stylebox("panel").duplicate()
+	style.border_color = Color.WHITE if selected else Color(0.5, 0.5, 0.5)
+	panel.add_theme_stylebox_override("panel", style)
+
+func _on_hotbar_updated(index: int):
+	if index == -1:
+		_update_all_slots()
+	else:
+		_update_slot(index)
+
+func _on_selected_slot_changed(index: int):
+	for i in _slot_controls.size():
+		_highlight_slot(i, i == index)

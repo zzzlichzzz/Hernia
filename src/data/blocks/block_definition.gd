@@ -4,22 +4,24 @@ class_name BlockDefinition
 @export var block_name: String = ""
 @export var texture_name: String = ""
 
-# ═══ Текстуры для отдельных граней ═══
+# Текстуры для отдельных граней
 @export var texture_top: String = ""
 @export var texture_bottom: String = ""
 @export var texture_side: String = ""
-
-# ═══ Оверлей для боковых граней ═══
 @export var texture_side_overlay: String = ""
 
 # Модель блока
 @export var model: Mesh
 
+# ═══ ПОЛУБЛОКИ ═══
+@export var is_slab: bool = false
+@export var slab_model_top: Mesh = null         # Модель для верхнего полублока
+@export var full_block_name: String = ""         # Имя полного блока для объединения
+
 # Параметры рендеринга
 @export var culls_neighbors: bool = true
 @export var transparency_index: int = 0
 
-# ═══ Тип материала ═══
 enum MaterialType { OPAQUE, TRANSPARENT, FOLIAGE, MULTI_FACE }
 
 @export var material_type_enum: MaterialType = MaterialType.OPAQUE:

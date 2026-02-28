@@ -1,11 +1,11 @@
 @tool
 extends Node
-class_name BlockRegistry
 
 var LIBRARY_PATH = "res://src/data/blocks/voxel_blocky_library.tres"
 var BLOCKS_FOLDER = "res://src/data/blocks/definitions/"
 var MODELS_FOLDER = "res://src/assets/blocks/"
 const MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
+const SLAB_DATA_PATH = "res://src/data/blocks/slab_data.tres"
 
 const ATLAS_COORDS_PATH = "res://src/assets/textures/atlas/block_coordinates.tres"
 const MATERIAL_PATHS = {
@@ -24,6 +24,15 @@ var mesher_manager: Node
 
 var _atlas_coords: Resource = null
 var _base_materials: Dictionary = {}
+
+# ═══ РЕЕСТР ПОЛУБЛОКОВ ═══
+var slab_registry: Dictionary = {}
+# { "stone_slab": { "bottom_id": 4, "top_id": 5, "full_block_name": "stone" } }
+
+var slab_id_map: Dictionary = {}
+# { 4: { "name": "stone_slab", "variant": "bottom" },
+#   5: { "name": "stone_slab", "variant": "top" } }
+
 
 func _ready():
 	if Engine.is_editor_hint():
@@ -54,36 +63,38 @@ func _build_library():
 		if Engine.is_editor_hint():
 			print("📌 Режим: РЕДАКТОР")
 	
-	if debug_mode:
-		print("\n📁 ШАГ 1: Создание новой библиотеки")
-	
 	library = VoxelBlockyLibrary.new()
+	slab_registry.clear()
+	slab_id_map.clear()
+	block_count = 0
 	
 	if debug_mode:
-		print("\n🎨 ШАГ 1.5: Загрузка атласа и материалов")
+		print("\n🎨 Загрузка атласа и материалов")
 	_load_atlas_and_materials()
 	
 	if debug_mode:
-		print("\n🔍 ШАГ 2: Поиск определений блоков")
+		print("\n🔍 Поиск определений блоков")
 	var block_files = _find_block_definitions()
 	if debug_mode:
 		print("📁 Найдено определений: ", block_files.size())
 	
 	if debug_mode:
-		print("\n🌬️ ШАГ 3: Добавление воздуха")
+		print("\n🌬️ Добавление воздуха")
 	_add_air()
 	
 	if debug_mode:
-		print("\n🧱 ШАГ 4: Добавление блоков")
+		print("\n🧱 Добавление блоков")
 	for file_path in block_files:
 		_process_block_definition(file_path)
 	
+	# ═══ Разрешение ID полных блоков для полублоков ═══
 	if debug_mode:
-		print("\n🔥 ШАГ 5: Запекание библиотеки")
-	library.bake()
+		print("\n🔗 Разрешение ID полных блоков для полублоков")
+	_resolve_slab_full_ids()
 	
 	if debug_mode:
-		print("\n💾 ШАГ 6: Сохранение")
+		print("\n🔥 Запекание библиотеки")
+	library.bake()
 	
 	var target_dir = LIBRARY_PATH.get_base_dir()
 	if not DirAccess.dir_exists_absolute(target_dir):
@@ -97,13 +108,18 @@ func _build_library():
 		print("❌ Ошибка сохранения: ", result)
 		return
 	
-	if debug_mode:
-		print("\n🔄 ШАГ 7: Обновление мешера")
 	_update_mesher()
 	
 	if debug_mode:
-		print("✅ СБОРКА ЗАВЕРШЕНА")
+		print("\n✅ СБОРКА ЗАВЕРШЕНА")
 		print("📊 Всего блоков: ", block_count)
+		if slab_registry.size() > 0:
+			print("📊 Полублоков: ", slab_registry.size())
+			for slab_name in slab_registry:
+				var info = slab_registry[slab_name]
+				print("   ", slab_name, ": bottom=", info["bottom_id"],
+					  " top=", info["top_id"],
+					  " full=", info.get("full_id", -1))
 
 
 # ═══════════════════════════════════════════════════════════
@@ -134,7 +150,6 @@ func _load_atlas_and_materials():
 # ═══════════════════════════════════════════════════════════
 
 func _get_uv_for_texture(texture_name: String) -> Dictionary:
-	"""Возвращает UV координаты текстуры из атласа"""
 	if _atlas_coords == null:
 		return {}
 	var coords = _atlas_coords.coordinates.get(texture_name, null)
@@ -145,7 +160,6 @@ func _get_uv_for_texture(texture_name: String) -> Dictionary:
 
 
 func _create_simple_material(material_type: String, texture_name: String) -> ShaderMaterial:
-	"""Материал с одной текстурой на все грани"""
 	var base_mat = _base_materials.get(material_type, _base_materials.get("opaque", null))
 	if base_mat == null:
 		return null
@@ -164,63 +178,58 @@ func _create_simple_material(material_type: String, texture_name: String) -> Sha
 
 
 func _create_multi_face_material(def: BlockDefinition) -> ShaderMaterial:
-	"""Материал с разными текстурами на гранях (шейдер определяет грань по нормали)"""
 	var base_mat = _base_materials.get("multi_face", null)
 	if base_mat == null:
-		print("   ❌ Базовый материал multi_face не найден")
 		return null
 	
 	var mat = base_mat.duplicate() as ShaderMaterial
 	
-	# Верхняя грань
 	var top_name = def.texture_top if def.texture_top != "" else def.texture_name
 	var top_uv = _get_uv_for_texture(top_name)
 	if not top_uv.is_empty():
 		mat.set_shader_parameter("top_uv_offset", Vector2(top_uv["left"], top_uv["top"]))
 		mat.set_shader_parameter("top_uv_size", Vector2(
-			top_uv["right"] - top_uv["left"],
-			top_uv["bottom"] - top_uv["top"]
-		))
+			top_uv["right"] - top_uv["left"], top_uv["bottom"] - top_uv["top"]))
 	
-	# Нижняя грань
 	var bot_name = def.texture_bottom if def.texture_bottom != "" else def.texture_name
 	var bot_uv = _get_uv_for_texture(bot_name)
 	if not bot_uv.is_empty():
 		mat.set_shader_parameter("bottom_uv_offset", Vector2(bot_uv["left"], bot_uv["top"]))
 		mat.set_shader_parameter("bottom_uv_size", Vector2(
-			bot_uv["right"] - bot_uv["left"],
-			bot_uv["bottom"] - bot_uv["top"]
-		))
+			bot_uv["right"] - bot_uv["left"], bot_uv["bottom"] - bot_uv["top"]))
 	
-	# Боковые грани (база)
 	var side_name = def.texture_side if def.texture_side != "" else def.texture_name
 	var side_uv = _get_uv_for_texture(side_name)
 	if not side_uv.is_empty():
 		mat.set_shader_parameter("side_uv_offset", Vector2(side_uv["left"], side_uv["top"]))
 		mat.set_shader_parameter("side_uv_size", Vector2(
-			side_uv["right"] - side_uv["left"],
-			side_uv["bottom"] - side_uv["top"]
-		))
+			side_uv["right"] - side_uv["left"], side_uv["bottom"] - side_uv["top"]))
 	
-	# Оверлей на боках (опционально)
 	if def.has_side_overlay():
 		var over_uv = _get_uv_for_texture(def.texture_side_overlay)
 		if not over_uv.is_empty():
 			mat.set_shader_parameter("overlay_uv_offset", Vector2(over_uv["left"], over_uv["top"]))
 			mat.set_shader_parameter("overlay_uv_size", Vector2(
-				over_uv["right"] - over_uv["left"],
-				over_uv["bottom"] - over_uv["top"]
-			))
+				over_uv["right"] - over_uv["left"], over_uv["bottom"] - over_uv["top"]))
 			mat.set_shader_parameter("overlay_enabled", true)
-			if debug_mode:
-				print("   🌿 Оверлей включён: ", def.texture_side_overlay)
-	
-	if debug_mode:
-		print("   🔝 Верх: ", top_name)
-		print("   🔽 Низ: ", bot_name)
-		print("   ◻️ Бока: ", side_name)
 	
 	return mat
+
+
+# ═══════════════════════════════════════════════════════════
+#  ПРИМЕНЕНИЕ МАТЕРИАЛА К МОДЕЛИ
+# ═══════════════════════════════════════════════════════════
+
+func _apply_material_to_model(model: VoxelBlockyModelMesh, def: BlockDefinition):
+	var mat: ShaderMaterial = null
+	
+	if def.material_type == "multi_face" or def.has_per_face_textures():
+		mat = _create_multi_face_material(def)
+	else:
+		mat = _create_simple_material(def.material_type, def.texture_name)
+	
+	if mat:
+		model.set_material_override(0, mat)
 
 
 # ═══════════════════════════════════════════════════════════
@@ -257,41 +266,26 @@ func _process_block_definition(file_path: String):
 		print("   📦 Блок: ", def.block_name)
 		print("   🎨 Материал: ", def.material_type)
 	
-	# Загрузка меша
 	if def.model == null:
 		if debug_mode:
 			print("   ⚠️ Модель не указана, пропуск")
 		return
 	
-	if debug_mode:
-		print("   📐 Меш (surfaces: ", def.model.get_surface_count(), ")")
+	# ═══ ПОЛУБЛОКИ ═══
+	if def.is_slab:
+		_process_slab_definition(def)
+		return
 	
-	# Создаём модель
+	# ═══ ОБЫЧНЫЙ БЛОК ═══
 	var model = VoxelBlockyModelMesh.new()
 	model.resource_name = def.block_name
 	model.mesh = def.model
 	model.culls_neighbors = def.culls_neighbors
 	model.transparency_index = def.transparency_index
-	
-	# Коллизия
 	model.collision_aabbs = def.collision_aabbs
 	model.set("collision_enabled_0", def.collision_enabled)
 	
-	# ═══ ПРИМЕНЕНИЕ МАТЕРИАЛА ═══
-	# Всегда один материал на surface 0!
-	var mat: ShaderMaterial = null
-	
-	if def.material_type == "multi_face" or def.has_per_face_textures():
-		# Разные текстуры на гранях — шейдер сам определяет по нормали
-		mat = _create_multi_face_material(def)
-	else:
-		# Одна текстура на все грани
-		mat = _create_simple_material(def.material_type, def.texture_name)
-	
-	if mat:
-		model.set_material_override(0, mat)
-		if debug_mode:
-			print("   ✅ Материал применён к surface 0")
+	_apply_material_to_model(model, def)
 	
 	var id = library.add_model(model)
 	if debug_mode:
@@ -300,7 +294,149 @@ func _process_block_definition(file_path: String):
 
 
 # ═══════════════════════════════════════════════════════════
-#  ОСТАЛЬНОЕ
+#  ОБРАБОТКА ПОЛУБЛОКОВ
+# ═══════════════════════════════════════════════════════════
+
+func _process_slab_definition(def: BlockDefinition):
+	if debug_mode:
+		print("   🔲 Полублок: ", def.block_name)
+	
+	if def.model == null:
+		if debug_mode:
+			print("   ❌ Модель нижнего полублока не указана")
+		return
+	
+	if def.slab_model_top == null:
+		if debug_mode:
+			print("   ❌ Модель верхнего полублока не указана (slab_model_top)")
+		return
+	
+	# ─── Нижний полублок ───
+	var bottom_model = VoxelBlockyModelMesh.new()
+	bottom_model.resource_name = def.block_name + "_bottom"
+	bottom_model.mesh = def.model
+	bottom_model.culls_neighbors = false
+	bottom_model.transparency_index = 1
+	bottom_model.collision_aabbs = [AABB(Vector3(0, 0, 0), Vector3(1, 0.5, 1))]
+	bottom_model.set("collision_enabled_0", true)
+	
+	_apply_material_to_model(bottom_model, def)
+	
+	var bottom_id = library.add_model(bottom_model)
+	block_count += 1
+	
+	if debug_mode:
+		print("   🔽 Нижний полублок ID: ", bottom_id)
+	
+	# ─── Верхний полублок ───
+	var top_model = VoxelBlockyModelMesh.new()
+	top_model.resource_name = def.block_name + "_top"
+	top_model.mesh = def.slab_model_top
+	top_model.culls_neighbors = false
+	top_model.transparency_index = 1
+	top_model.collision_aabbs = [AABB(Vector3(0, 0.5, 0), Vector3(1, 0.5, 1))]
+	top_model.set("collision_enabled_0", true)
+	
+	_apply_material_to_model(top_model, def)
+	
+	var top_id = library.add_model(top_model)
+	block_count += 1
+	
+	if debug_mode:
+		print("   🔼 Верхний полублок ID: ", top_id)
+	
+	# ─── Сохраняем в реестр ───
+	slab_registry[def.block_name] = {
+		"bottom_id": bottom_id,
+		"top_id": top_id,
+		"full_block_name": def.full_block_name
+	}
+	
+	slab_id_map[bottom_id] = {"name": def.block_name, "variant": "bottom"}
+	slab_id_map[top_id] = {"name": def.block_name, "variant": "top"}
+	
+	if debug_mode:
+		print("   ✅ Полублок зарегистрирован: ", def.block_name)
+
+
+func _resolve_slab_full_ids():
+	"""После регистрации всех блоков, находим ID полных блоков для объединения"""
+	for slab_name in slab_registry:
+		var info = slab_registry[slab_name]
+		var full_name = info["full_block_name"]
+		
+		if full_name == "":
+			info["full_id"] = -1
+			if debug_mode:
+				print("   ⚠️ ", slab_name, ": полный блок не указан, объединение отключено")
+			continue
+		
+		var full_id = library.get_model_index_from_resource_name(full_name)
+		info["full_id"] = full_id
+		
+		if debug_mode:
+			if full_id >= 0:
+				print("   🔗 ", slab_name, " → ", full_name, " (ID: ", full_id, ")")
+			else:
+				print("   ❌ ", slab_name, " → ", full_name, " НЕ НАЙДЕН!")
+
+
+# ═══════════════════════════════════════════════════════════
+#  ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ ПОЛУБЛОКОВ
+# ═══════════════════════════════════════════════════════════
+func _save_slab_data():
+	"""Сохраняет данные полублоков в ресурс для использования в игре"""
+	var data = SlabData.new()
+	
+	# Конвертируем ключи в строки (ResourceSaver требует)
+	var registry_copy = {}
+	for key in slab_registry:
+		registry_copy[str(key)] = slab_registry[key]
+	
+	var id_map_copy = {}
+	for key in slab_id_map:
+		id_map_copy[str(key)] = slab_id_map[key]
+	
+	data.slab_registry = registry_copy
+	data.slab_id_map = id_map_copy
+	
+	var result = ResourceSaver.save(data, SLAB_DATA_PATH)
+	if result == OK:
+		if debug_mode:
+			print("✅ Данные полублоков сохранены: ", SLAB_DATA_PATH)
+			print("   Полублоков: ", slab_registry.size())
+			for slab_name in slab_registry:
+				var info = slab_registry[slab_name]
+				print("   ", slab_name, ": bottom=", info["bottom_id"],
+					  " top=", info["top_id"], " full=", info.get("full_id", -1))
+	else:
+		print("❌ Ошибка сохранения slab_data: ", result)
+
+func is_slab_id(voxel_id: int) -> bool:
+	"""Проверяет, является ли ID полублоком"""
+	return slab_id_map.has(voxel_id)
+
+func get_slab_info_by_id(voxel_id: int) -> Dictionary:
+	"""Получает информацию о полублоке по его voxel ID"""
+	if not slab_id_map.has(voxel_id):
+		return {}
+	var map_info = slab_id_map[voxel_id]
+	var full_info = slab_registry.get(map_info["name"], {})
+	return {
+		"name": map_info["name"],
+		"variant": map_info["variant"],
+		"bottom_id": full_info.get("bottom_id", -1),
+		"top_id": full_info.get("top_id", -1),
+		"full_id": full_info.get("full_id", -1)
+	}
+
+func get_slab_ids(slab_name: String) -> Dictionary:
+	"""Получает все ID полублока по имени"""
+	return slab_registry.get(slab_name, {})
+
+
+# ═══════════════════════════════════════════════════════════
+#  ОСТАЛЬНОЕ (без изменений)
 # ═══════════════════════════════════════════════════════════
 
 func _find_block_definitions() -> Array:
@@ -352,3 +488,31 @@ static func get_block_id(block_name: String) -> int:
 	if instance and instance.library:
 		return instance.library.get_model_index_from_resource_name(block_name)
 	return -1
+	
+# ═══════════════════════════════════════════════════════════
+#  МЕТОДЫ ДЛЯ PLAYER_INTERACTION
+# ═══════════════════════════════════════════════════════════
+
+func get_block_id_by_name(block_name: String) -> int:
+	"""Получает ID блока по имени (instance метод)"""
+	if library == null:
+		return -1
+	return library.get_model_index_from_resource_name(block_name)
+
+func get_block_name_by_id(block_id: int) -> String:
+	"""Получает имя блока по ID"""
+	if library == null:
+		return ""
+	
+	# Проверяем полублоки
+	if slab_id_map.has(block_id):
+		return slab_id_map[block_id]["name"]
+	
+	# Перебираем все модели
+	var count = library.get_model_count()
+	for i in range(count):
+		var model = library.get_model(i)
+		if model and model.resource_name != "" and i == block_id:
+			return model.resource_name
+	
+	return ""

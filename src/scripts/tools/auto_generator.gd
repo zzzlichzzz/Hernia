@@ -84,6 +84,7 @@ func _run_blocks_registry() -> bool:
 	# Проверяем наличие метода _build_library (как в вашем скрипте)
 	if registry.has_method("_build_library"):
 		registry._build_library()
+		registry._save_slab_data()
 		print("✅ BlockRegistry._build_library() выполнен")
 		return true
 	else:

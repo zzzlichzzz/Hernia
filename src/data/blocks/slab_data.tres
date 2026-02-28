@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="SlabData" format=3 uid="uid://14wp401j5kim"]
+
+[ext_resource type="Script" uid="uid://bkc0rj02tfo0j" path="res://src/scripts/resources/slab_data.gd" id="1_021q8"]
+
+[resource]
+script = ExtResource("1_021q8")
+slab_registry = {
+"полублок": {
+"bottom_id": 4,
+"full_block_name": "stone",
+"full_id": 3,
+"top_id": 5
+}
+}
+slab_id_map = {
+"4": {
+"name": "полублок",
+"variant": "bottom"
+},
+"5": {
+"name": "полублок",
+"variant": "top"
+}
+}

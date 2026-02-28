@@ -5,15 +5,7 @@
 
 [resource]
 script = ExtResource("1_ox7y0")
-<<<<<<< HEAD
-<<<<<<< HEAD
-block_name = "block grass"
-=======
 block_name = "grass_block"
->>>>>>> parent of f8172ee (взаимодействие с блоками)
-=======
-block_name = "grass_block"
->>>>>>> parent of f8172ee (взаимодействие с блоками)
 texture_name = "dirt"
 texture_top = "grass_block_top"
 texture_bottom = "dirt"

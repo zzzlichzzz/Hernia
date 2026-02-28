@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="BlockDefinition" format=3 uid="uid://66nf2igowrrw"]
+
+[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/blocks/models/cube.obj" id="1_70b3x"]
+[ext_resource type="Script" uid="uid://c4qx5vqwkdro2" path="res://src/data/blocks/block_definition.gd" id="2_bkbuw"]
+
+[resource]
+script = ExtResource("2_bkbuw")
+block_name = "камень"
+texture_name = "stone"
+model = ExtResource("1_70b3x")

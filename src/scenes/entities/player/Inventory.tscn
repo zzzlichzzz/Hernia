@@ -1,0 +1,159 @@
+[gd_scene format=3 uid="uid://cuwen1askdtab"]
+
+[ext_resource type="PackedScene" uid="uid://gk05pbux7spw" path="res://src/scenes/entities/player/InventorySlot.tscn" id="2_at5t7"]
+
+[node name="Inventory" type="ColorRect" unique_id=565793990]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.25098)
+
+[node name="CC" type="CenterContainer" parent="." unique_id=748578336]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="PC" type="PanelContainer" parent="CC" unique_id=709069020]
+layout_mode = 2
+
+[node name="VB" type="VBoxContainer" parent="CC/PC" unique_id=913559320]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CC/PC/VB" unique_id=1976683021]
+layout_mode = 2
+text = "Inventory"
+
+[node name="HSeparator2" type="HSeparator" parent="CC/PC/VB" unique_id=718591108]
+layout_mode = 2
+
+[node name="Bag" type="GridContainer" parent="CC/PC/VB" unique_id=1464649683]
+layout_mode = 2
+columns = 9
+
+[node name="InventorySlot" parent="CC/PC/VB/Bag" unique_id=1054466066 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot2" parent="CC/PC/VB/Bag" unique_id=109453150 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot3" parent="CC/PC/VB/Bag" unique_id=384016002 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot4" parent="CC/PC/VB/Bag" unique_id=1555600754 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot5" parent="CC/PC/VB/Bag" unique_id=1584464805 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot6" parent="CC/PC/VB/Bag" unique_id=23306608 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot7" parent="CC/PC/VB/Bag" unique_id=1025589868 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot8" parent="CC/PC/VB/Bag" unique_id=35059949 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot9" parent="CC/PC/VB/Bag" unique_id=147227780 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot10" parent="CC/PC/VB/Bag" unique_id=1576527872 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot11" parent="CC/PC/VB/Bag" unique_id=1817963214 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot12" parent="CC/PC/VB/Bag" unique_id=158104124 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot13" parent="CC/PC/VB/Bag" unique_id=2061470540 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot14" parent="CC/PC/VB/Bag" unique_id=1631438566 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot15" parent="CC/PC/VB/Bag" unique_id=63359619 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot16" parent="CC/PC/VB/Bag" unique_id=1715655915 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot17" parent="CC/PC/VB/Bag" unique_id=1547385479 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot18" parent="CC/PC/VB/Bag" unique_id=1588803809 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot19" parent="CC/PC/VB/Bag" unique_id=920954155 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot20" parent="CC/PC/VB/Bag" unique_id=663385182 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot21" parent="CC/PC/VB/Bag" unique_id=202160965 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot22" parent="CC/PC/VB/Bag" unique_id=314197439 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot23" parent="CC/PC/VB/Bag" unique_id=536626867 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot24" parent="CC/PC/VB/Bag" unique_id=137771080 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot25" parent="CC/PC/VB/Bag" unique_id=901592373 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot26" parent="CC/PC/VB/Bag" unique_id=721776650 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot27" parent="CC/PC/VB/Bag" unique_id=478677155 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="HSeparator" type="HSeparator" parent="CC/PC/VB" unique_id=1947213257]
+layout_mode = 2
+
+[node name="Hotbar" type="HBoxContainer" parent="CC/PC/VB" unique_id=350730719]
+layout_mode = 2
+
+[node name="InventorySlot" parent="CC/PC/VB/Hotbar" unique_id=416023168 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot2" parent="CC/PC/VB/Hotbar" unique_id=1504461009 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot3" parent="CC/PC/VB/Hotbar" unique_id=1254965822 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot4" parent="CC/PC/VB/Hotbar" unique_id=769038555 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot5" parent="CC/PC/VB/Hotbar" unique_id=1260810257 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot6" parent="CC/PC/VB/Hotbar" unique_id=1302799805 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot7" parent="CC/PC/VB/Hotbar" unique_id=1736781599 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot8" parent="CC/PC/VB/Hotbar" unique_id=1368908599 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="InventorySlot9" parent="CC/PC/VB/Hotbar" unique_id=517337762 instance=ExtResource("2_at5t7")]
+layout_mode = 2
+
+[node name="DraggedItem" type="Control" parent="." unique_id=674258150]
+visible = false
+custom_minimum_size = Vector2(64, 64)
+anchors_preset = 0
+mouse_filter = 2
+
+[node name="TextureRect" type="TextureRect" parent="DraggedItem" unique_id=1570521149]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 4

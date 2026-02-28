@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://src/shaders/blocks/block_opaque.gdshader" id="1_phx8p"]
+[ext_resource type="Texture2D" path="res://src/assets/textures/atlas/block_atlas.png" id="2_7gf5t"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_phx8p")
+shader_parameter/atlas_texture = ExtResource("2_7gf5t")
+shader_parameter/block_uv_offset = Vector2(0, 0)
+shader_parameter/block_uv_size = Vector2(1, 1)

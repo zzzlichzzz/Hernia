@@ -1,0 +1,61 @@
+[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://cnpjarpfhx8sm"]
+
+[ext_resource type="Shader" uid="uid://byk6fbd65qy58" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_jw5bb"]
+[ext_resource type="Texture2D" uid="uid://btsf18kgvsgbf" path="res://src/assets/textures/atlas/block_atlas.png" id="2_cn41p"]
+[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/blocks/models/cube.obj" id="3_vmbgv"]
+[ext_resource type="Shader" uid="uid://dulw00g7k64cw" path="res://src/shaders/blocks/block_opaque.gdshader" id="4_7m0mw"]
+
+[sub_resource type="VoxelBlockyModelEmpty" id="VoxelBlockyModelEmpty_bnw2r"]
+resource_name = "air"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_36qk5"]
+render_priority = 0
+shader = ExtResource("1_jw5bb")
+shader_parameter/atlas_texture = ExtResource("2_cn41p")
+shader_parameter/top_uv_offset = Vector2(0.5, 0)
+shader_parameter/top_uv_size = Vector2(0.125, 0.125)
+shader_parameter/bottom_uv_offset = Vector2(0.25, 0)
+shader_parameter/bottom_uv_size = Vector2(0.125, 0.125)
+shader_parameter/side_uv_offset = Vector2(0.25, 0)
+shader_parameter/side_uv_size = Vector2(0.125, 0.125)
+shader_parameter/overlay_uv_offset = Vector2(0.375, 0)
+shader_parameter/overlay_uv_size = Vector2(0.125, 0.125)
+shader_parameter/overlay_enabled = true
+
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_jjnj3"]
+resource_name = "блок травы"
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
+material_override_0 = SubResource("ShaderMaterial_36qk5")
+collision_enabled_0 = true
+mesh = ExtResource("3_vmbgv")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_s4m86"]
+render_priority = 0
+shader = ExtResource("4_7m0mw")
+shader_parameter/atlas_texture = ExtResource("2_cn41p")
+shader_parameter/block_uv_offset = Vector2(0.25, 0)
+shader_parameter/block_uv_size = Vector2(0.125, 0.125)
+
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_plqvt"]
+resource_name = "земля"
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
+material_override_0 = SubResource("ShaderMaterial_s4m86")
+collision_enabled_0 = true
+mesh = ExtResource("3_vmbgv")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_snhp3"]
+render_priority = 0
+shader = ExtResource("4_7m0mw")
+shader_parameter/atlas_texture = ExtResource("2_cn41p")
+shader_parameter/block_uv_offset = Vector2(0.5, 0.125)
+shader_parameter/block_uv_size = Vector2(0.125, 0.125)
+
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_bbfiv"]
+resource_name = "камень"
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
+material_override_0 = SubResource("ShaderMaterial_snhp3")
+collision_enabled_0 = true
+mesh = ExtResource("3_vmbgv")
+
+[resource]
+models = Array[VoxelBlockyModel]([SubResource("VoxelBlockyModelEmpty_bnw2r"), SubResource("VoxelBlockyModelMesh_jjnj3"), SubResource("VoxelBlockyModelMesh_plqvt"), SubResource("VoxelBlockyModelMesh_bbfiv")])

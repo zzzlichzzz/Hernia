@@ -1,5 +1,9 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 [gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://oxx7bdvkdicu"]
+=======
+[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://c11ll560bf04k"]
+>>>>>>> parent of f8172ee (взаимодействие с блоками)
 =======
 [gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://c11ll560bf04k"]
 >>>>>>> parent of f8172ee (взаимодействие с блоками)
@@ -62,6 +66,9 @@ shader_parameter/block_uv_size = Vector2(0.125, 0.125)
 
 [sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_bbfiv"]
 resource_name = "stone"
+<<<<<<< HEAD
+>>>>>>> parent of f8172ee (взаимодействие с блоками)
+=======
 >>>>>>> parent of f8172ee (взаимодействие с блоками)
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
 material_override_0 = SubResource("ShaderMaterial_snhp3")

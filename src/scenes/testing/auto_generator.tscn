@@ -1,6 +1,0 @@
-[gd_scene format=3 uid="uid://cyfdxhqs80ndu"]
-
-[ext_resource type="Script" uid="uid://dcavins1rhnp7" path="res://src/scripts/tools/auto_generator.gd" id="1_fkdu3"]
-
-[node name="AutoGenerator" type="Node" unique_id=769309181]
-script = ExtResource("1_fkdu3")

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 [gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://oxx7bdvkdicu"]
+=======
+[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://c11ll560bf04k"]
+>>>>>>> parent of f8172ee (взаимодействие с блоками)
 
 [ext_resource type="Shader" uid="uid://byk6fbd65qy58" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_vmbgv"]
 [ext_resource type="Texture2D" uid="uid://btsf18kgvsgbf" path="res://src/assets/textures/atlas/block_atlas.png" id="2_7m0mw"]
@@ -24,8 +28,41 @@ shader_parameter/overlay_uv_offset = Vector2(0.375, 0)
 shader_parameter/overlay_uv_size = Vector2(0.125, 0.125)
 shader_parameter/overlay_enabled = true
 
+<<<<<<< HEAD
 [sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_bbfiv"]
 resource_name = "block grass"
+=======
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_jjnj3"]
+resource_name = "grass_block"
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
+material_override_0 = SubResource("ShaderMaterial_36qk5")
+collision_enabled_0 = true
+mesh = ExtResource("3_vmbgv")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_s4m86"]
+render_priority = 0
+shader = ExtResource("4_7m0mw")
+shader_parameter/atlas_texture = ExtResource("2_cn41p")
+shader_parameter/block_uv_offset = Vector2(0.25, 0)
+shader_parameter/block_uv_size = Vector2(0.125, 0.125)
+
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_plqvt"]
+resource_name = "dirt"
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
+material_override_0 = SubResource("ShaderMaterial_s4m86")
+collision_enabled_0 = true
+mesh = ExtResource("3_vmbgv")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_snhp3"]
+render_priority = 0
+shader = ExtResource("4_7m0mw")
+shader_parameter/atlas_texture = ExtResource("2_cn41p")
+shader_parameter/block_uv_offset = Vector2(0.5, 0.125)
+shader_parameter/block_uv_size = Vector2(0.125, 0.125)
+
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_bbfiv"]
+resource_name = "stone"
+>>>>>>> parent of f8172ee (взаимодействие с блоками)
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
 material_override_0 = SubResource("ShaderMaterial_snhp3")
 collision_enabled_0 = true

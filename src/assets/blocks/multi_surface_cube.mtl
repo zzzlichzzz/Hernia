@@ -1,8 +1,0 @@
-newmtl top
-Kd 1.0 1.0 1.0
-
-newmtl bottom
-Kd 1.0 1.0 1.0
-
-newmtl sides
-Kd 1.0 1.0 1.0

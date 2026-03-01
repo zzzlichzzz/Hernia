@@ -1,7 +1,7 @@
-my_minecraft_project/
+src/
 │
 ├── addons/                      # Плагины и сторонние инструменты
-│   └── voxel_tools/            # Если используете воксельные плагины
+│   └── voxel_tools/            # Воксельные плагины
 │
 ├── assets/                      # Все ресурсы игры
 │   ├── audio/
@@ -12,101 +12,165 @@ my_minecraft_project/
 │   │   │   └── ui/
 │   │   └── ambient/
 │   │
-│   ├── textures/
-│   │   ├── atlas/              # Храниться атлас карта блоков
-│   │   ├── blocks/             # Текстуры блоков (по аналогии с Minecraft)
-│   │   │   ├── stone.png
-│   │   │   ├── dirt.png
-│   │   │   └── ...
-│   │   ├── entities/
-│   │   ├── items/
-│   │   ├── gui/
-│   │   └── environment/
+│   ├── blocks/                  # Модели блоков
+│   │   └── models/
+│   │       ├── cube.mtl
+│   │       └── cube.obj
 │   │
-│   ├── models/                  # 3D модели (если не только воксели)
+│   ├── fonts/                   # Шрифты
+│   │
+│   ├── models/                  # 3D модели
 │   │   ├── entities/
 │   │   └── items/
 │   │
-│   ├── fonts/                   # Шрифты
-│   └── icons/
+│   └── textures/
+│       ├── atlas/              # Атлас текстур блоков
+│       │   ├── block_atlas.png
+│       │   ├── block_coordinates.tres
+│       │   ├── block_material_foliage.tres
+│       │   ├── block_material_multi_face.tres
+│       │   ├── block_material_opaque.tres
+│       │   └── block_material_transparent.tres
+│       │
+│       ├── blocks/             # Текстуры блоков
+│       │   ├── dirt/
+│       │   │   └── dirt.png
+│       │   ├── grass/
+│       │   │   ├── grass_block_side_overlay.png
+│       │   │   └── grass_block_top.png
+│       │   ├── sheetmetal/
+│       │   │   ├── aluminum.png
+│       │   │   ├── iron.png
+│       │   │   ├── lead.png
+│       │   │   └── steel.png
+│       │   ├── stone/
+│       │   │   └── stone.png
+│       │   └── test/
+│       │
+│       ├── entities/
+│       ├── environment/
+│       ├── gui/
+│       │   ├── crosshair.png
+│       │   ├── hotbar_slot_bg.png
+│       │   └── hotbar_slot_select.png
+│       │
+│       └── items/
 │
-├── data/                        # Данные конфигурации (как в Minecraft .jar)
+├── data/                        # Данные конфигурации
+│   ├── biomes/                  # Биомы
+│   │
 │   ├── blocks/                  # Определения блоков
-│   │   ├── stone.tres           # Resource файл с параметрами
-│   │   ├── dirt.tres
-│   │   └── blocks_registry.gd   # Реестр всех блоков
+│   │   ├── block_definition.gd
+│   │   ├── block_material_applier.gd
+│   │   ├── blocks_registry.gd
+│   │   ├── mesher_manager_path.gd
+│   │   ├── voxel_blocky_library.tres
+│   │   ├── voxel_mesher_blocky.tres
+│   │   │
+│   │   └── definitions/         # Определения конкретных блоков
+│   │       ├── block_grass.tres
+│   │       ├── dirt.tres
+│   │       └── stone.tres
 │   │
 │   ├── items/                   # Предметы
 │   ├── recipes/                 # Рецепты крафта
-│   ├── biomes/                  # Биомы
 │   ├── structures/              # Генерация структур
 │   └── worldgen/                # Настройки генерации мира
 │
-├── scripts/                     # Скрипты Godot
-│   ├── core/                    # Ядро игры
-│   │   ├── game_manager.gd
-│   │   ├── save_system.gd
-│   │   └── global_constants.gd
+├── docs/                        # Документация проекта
+│   └── ru/
+│       ├── Атлас/
+│       │   └── Atlas.txt
+│       └── Пути/
+│           └── PathManager.txt
+│
+├── exports/                     # Экспортированные сборки
+│
+├── saves/                       # Сохранения (генерируется при запуске)
+│
+├── scenes/                      # Сцены Godot
+│   ├── blocks/                  # Префабы сложных блоков
 │   │
-│   ├── world/
-│   │   ├── chunk.gd            # Класс чанка
-│   │   ├── world_generator.gd  # Генерация мира
-│   │   ├── voxel_mesher.gd     # Мешер для вокселей
-│   │   └── block_manager.gd    # Управление блоками
+│   ├── core/
 │   │
 │   ├── entities/
-│   │   ├── player/
-│   │   │   ├── player.gd
-│   │   │   ├── player_input.gd
-│   │   │   └── inventory.gd
-│   │   └── mobs/               # Мобы
-│   │       ├── base_mob.gd
-│   │       ├── creeper.gd
-│   │       └── ...
+│   │   ├── mobs/
+│   │   │
+│   │   └── player/
+│   │       ├── CrossHair.tscn
+│   │       ├── Hotbar.tscn
+│   │       ├── HotbarSlot.tscn
+│   │       ├── Inventory.tscn
+│   │       ├── InventorySlot.tscn
+│   │       └── Player.tscn
 │   │
-│   ├── auto/                   # Для автозапуска
-│   ├── blocks/                 # Скрипты связанные с блоками
+│   ├── testing/
+│   │   ├── AutoGenerator.tscn
+│   │   ├── LodScene.tscn
+│   │   └── TestAtlas.tscn
+│   │
+│   └── ui/
+│       ├── LoadingScreen.tscn
+│       ├── Menu.tscn
+│       └── SettingsMenu.tscn
+│
+├── scripts/                     # Скрипты Godot
+│   ├── auto/                    # Автозагрузка
+│   │   ├── atlas_manager.gd
+│   │   └── path_manager.gd
+│   │
+│   ├── blocks/                  # Скрипты блоков
+│   │   └── block_manager.gd
+│   │
+│   ├── core/                    # Ядро игры
+│   │
+│   ├── entities/
+│   │   ├── mobs/
+│   │   │
+│   │   └── player/
+│   │       ├── block_selector.gd
+│   │       ├── player.gd
+│   │       └── player_interaction.gd
+│   │
+│   ├── items/                   # Логика предметов
+│   │
 │   ├── resources/              # Ресурсы
+│   │   └── atlas_coordinates.gd
+│   │
 │   ├── testing/                # Тесты
+│   │   └── atlas_test_ui/
+│   │       └── test_atlas.gd
+│   │
 │   ├── tools/                  # Инструменты
-│   │   └── atlas_work/         # Работа с генерацией атласа
+│   │   ├── auto_generator.gd
+│   │   ├── refresh_editor.gd
+│   │   │
+│   │   ├── atlas_work/         # Работа с атласом текстур
+│   │   │   ├── atlas_material_generator.gd
+│   │   │   └── texture_atlas_builder.gd
+│   │   │
+│   │   └── blocks/
+│   │       └── block_selector_ui.gd
 │   │
 │   ├── ui/                     # Интерфейс
 │   │   ├── hud/
-│   │   ├── inventory_ui/
+│   │   │
 │   │   └── menus/
+│   │       ├── menu.gd
+│   │       ├── settings_menu.gd
+│   │       └── voxel_terrain.gd
 │   │
-│   ├── items/                  # Логика предметов
-│   └── utils/                  # Вспомогательные скрипты
+│   └── world/
 │
-├── scenes/                     # Сцены Godot
-│   ├── core/
-│   │   ├── main.tscn           # Главная сцена
-│   │   └── world.tscn          # Сцена мира
-│   │
-│   ├── entities/
-│   │   ├── player.tscn
-│   │   └── mobs/
-│   │
-│   ├── testing/                # Тесты
-│   ├── ui/                     # Интерфейс
-│   │   ├── hud.tscn
-│   │   ├── inventory.tscn
-│   │   └── pause_menu.tscn
-│   │
-│   └── blocks/                 # Префабы сложных блоков
-│
-├── shaders/                    # Шейдеры
+├── shaders/                     # Шейдеры
 │   ├── blocks/
-│   ├── water/
-│   └── sky/
+│   │   ├── block_foliage.gdshader
+│   │   ├── block_multi_face.gdshader
+│   │   ├── block_opaque.gdshader
+│   │   └── block_transparent.gdshader
+│   │
+│   ├── sky/
+│   │
+│   └── water/
 │
-├── saves/                      # Сохранения (генерируется при запуске)
-│   └── world1/
-│       ├── level.dat          # Основные данные мира
-│       ├── players/           # Данные игроков
-│       └── regions/           # Чанки (по аналогии с Minecraft)
-│
-├── docs/                      # Документация проекта
-├── exports/                   # Экспортированные сборки
-└── project.godot              # Файл проекта Godot
+└── project.godot               # Файл проекта Godot

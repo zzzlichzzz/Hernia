@@ -1,16 +1,16 @@
-# Standard cube for shader-based multi-face rendering
-# Single material, 6 faces with 0-1 UV each
-# Shader determines texture by normal direction
-o Cube
+# Standard cube with correct UV mapping and CCW winding
+mtllib standard_cube.mtl
 
-v 1.000000 1.000000 1.000000
-v 1.000000 0.000000 1.000000
-v 0.000000 1.000000 1.000000
-v 0.000000 0.000000 1.000000
-v 1.000000 1.000000 0.000000
-v 1.000000 0.000000 0.000000
-v 0.000000 1.000000 0.000000
+o StandardCube
+
 v 0.000000 0.000000 0.000000
+v 1.000000 0.000000 0.000000
+v 1.000000 1.000000 0.000000
+v 0.000000 1.000000 0.000000
+v 0.000000 0.000000 1.000000
+v 1.000000 0.000000 1.000000
+v 1.000000 1.000000 1.000000
+v 0.000000 1.000000 1.000000
 
 vt 0.000000 0.000000
 vt 1.000000 0.000000
@@ -18,16 +18,29 @@ vt 1.000000 1.000000
 vt 0.000000 1.000000
 
 vn 0.0000 1.0000 0.0000
-vn -1.0000 0.0000 0.0000
-vn 0.0000 0.0000 -1.0000
 vn 0.0000 -1.0000 0.0000
 vn 0.0000 0.0000 1.0000
+vn 0.0000 0.0000 -1.0000
 vn 1.0000 0.0000 0.0000
+vn -1.0000 0.0000 0.0000
 
 s off
-f 1/1/1 5/2/1 7/3/1 3/4/1
-f 4/1/2 3/2/2 7/3/2 8/4/2
-f 8/1/3 7/2/3 5/3/3 6/4/3
-f 6/1/4 2/2/4 4/3/4 8/4/4
-f 2/1/5 1/2/5 3/3/5 4/4/5
-f 6/1/6 5/2/6 1/3/6 2/4/6
+usemtl default
+
+# Top (Y+) - CCW when viewed from above
+f 4/1/1 8/2/1 7/3/1 3/4/1
+
+# Bottom (Y-) - CCW when viewed from below
+f 1/1/2 2/2/2 6/3/2 5/4/2
+
+# Front (Z+) - CCW when viewed from front
+f 5/1/3 6/2/3 7/3/3 8/4/3
+
+# Back (Z-) - CCW when viewed from back
+f 2/1/4 1/2/4 4/3/4 3/4/4
+
+# Right (X+) - CCW when viewed from right
+f 6/1/5 2/2/5 3/3/5 7/4/5
+
+# Left (X-) - CCW when viewed from left
+f 1/1/6 5/2/6 8/3/6 4/4/6

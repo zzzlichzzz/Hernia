@@ -175,6 +175,16 @@ func _process(delta):
 
 
 func _handle_input():
+	# Проверяем, открыт ли инвентарь
+	var player = get_parent()
+	var inventory_is_open = false
+	if player and "inventory_open" in player:
+		inventory_is_open = player.inventory_open
+	
+	# Если инвентарь открыт - нельзя ломать/ставить блоки
+	if inventory_is_open:
+		return
+	
 	# F — переключение режима редактирования
 	if Input.is_action_just_pressed("toggle_edit_mode"):
 		_edit_mode = not _edit_mode

@@ -22,6 +22,10 @@ var inventory_open: bool = false
 func _ready() -> void:
 	# Захватываем мышь для управления камерой
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	
+	# Настраиваем коллизию: слой 1 (террейн) + слой 2 (frame-блоки)
+	collision_layer = 1  # Сам игрок на слое 1
+	collision_mask = 3  # Проверяем коллизии со слоями 1 и 2
 
 func _input(event: InputEvent) -> void:
 	# Вращение камеры мышью (только если инвентарь закрыт)

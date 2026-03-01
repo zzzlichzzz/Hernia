@@ -23,8 +23,14 @@ func _ready():
 	_find_player()
 	_load_library()
 	_find_player_interaction()
-	if _player and _player.has_signal("selected_slot_changed"):
-		_player.selected_slot_changed.connect(_on_player_selected_slot_changed)
+	
+	# Подключаемся к сигналу изменения слота от create_inventory
+	var inventory = _find_inventory()
+	if inventory and inventory.has_signal("selected_slot_changed"):
+		inventory.selected_slot_changed.connect(_on_player_selected_slot_changed)
+		# Инициализируем текущий выбранный блок
+		_on_player_selected_slot_changed(0)
+	
 	print("🎮 BlockSelector (хотбар) готов!")
 
 func _find_player():
@@ -217,8 +223,29 @@ func _get_texture_for_block(block_id: int) -> String:
 	return texture_map.get(block_id, "")
 
 func _on_player_selected_slot_changed(index: int):
-	if not _player: return
-	var info = _player.get_selected_block_info() if _player.has_method("get_selected_block_info") else {}
-	var block_id = info.get("id", -1) if not info.is_empty() else -1
-	var block_name = info.get("name", "empty") if not info.is_empty() else "empty"
-	block_selected.emit(block_id, block_name)
+	# Ищем create_inventory для получения информации о выбранном блоке
+	var inventory = _find_inventory()
+	if inventory:
+		var info = inventory.get_selected_block_info()
+		var block_id = info.get("id", -1) if not info.is_empty() else -1
+		var block_name = info.get("name", "empty") if not info.is_empty() else "empty"
+		
+		# Устанавливаем блок через PlayerInteraction если доступен
+		if _player_interaction and _player_interaction.has_method("set_selected_block"):
+			_player_interaction.set_selected_block(block_id)
+			# Обновляем текстуру
+			var texture_name = _get_texture_for_block(block_id)
+			if texture_name and _player_interaction.has_method("set_selected_texture"):
+				_player_interaction.set_selected_texture(texture_name)
+		
+		_current_block_id = block_id
+		block_selected.emit(block_id, block_name)
+		print("📦 BlockSelector: выбран блок ", block_name, " ID=", block_id)
+
+func _find_inventory() -> Node:
+	# Ищем CreativeInventory среди детей игрока
+	if _player:
+		for child in _player.get_children():
+			if child.has_method("get_selected_block_info"):
+				return child
+	return null

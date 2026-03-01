@@ -1,0 +1,17 @@
+newmtl mat_top
+Kd 1.0 1.0 1.0
+
+newmtl mat_bottom
+Kd 1.0 1.0 1.0
+
+newmtl mat_north
+Kd 1.0 1.0 1.0
+
+newmtl mat_south
+Kd 1.0 1.0 1.0
+
+newmtl mat_east
+Kd 1.0 1.0 1.0
+
+newmtl mat_west
+Kd 1.0 1.0 1.0

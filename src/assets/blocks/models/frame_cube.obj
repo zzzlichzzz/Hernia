@@ -1,0 +1,57 @@
+# Frame cube - 6 surfaces for individual face textures
+# Surface 0: top
+# Surface 1: bottom
+# Surface 2: north (Z-)
+# Surface 3: south (Z+)
+# Surface 4: east (X+)
+# Surface 5: west (X-)
+mtllib frame_cube.mtl
+
+o FrameCube
+
+v 0.000000 0.000000 0.000000
+v 1.000000 0.000000 0.000000
+v 1.000000 1.000000 0.000000
+v 0.000000 1.000000 0.000000
+v 0.000000 0.000000 1.000000
+v 1.000000 0.000000 1.000000
+v 1.000000 1.000000 1.000000
+v 0.000000 1.000000 1.000000
+
+vt 0.000000 0.000000
+vt 1.000000 0.000000
+vt 1.000000 1.000000
+vt 0.000000 1.000000
+
+vn 0.0000 1.0000 0.0000
+vn 0.0000 -1.0000 0.0000
+vn 0.0000 0.0000 -1.0000
+vn 0.0000 0.0000 1.0000
+vn 1.0000 0.0000 0.0000
+vn -1.0000 0.0000 0.0000
+
+s off
+
+g top
+usemtl mat_top
+f 4/1/1 8/2/1 7/3/1 3/4/1
+
+g bottom
+usemtl mat_bottom
+f 1/1/2 2/2/2 6/3/2 5/4/2
+
+g north
+usemtl mat_north
+f 2/1/3 1/2/3 4/3/3 3/4/3
+
+g south
+usemtl mat_south
+f 5/1/4 6/2/4 7/3/4 8/4/4
+
+g east
+usemtl mat_east
+f 6/1/5 2/2/5 3/3/5 7/4/5
+
+g west
+usemtl mat_west
+f 1/1/6 5/2/6 8/3/6 4/4/6

@@ -176,8 +176,14 @@ func _set_block(block_id: int):
 	
 	_current_block_id = block_id
 	
-	if _player_interaction and _player_interaction.has_method("set_selected_block"):
-		_player_interaction.set_selected_block(block_id)
+	if _player_interaction:
+		# Устанавливаем block_id
+		if _player_interaction.has_method("set_selected_block"):
+			_player_interaction.set_selected_block(block_id)
+		# Также передаем имя текстуры
+		var texture_name = _get_texture_for_block(block_id)
+		if _player_interaction.has_method("set_selected_texture") and texture_name:
+			_player_interaction.set_selected_texture(texture_name)
 	
 	_print_current_block()
 	
@@ -262,3 +268,15 @@ func get_block_id_by_name(resource_name: String) -> int:
 	
 	var index = _library.get_model_index_from_resource_name(resource_name)
 	return index if index != null else -1
+
+## Получить имя текстуры для block_id
+func _get_texture_for_block(block_id: int) -> String:
+	# Маппинг block_id → texture_name
+	var texture_map = {
+		1: "grass_block_top",  # block_grass
+		2: "cherry_planks",    # cherry_planks
+		3: "cherry_planks",    # cherry_stair
+		4: "dirt",             # dirt
+		5: "stone"             # stone
+	}
+	return texture_map.get(block_id, "")

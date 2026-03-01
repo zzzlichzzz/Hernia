@@ -16,6 +16,9 @@ extends CharacterBody3D
 @onready var neck: Node3D = $Neck
 @onready var camera: Camera3D = $Neck/Camera3D
 
+# Флаг открытого инвентаря (управляется скриптом инвентаря)
+var inventory_open: bool = false
+
 func _ready() -> void:
 	# Захватываем мышь для управления камерой
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -25,13 +28,10 @@ func _ready() -> void:
 	collision_mask = 3  # Проверяем коллизии со слоями 1 и 2
 
 func _input(event: InputEvent) -> void:
-	# Вращение камеры мышью
-	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-		# Поворот влево-вправо (вокруг оси Y)
+	# Вращение камеры мышью (только если инвентарь закрыт)
+	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED and not inventory_open:
 		rotate_y(-event.relative.x * mouse_sensitivity)
-		# Поворот вверх-вниз (вокруг оси X узла Neck)
 		neck.rotate_x(-event.relative.y * mouse_sensitivity)
-		# Ограничиваем поворот вверх-вниз, чтобы не перевернуться
 		neck.rotation.x = clamp(neck.rotation.x, -PI/2, PI/2)
 
 	# Нажатие Escape для освобождения мыши
@@ -42,28 +42,28 @@ func _input(event: InputEvent) -> void:
 			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _physics_process(delta: float) -> void:
-	# --- Гравитация ---
+	# Если инвентарь открыт, не двигаемся
+	if inventory_open:
+		return
+
+	# Гравитация
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 
-	# --- Прыжок ---
+	# Прыжок
 	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
 		velocity.y = jump_velocity
 
-	# --- Перемещение ---
-	# Получаем вектор ввода (WASD)
+	# Перемещение
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
-	# Создаем базис направления из поворота игрока (игнорируем поворот камеры вверх-вниз)
 	var direction := (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
-	# Выбор скорости: бег или ходьба
 	var current_speed = sprint_speed if Input.is_action_pressed("sprint") else move_speed
 
 	if direction:
 		velocity.x = direction.x * current_speed
 		velocity.z = direction.z * current_speed
 	else:
-		# Плавная остановка
 		velocity.x = move_toward(velocity.x, 0, current_speed)
 		velocity.z = move_toward(velocity.z, 0, current_speed)
 

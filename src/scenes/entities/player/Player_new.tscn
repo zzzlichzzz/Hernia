@@ -1,0 +1,89 @@
+[gd_scene format=3 uid="uid://pwmggviobqnm"]
+
+[ext_resource type="Script" uid="uid://cd5b1lg14gm2g" path="res://src/scripts/entities/player/player.gd" id="1_hsq6q"]
+[ext_resource type="Texture2D" uid="uid://ebsk65fnmobb" path="res://src/assets/icons/crosshair.png" id="2_2btt0"]
+[ext_resource type="Script" uid="uid://cfov0xxsj1mjt" path="res://src/scripts/entities/player/hotbar.gd" id="3_hsvhv"]
+[ext_resource type="Texture2D" uid="uid://bskbdhpkdp1ea" path="res://src/assets/icons/hotbar_slot_bg.png" id="4_5upbv"]
+
+[node name="Player" type="CharacterBody3D" unique_id=1672222896]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0004432949978008874, 0, 0)
+script = ExtResource("1_hsq6q")
+
+[node name="Crosshair" type="Control" parent="." unique_id=1642748868]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TextureRect" type="TextureRect" parent="Crosshair" unique_id=278905759]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+texture = ExtResource("2_2btt0")
+
+[node name="Hotbar" type="Control" parent="." unique_id=1059455886]
+layout_mode = 3
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -20.0
+offset_top = -40.0
+offset_right = 20.0
+grow_horizontal = 2
+grow_vertical = 0
+script = ExtResource("3_hsvhv")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Hotbar" unique_id=122857306]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+pivot_offset = Vector2(0, 5)
+
+[node name="Panel" type="Panel" parent="Hotbar/HBoxContainer" unique_id=1404994905]
+layout_mode = 2
+
+[node name="TextureRect" type="TextureRect" parent="Hotbar/HBoxContainer/Panel" unique_id=1203133372]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+texture = ExtResource("4_5upbv")
+
+[node name="Label" type="Label" parent="Hotbar/HBoxContainer/Panel" unique_id=147528420]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+text = "1"
+
+[node name="Panel2" type="Panel" parent="Hotbar/HBoxContainer" unique_id=910089161]
+custom_minimum_size = Vector2(4, 0)
+layout_mode = 2
+
+[node name="TextureRect" type="TextureRect" parent="Hotbar/HBoxContainer/Panel2" unique_id=68762980]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+texture = ExtResource("4_5upbv")
+
+[node name="Label" type="Label" parent="Hotbar/HBoxContainer/Panel2" unique_id=733541672]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+text = "2"
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=785021265]
+current = true
+
+[node name="RayCast3D" type="RayCast3D" parent="Camera3D" unique_id=1538456433]
+target_position = Vector3(0, 0, -10)
+
+[node name="VoxelViewer" type="VoxelViewer" parent="Camera3D" unique_id=1593978509]

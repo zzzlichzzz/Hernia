@@ -33,6 +33,7 @@ var _block_to_texture: Dictionary = {
 }
 
 const FRAME_COLLISION_LAYER = 2
+var _inventory: Node = null
 
 signal block_broken(position: Vector3i, block_id: int)
 signal block_placed(position: Vector3i, block_id: int)
@@ -43,10 +44,9 @@ signal terrain_lost()
 
 func _ready():
 	await get_tree().process_frame
-	
+	_find_inventory()
 	if search_terrain_on_ready:
 		_find_and_setup_terrain()
-	
 	get_tree().node_added.connect(_on_node_added)
 	
 	# Frame-блок менеджер
@@ -63,6 +63,33 @@ func _ready():
 	
 	print("✅ FrameBlockManager создан")
 
+
+func _find_inventory():
+	# Ищем CreativeInventory среди детей родителя (игрока)
+	var parent = get_parent()
+	if parent:
+		for child in parent.get_children():
+			if child.has_method("get_selected_block_info"):
+				_inventory = child
+				if _inventory.has_signal("selected_slot_changed"):
+					_inventory.selected_slot_changed.connect(_on_selected_slot_changed)
+				_update_selected_block_from_inventory()
+				break
+	if not _inventory:
+		push_warning("PlayerInteraction: CreativeInventory не найден")
+
+func _on_selected_slot_changed(_index: int):
+	_update_selected_block_from_inventory()
+
+func _update_selected_block_from_inventory():
+	if _inventory:
+		var info = _inventory.get_selected_block_info()
+		if not info.is_empty() and info.has("id") and info.id != -1:
+			_selected_block_id = info.id
+			print("PlayerInteraction: выбран блок ID ", _selected_block_id)
+		else:
+			_selected_block_id = 0
+			print("PlayerInteraction: слот пуст, установка отключена")
 
 func _find_and_setup_terrain() -> bool:
 	var current_scene = get_tree().current_scene
@@ -117,16 +144,13 @@ func _setup_terrain_tool():
 	_terrain_tool = _terrain.get_voxel_tool()
 	_terrain_tool.channel = VoxelBuffer.CHANNEL_TYPE
 	_terrain_tool.mode = VoxelTool.MODE_SET
-	
 	_voxel_size = 1.0
-	
 	if _raycast:
 		_raycast.target_position = Vector3(0, 0, -reach_distance)
 		_raycast.collision_mask = 1 | FRAME_COLLISION_LAYER
 	
 	if _frame_manager:
 		_frame_manager.set_terrain(_terrain)
-	
 	print("✅ Terrain найден: ", _terrain.name)
 	terrain_found.emit(_terrain)
 
@@ -281,31 +305,26 @@ func _normal_to_vec3i(normal: Vector3) -> Vector3i:
 func _break_block(pos: Vector3i):
 	if _terrain_tool == null:
 		return
-	
 	var old_id = _terrain_tool.get_voxel(pos)
 	if old_id == 0:
 		return
-	
 	_terrain_tool.value = 0
 	_terrain_tool.do_point(pos)
-	
 	var new_id = _terrain_tool.get_voxel(pos)
 	if new_id == 0:
 		print("⛏️ Блок сломан: ", pos)
 		block_broken.emit(pos, old_id)
-
+	else:
+		print("❌ Не удалось сломать блок: ", pos)
 
 func _place_block(pos: Vector3i):
 	if _terrain_tool == null:
 		return
-	
 	var current = _terrain_tool.get_voxel(pos)
 	if current != 0:
 		return
-	
 	_terrain_tool.value = _selected_block_id
 	_terrain_tool.do_point(pos)
-	
 	var new_id = _terrain_tool.get_voxel(pos)
 	if new_id == _selected_block_id:
 		print("🧱 Блок установлен: ", pos)
@@ -316,8 +335,6 @@ func _pick_block(pos: Vector3i):
 	var block_id = _terrain_tool.get_voxel(pos)
 	if block_id == 0:
 		return
-	
-	_selected_block_id = block_id
 	print("👆 Выбран блок ID: ", block_id)
 
 
@@ -357,3 +374,15 @@ func get_terrain() -> VoxelTerrain:
 
 func has_terrain() -> bool:
 	return _terrain != null and _terrain_tool != null
+
+func set_terrain(terrain: VoxelTerrain):
+	if terrain == null:
+		_terrain = null
+		_terrain_tool = null
+		terrain_lost.emit()
+		return
+	_terrain = terrain
+	_setup_terrain_tool()
+
+func find_terrain() -> bool:
+	return _find_and_setup_terrain()

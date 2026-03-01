@@ -3,23 +3,18 @@
 [ext_resource type="PackedScene" uid="uid://dxf5dr4bn0yc7" path="res://src/scenes/entities/player/Player.tscn" id="1_8bujj"]
 [ext_resource type="VoxelMesherBlocky" uid="uid://dcprqlo7ta2tm" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
 
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_76ycs"]
-frequency = 0.0014
-
-[sub_resource type="VoxelGeneratorNoise2D" id="VoxelGeneratorNoise2D_0fgh8"]
+[sub_resource type="VoxelGeneratorFlat" id="VoxelGeneratorFlat_76ycs"]
 channel = 0
-noise = SubResource("FastNoiseLite_76ycs")
 
 [node name="LodScene" type="WorldEnvironment" unique_id=327434639]
 
 [node name="VoxelTerrain" type="VoxelTerrain" parent="." unique_id=2120458056]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -47.35805506396609, 0)
-generator = SubResource("VoxelGeneratorNoise2D_0fgh8")
+generator = SubResource("VoxelGeneratorFlat_76ycs")
 mesher = ExtResource("1_76ycs")
 max_view_distance = 64
 
 [node name="Player" parent="." unique_id=1646330281 instance=ExtResource("1_8bujj")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.6227636713035745, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.358665459052851, 0)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1768579647]
 transform = Transform3D(1, 0, 0, 0, 0.7461038605535667, 0.665829579747749, 0, -0.665829579747749, 0.7461038605535667, 0, 75.22983780076964, 0)

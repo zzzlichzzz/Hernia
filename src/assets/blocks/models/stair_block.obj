@@ -1,6 +1,4 @@
-# Stair block
-# Bottom step: y=0 to 0.5, full depth
-# Top step: y=0.5 to 1.0, z=0 to 0.5
+# Stair block with correct proportional UV
 mtllib stair_block.mtl
 
 o StairBlock
@@ -23,17 +21,37 @@ v 1.000000 0.500000 1.000000
 v 1.000000 0.000000 0.000000
 v 1.000000 0.000000 1.000000
 
-# UV (original)
-vt 0.000000 0.000000
-vt 1.000000 0.000000
-vt 1.000000 1.000000
-vt 0.000000 1.000000
+# ═══ UV COORDINATES ═══
 
-# UV (rotated 90° clockwise)
-vt 1.000000 0.000000
-vt 1.000000 1.000000
+# 1: Full face 1x1 (rotated 90° CW)
 vt 0.000000 1.000000
 vt 0.000000 0.000000
+vt 1.000000 0.000000
+vt 1.000000 1.000000
+
+# 5-8: Front steps - half height (1 wide x 0.5 tall, rotated 90° CW)
+vt 0.000000 1.000000
+vt 0.000000 0.500000
+vt 1.000000 0.500000
+vt 1.000000 1.000000
+
+# 9-12: Top surfaces - half depth (1 wide x 0.5 deep, rotated 90° CW)
+vt 0.000000 1.000000
+vt 0.000000 0.500000
+vt 1.000000 0.500000
+vt 1.000000 1.000000
+
+# 13-16: Side lower - full width x half height (rotated 90° CW)
+vt 0.000000 1.000000
+vt 0.000000 0.500000
+vt 1.000000 0.500000
+vt 1.000000 1.000000
+
+# 17-20: Side upper - half width x half height (rotated 90° CW)
+vt 0.500000 1.000000
+vt 0.500000 0.500000
+vt 1.000000 0.500000
+vt 1.000000 1.000000
 
 # Normals
 vn 0.0000 1.0000 0.0000
@@ -46,32 +64,32 @@ vn 0.0000 0.0000 1.0000
 s off
 usemtl default
 
-# Bottom (y=0) - rotated UV
-f 13/5/2 14/6/2 7/7/2 6/8/2
+# ═══ BOTTOM (y=0) - full 1x1 ═══
+f 13/1/2 14/2/2 7/3/2 6/4/2
 
-# Back wall (z=0, full height) - rotated UV
-f 6/5/5 1/6/5 8/7/5 13/8/5
+# ═══ BACK WALL (z=0, full height) - full 1x1 ═══
+f 6/1/5 1/2/5 8/3/5 13/4/5
 
-# Front lower step (z=1, y=0 to 0.5) - rotated UV
+# ═══ FRONT LOWER STEP (z=1, y=0 to 0.5) - 1x0.5 ═══
 f 14/5/6 12/6/6 5/7/6 7/8/6
 
-# Front upper step (z=0.5, y=0.5 to 1) - rotated UV
+# ═══ FRONT UPPER STEP (z=0.5, y=0.5 to 1) - 1x0.5 ═══
 f 11/5/6 9/6/6 2/7/6 4/8/6
 
-# Top upper step (y=1, z=0 to 0.5) - rotated UV
-f 9/5/1 8/6/1 1/7/1 2/8/1
+# ═══ TOP UPPER STEP (y=1, z=0 to 0.5) - 1x0.5 ═══
+f 9/9/1 8/10/1 1/11/1 2/12/1
 
-# Top lower step (y=0.5, z=0.5 to 1) - rotated UV
-f 12/5/1 11/6/1 4/7/1 5/8/1
+# ═══ TOP LOWER STEP (y=0.5, z=0.5 to 1) - 1x0.5 ═══
+f 12/9/1 11/10/1 4/11/1 5/12/1
 
-# Left lower (y=0 to 0.5) - rotated UV
-f 7/5/3 5/6/3 3/7/3 6/8/3
+# ═══ LEFT LOWER (y=0 to 0.5, z=0 to 1) - 1x0.5 ═══
+f 7/13/3 5/14/3 3/15/3 6/16/3
 
-# Left upper (y=0.5 to 1) - rotated UV
-f 4/5/3 2/6/3 1/7/3 3/8/3
+# ═══ LEFT UPPER (y=0.5 to 1, z=0 to 0.5) - 0.5x0.5 ═══
+f 4/17/3 2/18/3 1/19/3 3/20/3
 
-# Right lower (y=0 to 0.5) - rotated UV
-f 13/5/4 10/6/4 12/7/4 14/8/4
+# ═══ RIGHT LOWER (y=0 to 0.5, z=0 to 1) - 1x0.5 ═══
+f 13/13/4 10/14/4 12/15/4 14/16/4
 
-# Right upper (y=0.5 to 1) - rotated UV
-f 10/5/4 8/6/4 9/7/4 11/8/4
+# ═══ RIGHT UPPER (y=0.5 to 1, z=0 to 0.5) - 0.5x0.5 ═══
+f 10/17/4 8/18/4 9/19/4 11/20/4

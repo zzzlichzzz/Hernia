@@ -14,7 +14,8 @@ var _voxel_size: float = 1.0
 
 var _break_timer: float = 0.0
 var _place_timer: float = 0.0
-var _selected_block_id: int = 1
+var _inventory: Node = null
+var _selected_block_id: int = 0  # 0 = воздух
 
 signal block_broken(position: Vector3i, block_id: int)
 signal block_placed(position: Vector3i, block_id: int)
@@ -24,11 +25,37 @@ signal terrain_lost()
 
 func _ready():
 	await get_tree().process_frame
-	
+	_find_inventory()
 	if search_terrain_on_ready:
 		_find_and_setup_terrain()
-	
 	get_tree().node_added.connect(_on_node_added)
+
+func _find_inventory():
+	# Ищем CreativeInventory среди детей родителя (игрока)
+	var parent = get_parent()
+	if parent:
+		for child in parent.get_children():
+			if child.has_method("get_selected_block_info"):
+				_inventory = child
+				if _inventory.has_signal("selected_slot_changed"):
+					_inventory.selected_slot_changed.connect(_on_selected_slot_changed)
+				_update_selected_block_from_inventory()
+				break
+	if not _inventory:
+		push_warning("PlayerInteraction: CreativeInventory не найден")
+
+func _on_selected_slot_changed(_index: int):
+	_update_selected_block_from_inventory()
+
+func _update_selected_block_from_inventory():
+	if _inventory:
+		var info = _inventory.get_selected_block_info()
+		if not info.is_empty() and info.has("id") and info.id != -1:
+			_selected_block_id = info.id
+			print("PlayerInteraction: выбран блок ID ", _selected_block_id)
+		else:
+			_selected_block_id = 0
+			print("PlayerInteraction: слот пуст, установка отключена")
 
 func _find_and_setup_terrain() -> bool:
 	var current_scene = get_tree().current_scene
@@ -57,47 +84,33 @@ func _find_and_setup_terrain() -> bool:
 func _find_terrain_recursive(node: Node) -> VoxelTerrain:
 	if node is VoxelTerrain:
 		return node
-	
 	for child in node.get_children():
 		var found = _find_terrain_recursive(child)
 		if found:
 			return found
-	
 	return null
 
 func _find_terrain_in_tree() -> VoxelTerrain:
 	var nodes = get_tree().get_nodes_in_group("voxel_terrain")
 	if nodes.size() > 0:
 		return nodes[0]
-	
 	for node in get_tree().get_root().get_children():
 		var terrain = _find_terrain_recursive(node)
 		if terrain:
 			return terrain
-	
 	return null
 
 func _setup_terrain_tool():
 	if _terrain == null:
 		return
-	
-	# Получаем VoxelTool - это КЛЮЧЕВОЙ момент!
 	_terrain_tool = _terrain.get_voxel_tool()
-	
-	# Устанавливаем канал для работы с типами блоков
 	_terrain_tool.channel = VoxelBuffer.CHANNEL_TYPE
-	
-	# Устанавливаем режим работы (важно для правильного применения изменений)
 	_terrain_tool.mode = VoxelTool.MODE_SET
-	
 	_voxel_size = 1.0
-	
 	if _raycast:
 		_raycast.target_position = Vector3(0, 0, -reach_distance)
 		_raycast.collision_mask = 1
-	
 	print("✅ Terrain найден: ", _terrain.name)
-	print("✅ VoxelTool создан, канал: ", _terrain_tool.channel)
 	terrain_found.emit(_terrain)
 
 func _on_node_added(node: Node):
@@ -116,7 +129,6 @@ func _process(delta):
 		_place_timer -= delta
 	
 	var target = _get_target()
-	
 	var has_target = target.get("has_target", false)
 	var pos = target.get("position", Vector3i.ZERO)
 	target_changed.emit(pos, has_target)
@@ -141,80 +153,58 @@ func _get_target() -> Dictionary:
 		"previous_position": Vector3i.ZERO,
 		"block_id": 0
 	}
-	
 	if _terrain_tool == null:
 		return result
 	
-	# Используем VoxelTool.raycast - самый надёжный способ!
 	var origin = _camera.global_position
 	var forward = -_camera.global_transform.basis.z.normalized()
-	
 	var hit = _terrain_tool.raycast(origin, forward, reach_distance)
 	if hit != null:
 		result.has_target = true
 		result.position = hit.position
 		result.previous_position = hit.previous_position
 		result.block_id = _terrain_tool.get_voxel(hit.position)
-	
 	return result
 
 func _handle_input(target: Dictionary):
 	var pos: Vector3i = target.get("position", Vector3i.ZERO)
 	var prev_pos: Vector3i = target.get("previous_position", Vector3i.ZERO)
 	
-	# ЛКМ - сломать
 	if Input.is_action_pressed("break_block") and _break_timer <= 0:
 		_break_block(pos)
 		_break_timer = break_cooldown
 	
-	# ПКМ - поставить
 	if Input.is_action_pressed("place_block") and _place_timer <= 0:
-		if _can_place_at(prev_pos):
+		if _selected_block_id != 0 and _can_place_at(prev_pos):
 			_place_block(prev_pos)
 			_place_timer = place_cooldown
 	
-	# Средняя кнопка - выбрать блок
 	if Input.is_action_just_pressed("pick_block"):
 		_pick_block(pos)
 
 func _break_block(pos: Vector3i):
 	if _terrain_tool == null:
 		return
-	
 	var old_id = _terrain_tool.get_voxel(pos)
 	if old_id == 0:
 		return
-	
-	# ========= ИСПРАВЛЕНИЕ: Правильный способ изменения вокселей =========
-	
-	# Способ 1: Через value и do_point (рекомендуемый)
-	_terrain_tool.value = 0  # 0 = воздух
+	_terrain_tool.value = 0
 	_terrain_tool.do_point(pos)
-	
-	# ИЛИ Способ 2: Через set_voxel (если способ 1 не работает)
-	# _terrain_tool.set_voxel(pos, 0)
-	
-	# ========= Проверяем что блок действительно изменился =========
 	var new_id = _terrain_tool.get_voxel(pos)
 	if new_id == 0:
 		print("⛏️ Блок сломан: ", pos, " (ID: ", old_id, " -> ", new_id, ")")
 		block_broken.emit(pos, old_id)
 	else:
-		print("❌ Не удалось сломать блок: ", pos, " (остался ID: ", new_id, ")")
+		print("❌ Не удалось сломать блок: ", pos)
 
 func _place_block(pos: Vector3i):
 	if _terrain_tool == null:
 		return
-	
 	var current = _terrain_tool.get_voxel(pos)
 	if current != 0:
 		return
-	
-	# ========= Правильный способ установки вокселей =========
 	_terrain_tool.value = _selected_block_id
 	_terrain_tool.do_point(pos)
-	
-	# Проверяем
 	var new_id = _terrain_tool.get_voxel(pos)
 	if new_id == _selected_block_id:
 		print("🧱 Блок установлен: ", pos, " (ID: ", _selected_block_id, ")")
@@ -226,18 +216,12 @@ func _pick_block(pos: Vector3i):
 	var block_id = _terrain_tool.get_voxel(pos)
 	if block_id == 0:
 		return
-	
-	_selected_block_id = block_id
 	print("👆 Выбран блок ID: ", block_id)
 
 func _can_place_at(pos: Vector3i) -> bool:
 	var player_pos = global_position
 	var block_world_pos = _voxel_to_world(pos)
-	
-	var distance = player_pos.distance_to(block_world_pos)
-	return distance > 1.5
-
-# ============ ПУБЛИЧНЫЙ API ============
+	return player_pos.distance_to(block_world_pos) > 1.5
 
 func set_selected_block(block_id: int):
 	_selected_block_id = block_id
@@ -257,7 +241,6 @@ func set_terrain(terrain: VoxelTerrain):
 		_terrain_tool = null
 		terrain_lost.emit()
 		return
-	
 	_terrain = terrain
 	_setup_terrain_tool()
 

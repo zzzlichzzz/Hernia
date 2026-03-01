@@ -10,7 +10,7 @@ const FACE_TO_SURFACE = {
 	"east": 4,
 	"west": 5
 }
-const DEFAULT_TEXTURE = "stone"
+const DEFAULT_TEXTURE = "framed_block"
 
 var _blocks: Dictionary = {}
 var _atlas_coords: Resource = null

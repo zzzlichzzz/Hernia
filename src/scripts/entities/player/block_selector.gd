@@ -160,11 +160,12 @@ func _load_library():
 	var lib = load(library_path)
 	if lib and lib is VoxelBlockyLibrary:
 		_library = lib
-		_block_count = _library.get_model_count()
+		var models: Array = _library.models
+		_block_count = models.size()
 		_max_block_id = _block_count - 1
 		_block_names = {}
-		for i in range(_block_count):
-			var model = _library.get_model(i)
+		for i in range(models.size()):
+			var model = models[i]
 			if model:
 				_block_names[i] = model.resource_name if model.resource_name else "block_%d" % i
 		print("📚 Загружено блоков: ", _block_count)

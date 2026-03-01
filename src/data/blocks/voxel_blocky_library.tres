@@ -1,4 +1,4 @@
-[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://g2ni11w68x74"]
+[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://dnuv7mhudpw7s"]
 
 [ext_resource type="Shader" uid="uid://byk6fbd65qy58" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_cn41p"]
 [ext_resource type="Texture2D" uid="uid://btsf18kgvsgbf" path="res://src/assets/textures/atlas/block_atlas.png" id="2_vmbgv"]

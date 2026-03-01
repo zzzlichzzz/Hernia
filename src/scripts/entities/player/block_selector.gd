@@ -3,10 +3,26 @@ extends Node
 @export var player_path: NodePath = ""
 var _player: Node = null
 
+# Переменные для работы с блоками
+var _current_block_id: int = 1
+var _min_block_id: int = 1
+var _max_block_id: int = 5
+var _block_count: int = 5
+var _block_names: Dictionary = {}
+var loop_selection: bool = true
+
+# Ссылка на PlayerInteraction
+var _player_interaction: Node = null
+
+# Библиотека блоков
+var _library: VoxelBlockyLibrary = null
+
 signal block_selected(block_id: int, block_name: String)
 
 func _ready():
 	_find_player()
+	_load_library()
+	_find_player_interaction()
 	if _player and _player.has_signal("selected_slot_changed"):
 		_player.selected_slot_changed.connect(_on_player_selected_slot_changed)
 	print("🎮 BlockSelector (хотбар) готов!")
@@ -131,6 +147,41 @@ func get_library() -> VoxelBlockyLibrary:
 	return _library
 
 ## Перезагрузить библиотеку
+func _find_player_interaction():
+	if _player:
+		for child in _player.get_children():
+			if child.has_method("set_selected_block"):
+				_player_interaction = child
+				break
+
+func _load_library():
+	# Загружаем библиотеку блоков
+	var library_path = "res://src/data/blocks/voxel_blocky_library.tres"
+	var lib = load(library_path)
+	if lib and lib is VoxelBlockyLibrary:
+		_library = lib
+		_block_count = _library.get_model_count()
+		_max_block_id = _block_count - 1
+		_block_names = {}
+		for i in range(_block_count):
+			var model = _library.get_model(i)
+			if model:
+				_block_names[i] = model.resource_name if model.resource_name else "block_%d" % i
+		print("📚 Загружено блоков: ", _block_count)
+	else:
+		push_warning("⚠️ Не удалось загрузить библиотеку блоков")
+		# Используем значения по умолчанию
+		_block_names = {
+			0: "air",
+			1: "grass",
+			2: "cherry_planks",
+			3: "cherry_stair",
+			4: "dirt",
+			5: "stone"
+		}
+		_block_count = 6
+		_max_block_id = 5
+
 func reload_library():
 	_load_library()
 
@@ -163,6 +214,7 @@ func _get_texture_for_block(block_id: int) -> String:
 		5: "stone"             # stone
 	}
 	return texture_map.get(block_id, "")
+
 func _on_player_selected_slot_changed(index: int):
 	if not _player: return
 	var info = _player.get_selected_block_info() if _player.has_method("get_selected_block_info") else {}

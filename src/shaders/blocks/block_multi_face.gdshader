@@ -56,13 +56,10 @@ void fragment() {
 	
 	vec4 color = texture(atlas_texture, final_uv);
 	
-	// Оверлей на боках с поворотом на 90° по часовой
+	// Оверлей на боках (без поворота)
 	if (apply_overlay) {
-		// 90° против часовой
-		vec2 rotated_uv = vec2(UV.y, 1.0 - UV.x);
-		
 		vec2 over_texels = overlay_uv_size * atlas_size;
-		vec2 over_snapped = (floor(rotated_uv * over_texels) + 0.5) / over_texels;
+		vec2 over_snapped = (floor(UV * over_texels) + 0.5) / over_texels;
 		vec2 over_half = 0.5 / over_texels;
 		over_snapped = clamp(over_snapped, over_half, 1.0 - over_half);
 		vec2 over_uv = overlay_uv_offset + over_snapped * overlay_uv_size;

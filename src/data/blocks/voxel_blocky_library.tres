@@ -1,4 +1,4 @@
-[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://cwsp0j2vp2sp2"]
+[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://yb0fxh4o106e"]
 
 [ext_resource type="Shader" uid="uid://byk6fbd65qy58" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_cn41p"]
 [ext_resource type="Texture2D" uid="uid://btsf18kgvsgbf" path="res://src/assets/textures/atlas/block_atlas.png" id="2_vmbgv"]
@@ -13,13 +13,13 @@ resource_name = "air"
 render_priority = 0
 shader = ExtResource("1_cn41p")
 shader_parameter/atlas_texture = ExtResource("2_vmbgv")
-shader_parameter/top_uv_offset = Vector2(0.625, 0)
+shader_parameter/top_uv_offset = Vector2(0.6875, 0)
 shader_parameter/top_uv_size = Vector2(0.125, 0.25)
-shader_parameter/bottom_uv_offset = Vector2(0.375, 0)
+shader_parameter/bottom_uv_offset = Vector2(0.5625, 0)
 shader_parameter/bottom_uv_size = Vector2(0.125, 0.25)
-shader_parameter/side_uv_offset = Vector2(0.375, 0)
+shader_parameter/side_uv_offset = Vector2(0.5625, 0)
 shader_parameter/side_uv_size = Vector2(0.125, 0.25)
-shader_parameter/overlay_uv_offset = Vector2(0.5, 0)
+shader_parameter/overlay_uv_offset = Vector2(0.125, 0)
 shader_parameter/overlay_uv_size = Vector2(0.125, 0.25)
 shader_parameter/overlay_enabled = true
 
@@ -34,7 +34,7 @@ mesh = ExtResource("3_7m0mw")
 render_priority = 0
 shader = ExtResource("4_bnw2r")
 shader_parameter/atlas_texture = ExtResource("2_vmbgv")
-shader_parameter/block_uv_offset = Vector2(0.25, 0)
+shader_parameter/block_uv_offset = Vector2(0.4375, 0)
 shader_parameter/block_uv_size = Vector2(0.125, 0.25)
 
 [sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_bbfiv"]
@@ -48,7 +48,7 @@ mesh = ExtResource("3_7m0mw")
 render_priority = 0
 shader = ExtResource("4_bnw2r")
 shader_parameter/atlas_texture = ExtResource("2_vmbgv")
-shader_parameter/block_uv_offset = Vector2(0.25, 0)
+shader_parameter/block_uv_offset = Vector2(0.4375, 0)
 shader_parameter/block_uv_size = Vector2(0.125, 0.25)
 
 [sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_6br1r"]
@@ -64,7 +64,7 @@ mesh = ExtResource("5_36qk5")
 render_priority = 0
 shader = ExtResource("4_bnw2r")
 shader_parameter/atlas_texture = ExtResource("2_vmbgv")
-shader_parameter/block_uv_offset = Vector2(0.375, 0)
+shader_parameter/block_uv_offset = Vector2(0.5625, 0)
 shader_parameter/block_uv_size = Vector2(0.125, 0.25)
 
 [sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_7uru0"]

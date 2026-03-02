@@ -166,12 +166,31 @@ func _process(delta):
 	if _terrain == null or _terrain_tool == null:
 		return
 	
+	# Если чат или инвентарь открыт, не обрабатываем взаимодействие
+	if _is_chat_or_inventory_open():
+		return
+	
 	if _break_timer > 0:
 		_break_timer -= delta
 	if _place_timer > 0:
 		_place_timer -= delta
 	
 	_handle_input()
+
+func _is_chat_or_inventory_open() -> bool:
+	# Проверяем открыт ли чат
+	var chat = get_tree().get_first_node_in_group("chat")
+	if chat and chat.has_method("is_chat_open"):
+		if chat.is_chat_open():
+			return true
+	
+	# Проверяем открыт ли инвентарь
+	var player = get_tree().get_first_node_in_group("player")
+	if player and player.has("inventory_open"):
+		if player.inventory_open:
+			return true
+	
+	return false
 
 
 func _handle_input():

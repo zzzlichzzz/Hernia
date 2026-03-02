@@ -4,6 +4,8 @@ extends Node
 @export var block_library_path: String = "res://src/data/blocks/voxel_blocky_library.tres"
 # Путь к папке с текстурами блоков (для иконок)
 @export var textures_directory: String = "res://src/assets/textures/blocks/"
+# Путь к папке с иконками блоков
+@export var icons_directory: String = "res://src/assets/icons/blocks/"
 # Ручное сопоставление имени блока (из библиотеки) к имени папки с текстурой (если отличаются)
 @export var texture_name_mapping: Dictionary = {}
 
@@ -80,18 +82,28 @@ func _create_blocks_list():
 	for id in _block_id_to_info:
 		var info = _block_id_to_info[id]
 		var name = info.name
-		# Пытаемся загрузить текстуру из папки: textures_directory + name + "/" + name + ".png"
-		var texture_path = textures_directory + name + "/" + name + ".png"
 		var texture = null
-		if FileAccess.file_exists(texture_path):
-			texture = load(texture_path)
+		
+		# Нормализуем имя: заменяем пробелы на подчёркивания для поиска файлов
+		var normalized_name = name.replace(" ", "_").to_lower()
+		
+		# Проверяем сначала в папке icons/blocks (приоритет)
+		var icon_path = icons_directory + normalized_name + ".png"
+		if FileAccess.file_exists(icon_path):
+			texture = load(icon_path)
 		else:
-			# Попробуем другой вариант: просто файл в textures_directory
-			texture_path = textures_directory + name + ".png"
+			# Пробуем в папке textures/blocks
+			var texture_path = textures_directory + name + "/" + name + ".png"
 			if FileAccess.file_exists(texture_path):
 				texture = load(texture_path)
 			else:
-				print("Текстура не найдена для блока ", name, ", используется заглушка")
+				# Попробуем другой вариант: просто файл в textures_directory
+				texture_path = textures_directory + name + ".png"
+				if FileAccess.file_exists(texture_path):
+					texture = load(texture_path)
+				else:
+					print("Текстура не найдена для блока ", name, ", используется заглушка")
+		
 		available_blocks.append({
 			"id": id,
 			"name": name,
@@ -160,7 +172,7 @@ func _create_inventory_ui():
 	
 	for block in available_blocks:
 		var slot_button = Button.new()
-		slot_button.custom_minimum_size = Vector2(36, 36)
+		slot_button.custom_minimum_size = Vector2(40, 40)
 		slot_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		slot_button.tooltip_text = block.name
 		
@@ -172,14 +184,32 @@ func _create_inventory_ui():
 		if block.texture:
 			var texture_rect = TextureRect.new()
 			texture_rect.texture = block.texture
-			texture_rect.custom_minimum_size = Vector2(28, 28)
+			texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			texture_rect.custom_minimum_size = Vector2(32, 32)
+			texture_rect.size = Vector2(32, 32)
+			texture_rect.anchor_left = 0.5
+			texture_rect.anchor_right = 0.5
+			texture_rect.anchor_top = 0.5
+			texture_rect.anchor_bottom = 0.5
+			texture_rect.offset_left = -16
+			texture_rect.offset_top = -16
+			texture_rect.offset_right = 16
+			texture_rect.offset_bottom = 16
 			texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slot_button.add_child(texture_rect)
 		else:
 			var color_rect = ColorRect.new()
 			color_rect.color = Color(0.5, 0.5, 0.5)  # серая заглушка
-			color_rect.custom_minimum_size = Vector2(28, 28)
+			color_rect.custom_minimum_size = Vector2(32, 32)
+			color_rect.anchor_left = 0.5
+			color_rect.anchor_right = 0.5
+			color_rect.anchor_top = 0.5
+			color_rect.anchor_bottom = 0.5
+			color_rect.offset_left = -16
+			color_rect.offset_top = -16
+			color_rect.offset_right = 16
+			color_rect.offset_bottom = 16
 			color_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slot_button.add_child(color_rect)
 		
@@ -295,3 +325,26 @@ func select_previous_slot():
 
 func get_selected_block_info() -> Dictionary:
 	return selected_block.duplicate()
+
+# Добавить предмет в хотбар по имени блока
+func place_item_in_hotbar(block_name: String) -> void:
+	# Ищем блок по имени в available_blocks
+	for i in range(available_blocks.size()):
+		var block = available_blocks[i]
+		if block.name.to_lower() == block_name.to_lower():
+			# Нашли блок, добавляем в первый пустой слот
+			for slot_idx in range(9):
+				if hotbar_items[slot_idx] == null:
+					hotbar_items[slot_idx] = block
+					hotbar_updated.emit(slot_idx)
+					print("Added ", block_name, " to slot ", slot_idx + 1)
+					return
+		print("No empty slot found in hotbar")
+		return
+
+# Очистить хотбар
+func clear_hotbar() -> void:
+	for i in range(9):
+		hotbar_items[i] = null
+		hotbar_updated.emit(i)
+	print("Hotbar cleared")

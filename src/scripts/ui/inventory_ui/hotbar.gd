@@ -20,7 +20,19 @@ func _ready():
 func _find_inventory():
 	if inventory_path:
 		_inventory = get_node(inventory_path)
-		if _inventory: return
+		if _inventory and _inventory.has_method("get_selected_block_info"):
+			return
+	# Пытаемся найти CreativeInventory по относительному пути от игрока
+	var player = get_tree().get_first_node_in_group("player")
+	if player:
+		# Пробуем разные имена узлов инвентаря
+		_inventory = player.get_node_or_null("CreativeInventory")
+		if _inventory and _inventory.has_method("get_selected_block_info"):
+			return
+		_inventory = player.get_node_or_null("inventory")
+		if _inventory and _inventory.has_method("get_selected_block_info"):
+			return
+	# Ищем через рекурсивный обход
 	_inventory = _find_inventory_recursive(get_tree().current_scene)
 
 func _find_inventory_recursive(node: Node) -> Node:
@@ -48,34 +60,50 @@ func _initialize_slots():
 
 func _create_slot(index: int) -> Control:
 	var panel = Panel.new()
-	panel.size = Vector2(44, 44)
+	panel.custom_minimum_size = Vector2(48, 48)
 	panel.set_meta("slot_index", index)
 	
+	# Создаём стиль с серым фоном
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.2, 0.2, 0.2, 0.8)
+	style.bg_color = Color(0.15, 0.15, 0.15, 0.9)
 	style.border_width_left = 2
 	style.border_width_right = 2
 	style.border_width_top = 2
 	style.border_width_bottom = 2
-	style.border_color = Color(0.5, 0.5, 0.5)
+	style.border_color = Color(0.4, 0.4, 0.4)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
 	panel.add_theme_stylebox_override("panel", style)
 	
+	# Иконка (в центре)
 	var icon = TextureRect.new()
 	icon.name = "Icon"
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.custom_minimum_size = Vector2(36, 36)
-	icon.position = Vector2(4, 4)
+	icon.anchor_left = 0.5
+	icon.anchor_right = 0.5
+	icon.anchor_top = 0.5
+	icon.anchor_bottom = 0.5
+	icon.offset_left = -18
+	icon.offset_top = -18
+	icon.offset_right = 18
+	icon.offset_bottom = 18
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(icon)
 	
+	# Номер слота (в левом верхнем углу)
 	var label = Label.new()
 	label.text = str(index + 1)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	label.size = Vector2(40, 40)
-	label.position = Vector2(2, 2)
-	label.add_theme_color_override("font_color", Color.WHITE)
-	label.add_theme_font_size_override("font_size", 10)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	label.custom_minimum_size = Vector2(20, 20)
+	label.position = Vector2(3, 2)
+	label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	label.add_theme_font_size_override("font_size", 11)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(label)
 	
 	return panel
@@ -107,11 +135,30 @@ func _highlight_slot(index: int, selected: bool):
 	if index < 0 or index >= _slot_controls.size():
 		return
 	var panel = _slot_controls[index]
-	var style = panel.get_theme_stylebox("panel").duplicate()
-	if selected:
-		style.border_color = Color.WHITE
+	# Получаем текущий стиль или создаём новый
+	var style = panel.get_theme_stylebox("panel")
+	if style == null:
+		style = StyleBoxFlat.new()
+		style.bg_color = Color(0.15, 0.15, 0.15, 0.9)
+		style.corner_radius_top_left = 4
+		style.corner_radius_top_right = 4
+		style.corner_radius_bottom_left = 4
+		style.corner_radius_bottom_right = 4
 	else:
-		style.border_color = Color(0.5, 0.5, 0.5)
+		style = style.duplicate()
+	
+	if selected:
+		style.border_color = Color(1.0, 1.0, 1.0)  # Белый цвет как в Майнкрафте
+		style.border_width_left = 3
+		style.border_width_right = 3
+		style.border_width_top = 3
+		style.border_width_bottom = 3
+	else:
+		style.border_color = Color(0.4, 0.4, 0.4)
+		style.border_width_left = 2
+		style.border_width_right = 2
+		style.border_width_top = 2
+		style.border_width_bottom = 2
 	panel.add_theme_stylebox_override("panel", style)
 
 func _on_hotbar_updated(index: int):
@@ -121,5 +168,5 @@ func _on_hotbar_updated(index: int):
 		_update_slot(index)
 
 func _on_selected_slot_changed(index: int):
-	for i in _slot_controls.size():
+	for i in range(_slot_controls.size()):
 		_highlight_slot(i, i == index)

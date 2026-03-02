@@ -7,13 +7,13 @@
 [ext_resource type="PackedScene" uid="uid://cuemsvwvyjat5" path="res://src/scenes/entities/player/CrossHair.tscn" id="4_c2xi3"]
 [ext_resource type="PackedScene" uid="uid://cnwqn0s8f7ml3" path="res://src/scenes/entities/player/Hotbar.tscn" id="4_e5tct"]
 [ext_resource type="Script" uid="uid://b2s2cwk7hiohb" path="res://src/scripts/entities/player/player_interaction.gd" id="5_e5tct"]
-[ext_resource type="Script" uid="uid://bnbgada1hcmys" path="res://src/scripts/tools/blocks/block_selector_ui.gd" id="7_k4c82"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_e5tct"]
 radius = 0.45
 
 [node name="Player" type="CharacterBody3D" unique_id=1646330281]
 script = ExtResource("1_pkpq8")
+groups = ["player"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=325218537]
 shape = SubResource("CapsuleShape3D_e5tct")
@@ -44,11 +44,9 @@ visible = false
 [node name="crosshair" parent="." unique_id=1795495780 instance=ExtResource("4_c2xi3")]
 
 [node name="HotBar" parent="." unique_id=17073395 instance=ExtResource("4_e5tct")]
-visible = false
 
 [node name="BlockSelectorUI" type="Label" parent="." unique_id=1457576755]
 offset_left = 522.0
 offset_top = 583.0
 offset_right = 636.0
 offset_bottom = 606.0
-script = ExtResource("7_k4c82")

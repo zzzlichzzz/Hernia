@@ -1,7 +1,7 @@
-[gd_resource type="ShaderMaterial" format=3]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://dawyp0lprrhv0"]
 
-[ext_resource type="Shader" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_w58wp"]
-[ext_resource type="Texture2D" path="res://src/assets/textures/atlas/block_atlas.png" id="2_j2n8l"]
+[ext_resource type="Shader" uid="uid://byk6fbd65qy58" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_w58wp"]
+[ext_resource type="Texture2D" uid="uid://btsf18kgvsgbf" path="res://src/assets/textures/atlas/block_atlas.png" id="2_j2n8l"]
 
 [resource]
 render_priority = 0

@@ -2,6 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://qaqqg7olt6pr" path="res://src/scenes/entities/player/HotbarSlot.tscn" id="2_v8qxb"]
 [ext_resource type="Texture2D" uid="uid://dqwi33hpxfoo0" path="res://src/assets/textures/gui/hotbar_slot_select.png" id="3_oigtb"]
+[ext_resource type="Script" uid="uid://cfov0xxsj1mjt" path="res://src/scripts/ui/inventory_ui/hotbar.gd" id="4_script"]
 
 [node name="HotBar" type="CenterContainer" unique_id=17073395]
 anchors_preset = 12
@@ -9,9 +10,15 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_top = -97.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+script = ExtResource("4_script")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=747561492]
 layout_mode = 2
+theme_override_constants/separation = 2
+theme_override_constants/separation = 4
 
 [node name="HotbarSlot" parent="HBoxContainer" unique_id=2065950043 instance=ExtResource("2_v8qxb")]
 layout_mode = 2

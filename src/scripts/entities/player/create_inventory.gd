@@ -68,24 +68,24 @@ func _load_block_library():
 		var model = models[i]
 		if model == null:
 			continue
-		var name = model.resource_name
-		if name == "":
-			name = model.resource_path.get_file().get_basename()
+		var block_name = model.resource_name
+		if block_name == "":
+			block_name = model.resource_path.get_file().get_basename()
 		_block_id_to_info[i] = {
-			"name": name,
+			"name": block_name,
 			"model": model
 		}
-		print("Блок ID ", i, ": ", name)
+		print("Блок ID ", i, ": ", block_name)
 
 func _create_blocks_list():
 	# Для каждого блока в библиотеке пытаемся найти текстуру
 	for id in _block_id_to_info:
 		var info = _block_id_to_info[id]
-		var name = info.name
+		var block_name = info.name
 		var texture = null
 		
 		# Нормализуем имя: заменяем пробелы на подчёркивания для поиска файлов
-		var normalized_name = name.replace(" ", "_").to_lower()
+		var normalized_name = block_name.replace(" ", "_").to_lower()
 		
 		# Проверяем сначала в папке icons/blocks (приоритет)
 		var icon_path = icons_directory + normalized_name + ".png"
@@ -93,20 +93,20 @@ func _create_blocks_list():
 			texture = load(icon_path)
 		else:
 			# Пробуем в папке textures/blocks
-			var texture_path = textures_directory + name + "/" + name + ".png"
+			var texture_path = textures_directory + block_name + "/" + block_name + ".png"
 			if FileAccess.file_exists(texture_path):
 				texture = load(texture_path)
 			else:
 				# Попробуем другой вариант: просто файл в textures_directory
-				texture_path = textures_directory + name + ".png"
+				texture_path = textures_directory + block_name + ".png"
 				if FileAccess.file_exists(texture_path):
 					texture = load(texture_path)
 				else:
-					print("Текстура не найдена для блока ", name, ", используется заглушка")
+					print("Текстура не найдена для блока ", block_name, ", используется заглушка")
 		
 		available_blocks.append({
 			"id": id,
-			"name": name,
+			"name": block_name,
 			"texture": texture
 		})
 	print("Доступно блоков для инвентаря: ", available_blocks.size())
@@ -221,7 +221,7 @@ func _create_inventory_ui():
 	var close_btn = Button.new()
 	close_btn.text = "Закрыть"
 	close_btn.size = Vector2(80, 30)
-	close_btn.position = Vector2((panel_width - 80) / 2, panel_height - 35)
+	close_btn.position = Vector2((panel_width - 80) / 2.0, panel_height - 35)
 	close_btn.pressed.connect(toggle_inventory)
 	
 	var close_style = StyleBoxFlat.new()

@@ -15,7 +15,6 @@ var _voxel_size: float = 1.0
 var _break_timer: float = 0.0
 var _place_timer: float = 0.0
 var _selected_block_id: int = 1
-var _selected_block_name: String = "stone"
 var _selected_texture: String = "stone"
 
 # Frame blocks

@@ -187,7 +187,7 @@ func _get_texture_for_block(block_id: int) -> String:
 	}
 	return texture_map.get(block_id, "")
 
-func _on_player_selected_slot_changed(index: int):
+func _on_player_selected_slot_changed(_index: int):
 	var inventory = _find_inventory()
 	if inventory:
 		var info = inventory.get_selected_block_info()

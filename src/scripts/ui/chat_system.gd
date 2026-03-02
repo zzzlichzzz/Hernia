@@ -6,7 +6,6 @@ extends CanvasLayer
 
 # Ссылки
 var _player: Node3D = null
-var _input_manager: Node = null
 
 # UI элементы
 var _chat_panel: PanelContainer
@@ -18,7 +17,7 @@ var _history_index: int = -1
 # Состояние
 var _chat_open: bool = false
 
-signal command_executed(cmd: String, args: Array)
+# signal command_executed(cmd: String, args: Array)  # Не используется
 
 func _ready():
 	# Добавляем в группу для поиска
@@ -276,7 +275,7 @@ func _cmd_weather(args: Array) -> String:
 		_:
 			return "[color=red]Invalid weather type[/color]"
 
-func _cmd_spawnpoint(args: Array) -> String:
+func _cmd_spawnpoint(_args: Array) -> String:
 	if _player:
 		var pos = _player.global_position
 		return "[color=green]Spawn point set to (%.1f, %.1f, %.1f)[/color]" % [pos.x, pos.y, pos.z]
@@ -311,7 +310,7 @@ func _cmd_give(args: Array) -> String:
 	
 	return "[color=red]Cannot give item[/color]"
 
-func _cmd_clear(args: Array) -> String:
+func _cmd_clear(_args: Array) -> String:
 	if _player:
 		var inventory = _player.get_node_or_null("inventory")
 		if inventory and inventory.has_method("clear_hotbar"):
@@ -320,7 +319,7 @@ func _cmd_clear(args: Array) -> String:
 	
 	return "[color=red]Cannot clear inventory[/color]"
 
-func _cmd_kill(args: Array) -> String:
+func _cmd_kill(_args: Array) -> String:
 	if _player and _player.has_method("kill"):
 		_player.kill()
 		return "[color=green]You died![/color]"
@@ -333,11 +332,11 @@ func _cmd_kill(args: Array) -> String:
 	
 	return "[color=red]Player not found[/color]"
 
-func _cmd_reload(args: Array) -> String:
+func _cmd_reload(_args: Array) -> String:
 	get_tree().reload_current_scene()
 	return "[color=green]Reloading scene...[/color]"
 
-func _cmd_debug(args: Array) -> String:
+func _cmd_debug(_args: Array) -> String:
 	# Переключаем отладочный оверлей
 	var debug_overlay = get_tree().get_first_node_in_group("debug")
 	if debug_overlay:

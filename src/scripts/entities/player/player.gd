@@ -112,7 +112,7 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
-func _process_flight(delta: float) -> void:
+func _process_flight(_delta: float) -> void:
 	# Вверх/вниз по Q и E или Space и Ctrl
 	var vertical_input = 0.0
 	if Input.is_key_pressed(KEY_SPACE):

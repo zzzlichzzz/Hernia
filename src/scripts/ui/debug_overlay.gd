@@ -87,7 +87,7 @@ func _update_debug_info() -> void:
 			avg_fps += f
 		avg_fps = avg_fps / _fps_history.size()
 		
-		var color = Color.GREEN if fps >= 50 else Color.YELLOW if fps >= 30 else Color.RED
+		var _color = Color.GREEN if fps >= 50 else Color.YELLOW if fps >= 30 else Color.RED
 		text += "FPS: %d (avg: %.1f)\n" % [fps, avg_fps]
 	
 	# Память

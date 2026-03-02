@@ -9,7 +9,7 @@ extends Node
 # Пути к скриптам
 const ATLAS_MANAGER_PATH = "res://src/scripts/auto/atlas_manager.gd"
 const BLOCKS_REGISTRY_PATH = "res://src/data/blocks/blocks_registry.gd"
-const BLOCK_ICON_GENERATOR_PATH = "res://src/scripts/blocks/block_icon_generator.gd"
+const BLOCK_3D_ICON_GENERATOR_PATH = "res://src/scripts/blocks/block_3d_icon_generator.gd"
 
 func _ready():
 	if auto_start:
@@ -33,12 +33,12 @@ func start():
 		print("❌ АВТОГЕНЕРАТОР: Остановлено из-за ошибки в BlockRegistry")
 		return
 	
-	# Небольшая пауза перед генерацией иконок
+	# Небольшая пауза перед 3D иконками
 	await get_tree().create_timer(0.3).timeout
 	
-	# ШАГ 3: Генерируем иконки блоков для инвентаря
-	if not await _run_block_icon_generator():
-		print("⚠️ АВТОГЕНЕРАТОР: Ошибка генерации иконок (не критично)")
+	# ШАГ 3: Генерируем 3D иконки блоков (как в Minecraft - 2 вида)
+	if not await _run_block_3d_icon_generator():
+		print("⚠️ АВТОГЕНЕРАТОР: Ошибка генерации 3D иконок (не критично)")
 	
 	var end_time = Time.get_ticks_msec()
 	var elapsed = (end_time - start_time) / 1000.0
@@ -98,32 +98,32 @@ func _run_blocks_registry() -> bool:
 		print("❌ BlockRegistry: метод _build_library не найден")
 		return false
 
-func _run_block_icon_generator() -> bool:
-	print("\n📦 ШАГ 3/3: Генерация иконок блоков...")
+func _run_block_3d_icon_generator() -> bool:
+	print("\n📦 ШАГ 3/3: Генерация 3D иконок блоков...")
 	
-	if not ResourceLoader.exists(BLOCK_ICON_GENERATOR_PATH):
-		print("❌ BlockIconGenerator не найден по пути: ", BLOCK_ICON_GENERATOR_PATH)
+	if not ResourceLoader.exists(BLOCK_3D_ICON_GENERATOR_PATH):
+		print("❌ Block3DIconGenerator не найден по пути: ", BLOCK_3D_ICON_GENERATOR_PATH)
 		return false
 	
-	var icon_script = load(BLOCK_ICON_GENERATOR_PATH)
+	var icon_script = load(BLOCK_3D_ICON_GENERATOR_PATH)
 	if not icon_script:
-		print("❌ Не удалось загрузить BlockIconGenerator")
+		print("❌ Не удалось загрузить Block3DIconGenerator")
 		return false
 	
 	var generator = icon_script.new()
 	add_child(generator)
 	
-	# Даем время на загрузку атласа
+	# Даем время на инициализацию
 	await get_tree().process_frame
 	
-	# Генерируем все иконки
-	var icons = generator.generate_all_icons()
+	# Генерируем все 3D иконки
+	var icons = await generator.generate_all_3d_icons()
 	
 	if icons.size() > 0:
-		print("✅ BlockIconGenerator: создано ", icons.size(), " иконок")
+		print("✅ Block3DIconGenerator: создано ", icons.size(), " 3D иконок")
 		generator.queue_free()
 		return true
 	else:
-		print("⚠️ BlockIconGenerator: иконки не созданы (проверьте атлас)")
+		print("⚠️ Block3DIconGenerator: иконки не созданы")
 		generator.queue_free()
 		return false

@@ -1,4 +1,4 @@
-[gd_resource type="ShaderMaterial" format=3 uid="uid://bta60eb2x7533"]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://dyodmhrtnw1nk"]
 
 [ext_resource type="Shader" uid="uid://lyxrtkd4li06" path="res://src/shaders/blocks/block_transparent.gdshader" id="1_swcbk"]
 [ext_resource type="Texture2D" uid="uid://btsf18kgvsgbf" path="res://src/assets/textures/atlas/block_atlas.png" id="2_ue2ty"]

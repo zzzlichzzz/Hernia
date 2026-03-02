@@ -2,6 +2,8 @@
 
 [ext_resource type="PackedScene" uid="uid://dxf5dr4bn0yc7" path="res://src/scenes/entities/player/Player.tscn" id="1_8bujj"]
 [ext_resource type="VoxelMesherBlocky" uid="uid://dcprqlo7ta2tm" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
+[ext_resource type="Script" uid="uid://dq123abc456" path="res://src/scripts/ui/debug_overlay.gd" id="2_debug"]
+[ext_resource type="Script" uid="uid://chat789xyz" path="res://src/scripts/ui/chat_system.gd" id="3_chat"]
 
 [sub_resource type="VoxelGeneratorFlat" id="VoxelGeneratorFlat_76ycs"]
 channel = 0
@@ -18,3 +20,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.9517821494866165, 0)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1768579647]
 transform = Transform3D(1, 0, 0, 0, 0.7461038605535667, 0.665829579747749, 0, -0.665829579747749, 0.7461038605535667, 0, 75.22983780076964, 0)
+
+[node name="DebugOverlay" type="CanvasLayer" parent="." unique_id=999999999 groups=["debug"]]
+script = ExtResource("2_debug")
+
+[node name="ChatSystem" type="CanvasLayer" parent="." unique_id=888888888]
+script = ExtResource("3_chat")

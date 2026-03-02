@@ -80,9 +80,17 @@ func _create_slot(index: int) -> Control:
 	# Иконка (в центре)
 	var icon = TextureRect.new()
 	icon.name = "Icon"
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.custom_minimum_size = Vector2(36, 36)
-	icon.position = Vector2(6, 6)
+	icon.anchor_left = 0.5
+	icon.anchor_right = 0.5
+	icon.anchor_top = 0.5
+	icon.anchor_bottom = 0.5
+	icon.offset_left = -18
+	icon.offset_top = -18
+	icon.offset_right = 18
+	icon.offset_bottom = 18
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(icon)
 	

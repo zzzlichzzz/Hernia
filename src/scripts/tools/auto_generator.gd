@@ -9,6 +9,7 @@ extends Node
 # Пути к скриптам
 const ATLAS_MANAGER_PATH = "res://src/scripts/auto/atlas_manager.gd"
 const BLOCKS_REGISTRY_PATH = "res://src/data/blocks/blocks_registry.gd"
+const BLOCK_ICON_GENERATOR_PATH = "res://src/scripts/blocks/block_icon_generator.gd"
 
 func _ready():
 	if auto_start:
@@ -32,6 +33,13 @@ func start():
 		print("❌ АВТОГЕНЕРАТОР: Остановлено из-за ошибки в BlockRegistry")
 		return
 	
+	# Небольшая пауза перед генерацией иконок
+	await get_tree().create_timer(0.3).timeout
+	
+	# ШАГ 3: Генерируем иконки блоков для инвентаря
+	if not await _run_block_icon_generator():
+		print("⚠️ АВТОГЕНЕРАТОР: Ошибка генерации иконок (не критично)")
+	
 	var end_time = Time.get_ticks_msec()
 	var elapsed = (end_time - start_time) / 1000.0
 	
@@ -42,7 +50,7 @@ func start():
 	# queue_free()
 
 func _run_atlas_manager() -> bool:
-	print("\n📦 ШАГ 1/2: Запуск AtlasManager...")
+	print("\n📦 ШАГ 1/3: Запуск AtlasManager...")
 	
 	if not ResourceLoader.exists(ATLAS_MANAGER_PATH):
 		print("❌ AtlasManager не найден по пути: ", ATLAS_MANAGER_PATH)
@@ -67,7 +75,7 @@ func _run_atlas_manager() -> bool:
 		return false
 
 func _run_blocks_registry() -> bool:
-	print("\n📦 ШАГ 2/2: Запуск BlockRegistry...")
+	print("\n📦 ШАГ 2/3: Запуск BlockRegistry...")
 	
 	if not ResourceLoader.exists(BLOCKS_REGISTRY_PATH):
 		print("❌ BlockRegistry не найден по пути: ", BLOCKS_REGISTRY_PATH)
@@ -88,4 +96,34 @@ func _run_blocks_registry() -> bool:
 		return true
 	else:
 		print("❌ BlockRegistry: метод _build_library не найден")
+		return false
+
+func _run_block_icon_generator() -> bool:
+	print("\n📦 ШАГ 3/3: Генерация иконок блоков...")
+	
+	if not ResourceLoader.exists(BLOCK_ICON_GENERATOR_PATH):
+		print("❌ BlockIconGenerator не найден по пути: ", BLOCK_ICON_GENERATOR_PATH)
+		return false
+	
+	var icon_script = load(BLOCK_ICON_GENERATOR_PATH)
+	if not icon_script:
+		print("❌ Не удалось загрузить BlockIconGenerator")
+		return false
+	
+	var generator = icon_script.new()
+	add_child(generator)
+	
+	# Даем время на загрузку атласа
+	await get_tree().process_frame
+	
+	# Генерируем все иконки
+	var icons = generator.generate_all_icons()
+	
+	if icons.size() > 0:
+		print("✅ BlockIconGenerator: создано ", icons.size(), " иконок")
+		generator.queue_free()
+		return true
+	else:
+		print("⚠️ BlockIconGenerator: иконки не созданы (проверьте атлас)")
+		generator.queue_free()
 		return false

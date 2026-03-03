@@ -17,10 +17,6 @@ var _place_timer: float = 0.0
 var _selected_block_id: int = 1
 var _selected_texture: String = "stone"
 
-# Frame blocks
-var _frame_manager: FrameBlockManager = null
-var _edit_mode: bool = false
-
 var _block_to_texture: Dictionary = {
 	1: "grass_block_top",
 	2: "cherry_planks",
@@ -28,8 +24,6 @@ var _block_to_texture: Dictionary = {
 	4: "dirt",
 	5: "stone"
 }
-
-const FRAME_COLLISION_LAYER = 2
 var _inventory: Node = null
 
 # ══════════════════════════════════════════
@@ -52,16 +46,8 @@ func _ready():
 		_find_and_setup_terrain()
 	get_tree().node_added.connect(_on_node_added)
 	
-	_frame_manager = FrameBlockManager.new()
-	_frame_manager.name = "FrameBlockManager"
-	add_child(_frame_manager)
-	
-	if _terrain:
-		_frame_manager.set_terrain(_terrain)
-	
 	if _raycast:
 		_raycast.target_position = Vector3(0, 0, -reach_distance)
-		_raycast.collision_mask = 1 | FRAME_COLLISION_LAYER
 	
 	# ══════════════════════════════════════════
 	#  ХАМЕЛЕОН — получаем менеджер
@@ -72,8 +58,6 @@ func _ready():
 	else:
 		push_warning("⚠️ ChameleonManager autoload не найден")
 	# ══════════════════════════════════════════
-	
-	print("✅ FrameBlockManager создан")
 
 
 func _find_inventory():
@@ -158,10 +142,6 @@ func _setup_terrain_tool():
 	_voxel_size = 1.0
 	if _raycast:
 		_raycast.target_position = Vector3(0, 0, -reach_distance)
-		_raycast.collision_mask = 1 | FRAME_COLLISION_LAYER
-	
-	if _frame_manager:
-		_frame_manager.set_terrain(_terrain)
 	
 	# ══════════════════════════════════════════
 	#  ХАМЕЛЕОН — подключаем материал через terrain
@@ -219,10 +199,6 @@ func _handle_input():
 	if inventory_is_open:
 		return
 	
-	if Input.is_action_just_pressed("toggle_edit_mode"):
-		_edit_mode = not _edit_mode
-		print("🔧 Режим редактирования: ", "ВКЛ" if _edit_mode else "ВЫКЛ")
-	
 	var target = _get_combined_target()
 	
 	if not target["has_target"]:
@@ -232,26 +208,15 @@ func _handle_input():
 	
 	# ЛКМ — сломать
 	if Input.is_action_pressed("break_block") and _break_timer <= 0:
-		if target["is_frame"]:
-			_frame_manager.remove_frame_block(target["position"])
-		else:
-			_break_block(target["position"])
+		_break_block(target["position"])
 		_break_timer = break_cooldown
 	
-	# ПКМ — поставить / редактировать / покрасить хамелеон
+	# ПКМ — поставить / покрасить хамелеон
 	if Input.is_action_pressed("place_block") and _place_timer <= 0:
-		if _edit_mode and _frame_manager:
-			if target["is_frame"]:
-				var face = target["face"]
-				_frame_manager.set_face_texture(target["position"], face, _selected_texture)
-			else:
-				var place_pos = target["place_position"]
-				if _can_place_at(place_pos):
-					_frame_manager.create_frame_block(place_pos)
 		# ══════════════════════════════════════════
 		#  ХАМЕЛЕОН — проверяем перед обычным размещением
 		# ══════════════════════════════════════════
-		elif _try_paint_chameleon(target["position"]):
+		if _try_paint_chameleon(target["position"]):
 			pass  # Хамелеон покрашен, ничего больше не делаем
 		# ══════════════════════════════════════════
 		else:
@@ -262,12 +227,7 @@ func _handle_input():
 	
 	# Средняя кнопка — выбрать
 	if Input.is_action_just_pressed("pick_block"):
-		if target["is_frame"]:
-			var face = target["face"]
-			_selected_texture = _frame_manager.get_face_texture(target["position"], face)
-			print("👆 Скопирована текстура: ", _selected_texture)
-		else:
-			_pick_block(target["position"])
+		_pick_block(target["position"])
 
 
 # ══════════════════════════════════════════════════════════
@@ -308,7 +268,6 @@ func _try_paint_chameleon(hit_pos: Vector3i) -> bool:
 func _get_combined_target() -> Dictionary:
 	var result = {
 		"has_target": false,
-		"is_frame": false,
 		"position": Vector3i.ZERO,
 		"place_position": Vector3i.ZERO,
 		"face": "top",
@@ -318,25 +277,9 @@ func _get_combined_target() -> Dictionary:
 	var origin = _camera.global_position
 	var forward = -_camera.global_transform.basis.z.normalized()
 	
-	if _raycast and _raycast.is_colliding():
-		var collider = _raycast.get_collider()
-		
-		if _frame_manager.is_frame_collider(collider):
-			var frame_pos = _frame_manager.get_block_pos_from_collider(collider)
-			var hit_normal = _raycast.get_collision_normal()
-			
-			result["has_target"] = true
-			result["is_frame"] = true
-			result["position"] = frame_pos
-			result["place_position"] = frame_pos + _normal_to_vec3i(hit_normal)
-			result["face"] = _normal_to_face(hit_normal)
-			result["normal"] = hit_normal
-			return result
-	
 	var hit = _terrain_tool.raycast(origin, forward, reach_distance)
 	if hit:
 		result["has_target"] = true
-		result["is_frame"] = false
 		result["position"] = hit.position
 		result["place_position"] = hit.previous_position
 		

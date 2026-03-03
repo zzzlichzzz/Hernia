@@ -18,6 +18,12 @@ config/name="VoxelPrototype"
 run/main_scene="uid://dihny7k8illyy"
 config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 
+[autoload]
+
+NetConnection="*uid://d0a46oawhomte"
+NetServer="*uid://cc03rgbugvo21"
+NetClient="*uid://cmnp6hpi3satj"
+
 [editor_plugins]
 
 enabled=PackedStringArray()
@@ -26,7 +32,8 @@ enabled=PackedStringArray()
 
 folder_colors={
 "res://common/": "red",
-"res://src/": "green"
+"res://src/": "green",
+"res://src/scripts/network/": "red"
 }
 
 [input]

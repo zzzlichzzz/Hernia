@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bfrvap4ullvyt"]
+
+[ext_resource type="Script" uid="uid://chk7gcwsk6yre" path="res://src/scripts/network/player/net_admin.gd" id="1_4nigr"]
+
+[node name="NetAdmin" type="CharacterBody3D" unique_id=2064086087]
+script = ExtResource("1_4nigr")

@@ -30,6 +30,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8000000000029104, 0)
 
 [node name="Interaction" type="Node3D" parent="." unique_id=1313213708]
 script = ExtResource("5_e5tct")
+reach_distance = null
+break_cooldown = null
+place_cooldown = null
+search_terrain_on_ready = null
 
 [node name="BlockSelector" type="Node3D" parent="." unique_id=1638476033]
 script = ExtResource("3_ate8u")

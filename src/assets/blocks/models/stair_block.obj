@@ -24,34 +24,34 @@ v 1.000000 0.000000 1.000000
 # ═══ UV COORDINATES ═══
 
 # 1: Full face 1x1 (rotated 90° CW)
-vt 0.000000 1.000000
 vt 0.000000 0.000000
+vt 0.000000 1.000000
+vt 1.000000 1.000000
 vt 1.000000 0.000000
-vt 1.000000 1.000000
 
-# 5-8: Front steps - half height (1 wide x 0.5 tall, rotated 90° CW)
-vt 0.000000 1.000000
+# 5-8: Front steps - half height (1 wide x 0.5 tall, correct orientation)
+vt 0.000000 0.000000
 vt 0.000000 0.500000
 vt 1.000000 0.500000
-vt 1.000000 1.000000
+vt 1.000000 0.000000
 
-# 9-12: Top surfaces - half depth (1 wide x 0.5 deep, rotated 90° CW)
-vt 0.000000 1.000000
+# 9-12: Top surfaces - half depth (1 wide x 0.5 deep, correct orientation)
+vt 0.000000 0.000000
 vt 0.000000 0.500000
 vt 1.000000 0.500000
-vt 1.000000 1.000000
+vt 1.000000 0.000000
 
-# 13-16: Side lower - full width x half height (rotated 90° CW)
-vt 0.000000 1.000000
+# 13-16: Side lower - full width x half height (correct orientation)
+vt 0.000000 0.000000
 vt 0.000000 0.500000
 vt 1.000000 0.500000
-vt 1.000000 1.000000
+vt 1.000000 0.000000
 
-# 17-20: Side upper - half width x half height (rotated 90° CW)
-vt 0.500000 1.000000
+# 17-20: Side upper - half width x half height (correct orientation)
+vt 0.500000 0.000000
 vt 0.500000 0.500000
 vt 1.000000 0.500000
-vt 1.000000 1.000000
+vt 1.000000 0.000000
 
 # Normals
 vn 0.0000 1.0000 0.0000

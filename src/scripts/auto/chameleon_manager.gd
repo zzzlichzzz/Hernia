@@ -1,8 +1,10 @@
 extends Node
+class_name ChameleonManager
 
 # ═══════════════════════════════════════════════════════════
 #  CHAMELEON MANAGER (RUNTIME)
-#  Загружает данные от BlockRegistry и управляет покраской
+#  Статический синглтон — не требует Autoload
+#  Доступ: ChameleonManager.get_instance()
 # ═══════════════════════════════════════════════════════════
 
 const CHAMELEON_JSON_PATH = "res://src/data/blocks/chameleon_data.json"
@@ -13,33 +15,78 @@ const ATLAS_COORDS_PATH = "res://src/assets/textures/atlas/block_coordinates.tre
 @export var max_probe: int = 8
 @export var debug_mode: bool = true
 
+# ─── Синглтон ───
+static var _instance: ChameleonManager = null
+
 # ─── Данные ───
 var _keys_image: Image
 var _data_image: Image
 var _keys_texture: ImageTexture
 var _data_texture: ImageTexture
 
-# {Vector3i: Vector4(uv_offset.x, uv_offset.y, uv_size.x, uv_size.y)}
 var _chameleon_positions: Dictionary = {}
-
 var _atlas_coords: Resource = null
 
-# Из JSON файла
-var chameleon_voxel_ids: Array[int] = []      # ← массив
+var chameleon_voxel_ids: Array[int] = []
 var block_id_to_texture: Dictionary = {}
 
-# Ссылка на материал хамелеона из библиотеки
 var _chameleon_material: ShaderMaterial = null
-
 var _initialized: bool = false
 
 
+# ═══════════════════════════════════════════════════════════
+#  СИНГЛТОН
+# ═══════════════════════════════════════════════════════════
+
+static func get_instance() -> ChameleonManager:
+	"""Получить экземпляр. Создаёт автоматически при первом вызове."""
+	if _instance != null and is_instance_valid(_instance):
+		return _instance
+	
+	# Ищем в дереве сцены
+	var tree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return null
+	
+	var root = tree.root
+	if root == null:
+		return null
+	
+	# Может уже есть в дереве
+	var existing = root.get_node_or_null("ChameleonManager")
+	if existing is ChameleonManager:
+		_instance = existing
+		return _instance
+	
+	# Создаём новый
+	_instance = ChameleonManager.new()
+	_instance.name = "ChameleonManager"
+	root.call_deferred("add_child", _instance)
+	
+	return _instance
+
+
+static func has_instance() -> bool:
+	return _instance != null and is_instance_valid(_instance)
+
+
+# ═══════════════════════════════════════════════════════════
+#  ЖИЗНЕННЫЙ ЦИКЛ
+# ═══════════════════════════════════════════════════════════
+
 func _ready():
-	# Откладываем инициализацию — ждём пока всё загрузится
-	call_deferred("_deferred_init")
+	_instance = self
+	_init_manager()
 
 
-func _deferred_init():
+func _exit_tree():
+	if _instance == self:
+		_instance = null
+
+
+func _init_manager():
+	if _initialized:
+		return
 	_load_atlas_coords()
 	_load_chameleon_json()
 	_init_data_textures()
@@ -49,6 +96,12 @@ func _deferred_init():
 		print("🔄 ChameleonManager инициализирован")
 		print("   🔄 ID хамелеонов: ", chameleon_voxel_ids)
 		print("   📋 Блоков в маппинге: ", block_id_to_texture.size())
+
+
+func ensure_initialized():
+	"""Вызови если нужно гарантировать инициализацию до _ready()"""
+	if not _initialized:
+		_init_manager()
 
 
 # ═══════════════════════════════════════════════════════════
@@ -85,17 +138,14 @@ func _load_chameleon_json():
 	
 	var data = json.data
 	if data is Dictionary:
-		# ═══ Поддержка и старого и нового формата ═══
 		chameleon_voxel_ids.clear()
 		
 		if data.has("chameleon_voxel_ids"):
-			# Новый формат — массив
 			var ids = data["chameleon_voxel_ids"]
 			if ids is Array:
 				for id in ids:
 					chameleon_voxel_ids.append(int(id))
 		elif data.has("chameleon_voxel_id"):
-			# Старый формат — одно значение (обратная совместимость)
 			var old_id = int(data["chameleon_voxel_id"])
 			if old_id >= 0:
 				chameleon_voxel_ids.append(old_id)
@@ -120,7 +170,7 @@ func _init_data_textures():
 func _find_chameleon_material():
 	if chameleon_voxel_ids.is_empty():
 		if debug_mode:
-			print("   ⚠️ ID хамелеонов неизвестны, пропуск поиска материала")
+			print("   ⚠️ ID хамелеонов неизвестны")
 		return
 	
 	if not ResourceLoader.exists(LIBRARY_PATH):
@@ -134,8 +184,6 @@ func _find_chameleon_material():
 	
 	var models = lib.get_models()
 	
-	# Ищем материал по первому хамелеону
-	# (все хамелеоны используют один shared материал)
 	for cham_id in chameleon_voxel_ids:
 		if cham_id >= 0 and cham_id < models.size():
 			var model = models[cham_id]
@@ -146,14 +194,16 @@ func _find_chameleon_material():
 					_chameleon_material.set_shader_parameter("chameleon_keys", _keys_texture)
 					_chameleon_material.set_shader_parameter("chameleon_data", _data_texture)
 					if debug_mode:
-						print("   ✅ Материал хамелеона найден (из ID: ", cham_id, ")")
+						print("   ✅ Материал хамелеона найден (ID: ", cham_id, ")")
 					return
 	
 	if debug_mode:
-		print("   ⚠️ Материал хамелеона не найден в библиотеке")
+		print("   ⚠️ Материал хамелеона не найден")
 
 
 func connect_to_terrain(terrain: VoxelTerrain):
+	ensure_initialized()
+	
 	if _chameleon_material != null:
 		if debug_mode:
 			print("   ✅ ChameleonManager: материал уже подключён")
@@ -174,7 +224,7 @@ func connect_to_terrain(terrain: VoxelTerrain):
 							_chameleon_material.set_shader_parameter("chameleon_keys", _keys_texture)
 							_chameleon_material.set_shader_parameter("chameleon_data", _data_texture)
 							if debug_mode:
-								print("   ✅ Материал хамелеона подключён через terrain (ID: ", cham_id, ")")
+								print("   ✅ Материал подключён через terrain (ID: ", cham_id, ")")
 							return
 
 
@@ -187,7 +237,6 @@ func is_chameleon_block(voxel_id: int) -> bool:
 
 
 func paint_chameleon(pos: Vector3i, texture_name: String) -> bool:
-	"""Покрасить хамелеон текстурой по имени"""
 	var uv = _get_uv(texture_name)
 	if uv.is_empty():
 		if debug_mode:
@@ -208,7 +257,6 @@ func paint_chameleon(pos: Vector3i, texture_name: String) -> bool:
 
 
 func paint_chameleon_by_block_id(pos: Vector3i, source_block_id: int) -> bool:
-	"""Покрасить хамелеон текстурой блока по его voxel ID"""
 	var tex_name = block_id_to_texture.get(source_block_id, "")
 	if tex_name == "":
 		if debug_mode:
@@ -218,7 +266,6 @@ func paint_chameleon_by_block_id(pos: Vector3i, source_block_id: int) -> bool:
 
 
 func remove_chameleon(pos: Vector3i):
-	"""Удалить покраску (при разрушении блока)"""
 	if _chameleon_positions.has(pos):
 		_chameleon_positions.erase(pos)
 		_rebuild_textures()
@@ -266,7 +313,7 @@ func _rebuild_textures():
 			var idx = (hash_idx + i) % map_size
 			var key = _keys_image.get_pixel(idx, 0)
 			
-			if key.a < 0.5:  # Пустой слот
+			if key.a < 0.5:
 				_keys_image.set_pixel(idx, 0,
 					Color(float(pos.x), float(pos.y), float(pos.z), 1.0))
 				_data_image.set_pixel(idx, 0,
@@ -278,13 +325,11 @@ func _rebuild_textures():
 		
 		if not placed:
 			failed += 1
-			push_warning("ChameleonManager: Хеш-таблица переполнена для " + str(pos))
+			push_warning("ChameleonManager: Переполнение для " + str(pos))
 	
-	# Загружаем на GPU
 	_keys_texture.update(_keys_image)
 	_data_texture.update(_data_image)
 	
-	# Обновляем материал
 	if _chameleon_material:
 		_chameleon_material.set_shader_parameter("chameleon_keys", _keys_texture)
 		_chameleon_material.set_shader_parameter("chameleon_data", _data_texture)
@@ -303,7 +348,7 @@ func _get_uv(texture_name: String) -> Dictionary:
 
 
 # ═══════════════════════════════════════════════════════════
-#  СОХРАНЕНИЕ / ЗАГРУЗКА СОСТОЯНИЯ МИРА
+#  СОХРАНЕНИЕ / ЗАГРУЗКА
 # ═══════════════════════════════════════════════════════════
 
 func get_save_data() -> Dictionary:

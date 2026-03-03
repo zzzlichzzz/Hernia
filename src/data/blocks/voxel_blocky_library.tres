@@ -1,4 +1,4 @@
-[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://coqoergbiiwg"]
+[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://c4i6mgobghg6r"]
 
 [ext_resource type="Shader" uid="uid://byk6fbd65qy58" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_vmbgv"]
 [ext_resource type="Texture2D" uid="uid://btsf18kgvsgbf" path="res://src/assets/textures/atlas/block_atlas.png" id="2_7m0mw"]
@@ -7,10 +7,10 @@
 [ext_resource type="ArrayMesh" uid="uid://cdrw07cs74bqw" path="res://src/assets/blocks/models/stair_block.obj" id="5_jjnj3"]
 [ext_resource type="Shader" uid="uid://btqqi314tt4j4" path="res://src/shaders/blocks/block_chameleon.gdshader" id="6_s4m86"]
 
-[sub_resource type="VoxelBlockyModelEmpty" id="VoxelBlockyModelEmpty_vmbgv"]
+[sub_resource type="VoxelBlockyModelEmpty" id="VoxelBlockyModelEmpty_plqvt"]
 resource_name = "air"
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_7m0mw"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_snhp3"]
 render_priority = 0
 shader = ExtResource("1_vmbgv")
 shader_parameter/atlas_texture = ExtResource("2_7m0mw")
@@ -24,68 +24,68 @@ shader_parameter/overlay_uv_offset = Vector2(0.125, 0)
 shader_parameter/overlay_uv_size = Vector2(0.125, 0.25)
 shader_parameter/overlay_enabled = true
 
-[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_bnw2r"]
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_bbfiv"]
 resource_name = "block_grass"
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
-material_override_0 = SubResource("ShaderMaterial_7m0mw")
+material_override_0 = SubResource("ShaderMaterial_snhp3")
 collision_enabled_0 = true
 mesh = ExtResource("3_bnw2r")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_36qk5"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7v2dt"]
 render_priority = 0
 shader = ExtResource("4_36qk5")
 shader_parameter/atlas_texture = ExtResource("2_7m0mw")
 shader_parameter/block_uv_offset = Vector2(0.4375, 0)
 shader_parameter/block_uv_size = Vector2(0.125, 0.25)
 
-[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_jjnj3"]
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_6br1r"]
 resource_name = "cherry_planks"
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
-material_override_0 = SubResource("ShaderMaterial_36qk5")
+material_override_0 = SubResource("ShaderMaterial_7v2dt")
 collision_enabled_0 = true
 mesh = ExtResource("3_bnw2r")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_s4m86"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_6eenp"]
 render_priority = 0
 shader = ExtResource("4_36qk5")
 shader_parameter/atlas_texture = ExtResource("2_7m0mw")
 shader_parameter/block_uv_offset = Vector2(0.5625, 0)
 shader_parameter/block_uv_size = Vector2(0.125, 0.25)
 
-[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_plqvt"]
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_7uru0"]
 resource_name = "dirt"
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
-material_override_0 = SubResource("ShaderMaterial_s4m86")
+material_override_0 = SubResource("ShaderMaterial_6eenp")
 collision_enabled_0 = true
 mesh = ExtResource("3_bnw2r")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_snhp3"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3ba4i"]
 render_priority = 0
 shader = ExtResource("4_36qk5")
 shader_parameter/atlas_texture = ExtResource("2_7m0mw")
 shader_parameter/block_uv_offset = Vector2(0.4375, 0)
 shader_parameter/block_uv_size = Vector2(0.125, 0.25)
 
-[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_bbfiv"]
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_18bwr"]
 resource_name = "cherry stair"
 transparency_index = 1
 culls_neighbors = false
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 0.5, 1), AABB(0, 0.5, 0, 1, 0.5, 0.5)])
-material_override_0 = SubResource("ShaderMaterial_snhp3")
+material_override_0 = SubResource("ShaderMaterial_3ba4i")
 collision_enabled_0 = true
 mesh = ExtResource("5_jjnj3")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_7v2dt"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_63w2s"]
 render_priority = 0
 shader = ExtResource("4_36qk5")
 shader_parameter/atlas_texture = ExtResource("2_7m0mw")
 shader_parameter/block_uv_offset = Vector2(0.5, 0.25)
 shader_parameter/block_uv_size = Vector2(0.125, 0.25)
 
-[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_6br1r"]
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_qxu2r"]
 resource_name = "stone"
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
-material_override_0 = SubResource("ShaderMaterial_7v2dt")
+material_override_0 = SubResource("ShaderMaterial_63w2s")
 collision_enabled_0 = true
 mesh = ExtResource("3_bnw2r")
 
@@ -110,7 +110,7 @@ data = {
 "width": 4096
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_3ba4i"]
+[sub_resource type="ImageTexture" id="ImageTexture_76ji4"]
 image = SubResource("Image_7m0mw")
 
 [sub_resource type="Image" id="Image_bnw2r"]
@@ -122,32 +122,32 @@ data = {
 "width": 4096
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_63w2s"]
+[sub_resource type="ImageTexture" id="ImageTexture_6wfgl"]
 image = SubResource("Image_bnw2r")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_qxu2r"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_y0eh6"]
 render_priority = 0
 shader = ExtResource("6_s4m86")
 shader_parameter/atlas_texture = SubResource("ImageTexture_713d5")
-shader_parameter/chameleon_keys = SubResource("ImageTexture_63w2s")
-shader_parameter/chameleon_data = SubResource("ImageTexture_3ba4i")
+shader_parameter/chameleon_keys = SubResource("ImageTexture_6wfgl")
+shader_parameter/chameleon_data = SubResource("ImageTexture_76ji4")
 shader_parameter/chameleon_map_size = 4096
 shader_parameter/default_uv_offset = Vector2(0.25, 0)
 shader_parameter/default_uv_size = Vector2(0.0625, 0.125)
 
-[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_mct0b"]
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_x2w26"]
 resource_name = "chameleon"
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
-material_override_0 = SubResource("ShaderMaterial_qxu2r")
+material_override_0 = SubResource("ShaderMaterial_y0eh6")
 collision_enabled_0 = true
 mesh = ExtResource("3_bnw2r")
 
-[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_cvfp1"]
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_hk56t"]
 resource_name = "stair chameleon"
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
-material_override_0 = SubResource("ShaderMaterial_qxu2r")
+material_override_0 = SubResource("ShaderMaterial_y0eh6")
 collision_enabled_0 = true
 mesh = ExtResource("5_jjnj3")
 
 [resource]
-models = Array[VoxelBlockyModel]([SubResource("VoxelBlockyModelEmpty_vmbgv"), SubResource("VoxelBlockyModelMesh_bnw2r"), SubResource("VoxelBlockyModelMesh_jjnj3"), SubResource("VoxelBlockyModelMesh_plqvt"), SubResource("VoxelBlockyModelMesh_bbfiv"), SubResource("VoxelBlockyModelMesh_6br1r"), SubResource("VoxelBlockyModelMesh_mct0b"), SubResource("VoxelBlockyModelMesh_cvfp1")])
+models = Array[VoxelBlockyModel]([SubResource("VoxelBlockyModelEmpty_plqvt"), SubResource("VoxelBlockyModelMesh_bbfiv"), SubResource("VoxelBlockyModelMesh_6br1r"), SubResource("VoxelBlockyModelMesh_7uru0"), SubResource("VoxelBlockyModelMesh_18bwr"), SubResource("VoxelBlockyModelMesh_qxu2r"), SubResource("VoxelBlockyModelMesh_x2w26"), SubResource("VoxelBlockyModelMesh_hk56t")])

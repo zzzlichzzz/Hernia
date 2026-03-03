@@ -13,7 +13,6 @@ radius = 0.45
 
 [node name="Player" type="CharacterBody3D" unique_id=1646330281]
 script = ExtResource("1_pkpq8")
-groups = ["player"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=325218537]
 shape = SubResource("CapsuleShape3D_e5tct")

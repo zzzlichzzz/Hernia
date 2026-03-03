@@ -20,7 +20,7 @@ class_name BlockDefinition
 @export var transparency_index: int = 0
 
 # ═══ Тип материала ═══
-enum MaterialType { OPAQUE, TRANSPARENT, FOLIAGE, MULTI_FACE }
+enum MaterialType { OPAQUE, TRANSPARENT, FOLIAGE, MULTI_FACE, CHAMELEON }
 
 @export var material_type_enum: MaterialType = MaterialType.OPAQUE:
 	set(value):
@@ -34,6 +34,9 @@ enum MaterialType { OPAQUE, TRANSPARENT, FOLIAGE, MULTI_FACE }
 				material_type = "foliage"
 			MaterialType.MULTI_FACE:
 				material_type = "multi_face"
+			MaterialType.CHAMELEON:
+				material_type = "chameleon"
+				is_chameleon = true
 	get:
 		return material_type_enum
 
@@ -50,6 +53,7 @@ var material_type: String = "opaque"
 @export var hardness: float = 1.0
 @export var rotation_type: int = 0
 @export var is_fluid: bool = false
+@export var is_chameleon: bool = false
 @export var viscosity: float = 0.8
 
 
@@ -69,3 +73,6 @@ func _init():
 			material_type = "foliage"
 		MaterialType.MULTI_FACE:
 			material_type = "multi_face"
+		MaterialType.CHAMELEON:
+			material_type = "chameleon"
+			is_chameleon = true

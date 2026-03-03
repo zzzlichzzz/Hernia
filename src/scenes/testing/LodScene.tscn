@@ -5,13 +5,13 @@
 [ext_resource type="Script" uid="uid://bqaues5e71sqq" path="res://src/scripts/ui/debug_overlay.gd" id="2_debug"]
 [ext_resource type="Script" uid="uid://woicsrbbn2an" path="res://src/scripts/ui/chat_system.gd" id="3_chat"]
 
-[sub_resource type="VoxelGeneratorFlat" id="VoxelGeneratorFlat_76ycs"]
+[sub_resource type="VoxelGeneratorFlat" id="VoxelGeneratorFlat_53uy5"]
 channel = 0
 
 [node name="LodScene" type="WorldEnvironment" unique_id=327434639]
 
 [node name="VoxelTerrain" type="VoxelTerrain" parent="." unique_id=2120458056]
-generator = SubResource("VoxelGeneratorFlat_76ycs")
+generator = SubResource("VoxelGeneratorFlat_53uy5")
 mesher = ExtResource("1_76ycs")
 max_view_distance = 64
 

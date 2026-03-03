@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://csmtm23gxtt0g"]
+
+[ext_resource type="VoxelMesherBlocky" uid="uid://dcprqlo7ta2tm" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_h5fsq"]
+
+[sub_resource type="VoxelGeneratorFlat" id="VoxelGeneratorFlat_r7gfc"]
+channel = 0
+
+[node name="NetWorld" type="Node3D" unique_id=1494212476]
+
+[node name="VoxelTerrain" type="VoxelTerrain" parent="." unique_id=1592085330]
+generator = SubResource("VoxelGeneratorFlat_r7gfc")
+mesher = ExtResource("1_h5fsq")

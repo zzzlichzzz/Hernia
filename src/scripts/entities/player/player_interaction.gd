@@ -21,18 +21,22 @@ var _selected_texture: String = "stone"
 var _frame_manager: FrameBlockManager = null
 var _edit_mode: bool = false
 
-# Маппинг block_id → texture_name для фрейм-блоков
-# Используем texture_top если доступно, иначе texture_name
 var _block_to_texture: Dictionary = {
-	1: "grass_block_top",  # block_grass → top texture
-	2: "cherry_planks",    # cherry_planks
-	3: "cherry_planks",    # cherry_stair
-	4: "dirt",             # dirt
-	5: "stone"             # stone
+	1: "grass_block_top",
+	2: "cherry_planks",
+	3: "cherry_planks",
+	4: "dirt",
+	5: "stone"
 }
 
 const FRAME_COLLISION_LAYER = 2
 var _inventory: Node = null
+
+# ══════════════════════════════════════════
+#  ХАМЕЛЕОН — ссылка на менеджер
+# ══════════════════════════════════════════
+var _chameleon_mgr: Node = null
+# ══════════════════════════════════════════
 
 signal block_broken(position: Vector3i, block_id: int)
 signal block_placed(position: Vector3i, block_id: int)
@@ -48,7 +52,6 @@ func _ready():
 		_find_and_setup_terrain()
 	get_tree().node_added.connect(_on_node_added)
 	
-	# Frame-блок менеджер
 	_frame_manager = FrameBlockManager.new()
 	_frame_manager.name = "FrameBlockManager"
 	add_child(_frame_manager)
@@ -56,15 +59,24 @@ func _ready():
 	if _terrain:
 		_frame_manager.set_terrain(_terrain)
 	
-	# Настраиваем RayCast для обнаружения frame-блоков
 	if _raycast:
-		_raycast.collision_mask = 1 | FRAME_COLLISION_LAYER  # Layer 1 (terrain) + Layer 2 (frames)
+		_raycast.target_position = Vector3(0, 0, -reach_distance)
+		_raycast.collision_mask = 1 | FRAME_COLLISION_LAYER
+	
+	# ══════════════════════════════════════════
+	#  ХАМЕЛЕОН — получаем менеджер
+	# ══════════════════════════════════════════
+	_chameleon_mgr = get_node_or_null("/root/ChameleonManager")
+	if _chameleon_mgr:
+		print("✅ ChameleonManager подключён к PlayerInteraction")
+	else:
+		push_warning("⚠️ ChameleonManager autoload не найден")
+	# ══════════════════════════════════════════
 	
 	print("✅ FrameBlockManager создан")
 
 
 func _find_inventory():
-	# Ищем CreativeInventory среди детей родителя (игрока)
 	var parent = get_parent()
 	if parent:
 		for child in parent.get_children():
@@ -150,6 +162,14 @@ func _setup_terrain_tool():
 	
 	if _frame_manager:
 		_frame_manager.set_terrain(_terrain)
+	
+	# ══════════════════════════════════════════
+	#  ХАМЕЛЕОН — подключаем материал через terrain
+	# ══════════════════════════════════════════
+	if _chameleon_mgr:
+		_chameleon_mgr.connect_to_terrain(_terrain)
+	# ══════════════════════════════════════════
+	
 	print("✅ Terrain найден: ", _terrain.name)
 	terrain_found.emit(_terrain)
 
@@ -165,7 +185,6 @@ func _process(delta):
 	if _terrain == null or _terrain_tool == null:
 		return
 	
-	# Если чат или инвентарь открыт, не обрабатываем взаимодействие
 	if _is_chat_or_inventory_open():
 		return
 	
@@ -177,13 +196,11 @@ func _process(delta):
 	_handle_input()
 
 func _is_chat_or_inventory_open() -> bool:
-	# Проверяем открыт ли чат
 	var chat = get_tree().get_first_node_in_group("chat")
 	if chat and chat.has_method("is_chat_open"):
 		if chat.is_chat_open():
 			return true
 	
-	# Проверяем открыт ли инвентарь
 	var player = get_tree().get_first_node_in_group("player")
 	if player and player.has("inventory_open"):
 		if player.inventory_open:
@@ -193,22 +210,18 @@ func _is_chat_or_inventory_open() -> bool:
 
 
 func _handle_input():
-	# Проверяем, открыт ли инвентарь
 	var player = get_parent()
 	var inventory_is_open = false
 	if player and "inventory_open" in player:
 		inventory_is_open = player.inventory_open
 	
-	# Если инвентарь открыт - нельзя ломать/ставить блоки
 	if inventory_is_open:
 		return
 	
-	# F — переключение режима редактирования
 	if Input.is_action_just_pressed("toggle_edit_mode"):
 		_edit_mode = not _edit_mode
 		print("🔧 Режим редактирования: ", "ВКЛ" if _edit_mode else "ВЫКЛ")
 	
-	# Получаем цель
 	var target = _get_combined_target()
 	
 	if not target["has_target"]:
@@ -224,20 +237,23 @@ func _handle_input():
 			_break_block(target["position"])
 		_break_timer = break_cooldown
 	
-	# ПКМ — поставить / редактировать
+	# ПКМ — поставить / редактировать / покрасить хамелеон
 	if Input.is_action_pressed("place_block") and _place_timer <= 0:
 		if _edit_mode and _frame_manager:
 			if target["is_frame"]:
-				# Редактируем грань frame-блока
 				var face = target["face"]
 				_frame_manager.set_face_texture(target["position"], face, _selected_texture)
 			else:
-				# Создаём новый frame-блок
 				var place_pos = target["place_position"]
 				if _can_place_at(place_pos):
 					_frame_manager.create_frame_block(place_pos)
+		# ══════════════════════════════════════════
+		#  ХАМЕЛЕОН — проверяем перед обычным размещением
+		# ══════════════════════════════════════════
+		elif _try_paint_chameleon(target["position"]):
+			pass  # Хамелеон покрашен, ничего больше не делаем
+		# ══════════════════════════════════════════
 		else:
-			# Обычное размещение вокселя
 			var place_pos = target["place_position"]
 			if _can_place_at(place_pos):
 				_place_block(place_pos)
@@ -253,8 +269,53 @@ func _handle_input():
 			_pick_block(target["position"])
 
 
+# ══════════════════════════════════════════════════════════
+#  ХАМЕЛЕОН — основной метод покраски
+# ══════════════════════════════════════════════════════════
+
+func _try_paint_chameleon(hit_pos: Vector3i) -> bool:
+	"""
+	Пытается покрасить хамелеон на позиции hit_pos.
+	Возвращает true если это был хамелеон и покраска удалась.
+	"""
+	if _chameleon_mgr == null:
+		return false
+	
+	if _terrain_tool == null:
+		return false
+	
+	# Проверяем: блок на этой позиции — хамелеон?
+	var voxel_id = _terrain_tool.get_voxel(hit_pos)
+	if not _chameleon_mgr.is_chameleon_block(voxel_id):
+		return false
+	
+	# Нельзя красить воздухом
+	if _selected_block_id <= 0:
+		return false
+	
+	# Пытаемся покрасить по ID блока в руке
+	var success = _chameleon_mgr.paint_chameleon_by_block_id(hit_pos, _selected_block_id)
+	
+	if success:
+		print("🎨 Хамелеон покрашен: ", hit_pos, " блоком ID: ", _selected_block_id)
+	else:
+		# Фоллбек: пробуем через текстуру из нашего маппинга
+		var tex = _block_to_texture.get(_selected_block_id, "")
+		if tex != "":
+			success = _chameleon_mgr.paint_chameleon(hit_pos, tex)
+			if success:
+				print("🎨 Хамелеон покрашен: ", hit_pos, " текстурой: ", tex)
+			else:
+				print("❌ Не удалось покрасить хамелеон")
+		else:
+			print("❌ Нет текстуры для блока ID: ", _selected_block_id)
+	
+	return success
+
+# ══════════════════════════════════════════════════════════
+
+
 func _get_combined_target() -> Dictionary:
-	"""Комбинированный рейкаст: сначала проверяем frame-блоки, потом воксели"""
 	var result = {
 		"has_target": false,
 		"is_frame": false,
@@ -267,7 +328,6 @@ func _get_combined_target() -> Dictionary:
 	var origin = _camera.global_position
 	var forward = -_camera.global_transform.basis.z.normalized()
 	
-	# ═══ 1. Проверяем RayCast3D (frame-блоки) ═══
 	if _raycast and _raycast.is_colliding():
 		var collider = _raycast.get_collider()
 		
@@ -283,7 +343,6 @@ func _get_combined_target() -> Dictionary:
 			result["normal"] = hit_normal
 			return result
 	
-	# ═══ 2. Проверяем VoxelTool raycast ═══
 	var hit = _terrain_tool.raycast(origin, forward, reach_distance)
 	if hit:
 		result["has_target"] = true
@@ -336,6 +395,14 @@ func _break_block(pos: Vector3i):
 	var old_id = _terrain_tool.get_voxel(pos)
 	if old_id == 0:
 		return
+	
+	# ══════════════════════════════════════════
+	#  ХАМЕЛЕОН — очистка при разрушении
+	# ══════════════════════════════════════════
+	if _chameleon_mgr and _chameleon_mgr.is_chameleon_block(old_id):
+		_chameleon_mgr.remove_chameleon(pos)
+	# ══════════════════════════════════════════
+	
 	_terrain_tool.value = 0
 	_terrain_tool.do_point(pos)
 	var new_id = _terrain_tool.get_voxel(pos)
@@ -384,7 +451,6 @@ func _can_place_at(pos: Vector3i) -> bool:
 
 func set_selected_block(block_id: int):
 	_selected_block_id = block_id
-	# Обновляем текстуру для фрейм-блока
 	_selected_texture = _block_to_texture.get(block_id, "stone")
 	print("🧱 Блок выбран: ID=", block_id, " текстура=", _selected_texture)
 

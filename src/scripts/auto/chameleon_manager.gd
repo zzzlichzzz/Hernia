@@ -24,9 +24,9 @@ var _chameleon_positions: Dictionary = {}
 
 var _atlas_coords: Resource = null
 
-# Из JSON файла (заполняется BlockRegistry при сборке)
-var chameleon_voxel_id: int = -1
-var block_id_to_texture: Dictionary = {}  # {int voxel_id: String texture_name}
+# Из JSON файла
+var chameleon_voxel_ids: Array[int] = []      # ← массив
+var block_id_to_texture: Dictionary = {}
 
 # Ссылка на материал хамелеона из библиотеки
 var _chameleon_material: ShaderMaterial = null
@@ -47,7 +47,7 @@ func _deferred_init():
 	_initialized = true
 	if debug_mode:
 		print("🔄 ChameleonManager инициализирован")
-		print("   🔄 ID хамелеона: ", chameleon_voxel_id)
+		print("   🔄 ID хамелеонов: ", chameleon_voxel_ids)
 		print("   📋 Блоков в маппинге: ", block_id_to_texture.size())
 
 
@@ -65,10 +65,9 @@ func _load_atlas_coords():
 
 
 func _load_chameleon_json():
-	"""Загружает данные, сохранённые BlockRegistry при сборке"""
 	if not FileAccess.file_exists(CHAMELEON_JSON_PATH):
 		if debug_mode:
-			print("   ⚠️ Файл chameleon_data.json не найден (сборка ещё не выполнялась?)")
+			print("   ⚠️ Файл chameleon_data.json не найден")
 		return
 	
 	var file = FileAccess.open(CHAMELEON_JSON_PATH, FileAccess.READ)
@@ -86,7 +85,20 @@ func _load_chameleon_json():
 	
 	var data = json.data
 	if data is Dictionary:
-		chameleon_voxel_id = int(data.get("chameleon_voxel_id", -1))
+		# ═══ Поддержка и старого и нового формата ═══
+		chameleon_voxel_ids.clear()
+		
+		if data.has("chameleon_voxel_ids"):
+			# Новый формат — массив
+			var ids = data["chameleon_voxel_ids"]
+			if ids is Array:
+				for id in ids:
+					chameleon_voxel_ids.append(int(id))
+		elif data.has("chameleon_voxel_id"):
+			# Старый формат — одно значение (обратная совместимость)
+			var old_id = int(data["chameleon_voxel_id"])
+			if old_id >= 0:
+				chameleon_voxel_ids.append(old_id)
 		
 		var mapping = data.get("block_id_to_texture", {})
 		block_id_to_texture.clear()
@@ -94,7 +106,7 @@ func _load_chameleon_json():
 			block_id_to_texture[int(key)] = mapping[key]
 		
 		if debug_mode:
-			print("   ✅ JSON загружен: chameleon_id=", chameleon_voxel_id,
+			print("   ✅ JSON загружен: chameleon_ids=", chameleon_voxel_ids,
 				", блоков=", block_id_to_texture.size())
 
 
@@ -106,63 +118,64 @@ func _init_data_textures():
 
 
 func _find_chameleon_material():
-	"""Находит материал хамелеона в загруженной библиотеке и подключает свои текстуры"""
-	if chameleon_voxel_id < 0:
+	if chameleon_voxel_ids.is_empty():
 		if debug_mode:
-			print("   ⚠️ ID хамелеона неизвестен, пропуск поиска материала")
+			print("   ⚠️ ID хамелеонов неизвестны, пропуск поиска материала")
 		return
 	
 	if not ResourceLoader.exists(LIBRARY_PATH):
 		if debug_mode:
-			print("   ⚠️ Библиотека не найдена, материал будет найден позже")
+			print("   ⚠️ Библиотека не найдена")
 		return
 	
 	var lib = load(LIBRARY_PATH) as VoxelBlockyLibrary
 	if lib == null:
 		return
 	
-	# Получаем модель по индексу
 	var models = lib.get_models()
-	if chameleon_voxel_id >= 0 and chameleon_voxel_id < models.size():
-		var model = models[chameleon_voxel_id]
-		if model is VoxelBlockyModelMesh:
-			var mat = model.get_material_override(0)
-			if mat is ShaderMaterial:
-				_chameleon_material = mat
-				# Подключаем наши data-текстуры к материалу
-				_chameleon_material.set_shader_parameter("chameleon_keys", _keys_texture)
-				_chameleon_material.set_shader_parameter("chameleon_data", _data_texture)
-				if debug_mode:
-					print("   ✅ Материал хамелеона найден и подключён")
-				return
+	
+	# Ищем материал по первому хамелеону
+	# (все хамелеоны используют один shared материал)
+	for cham_id in chameleon_voxel_ids:
+		if cham_id >= 0 and cham_id < models.size():
+			var model = models[cham_id]
+			if model is VoxelBlockyModelMesh:
+				var mat = model.get_material_override(0)
+				if mat is ShaderMaterial:
+					_chameleon_material = mat
+					_chameleon_material.set_shader_parameter("chameleon_keys", _keys_texture)
+					_chameleon_material.set_shader_parameter("chameleon_data", _data_texture)
+					if debug_mode:
+						print("   ✅ Материал хамелеона найден (из ID: ", cham_id, ")")
+					return
 	
 	if debug_mode:
 		print("   ⚠️ Материал хамелеона не найден в библиотеке")
 
 
 func connect_to_terrain(terrain: VoxelTerrain):
-	"""Вызови это когда terrain готов, чтобы подключить материал"""
 	if _chameleon_material != null:
 		if debug_mode:
 			print("   ✅ ChameleonManager: материал уже подключён")
 		return
 	
-	# Попробуем найти материал через mesher
 	var mesher = terrain.mesher
 	if mesher is VoxelMesherBlocky:
 		var lib = mesher.library
-		if lib and chameleon_voxel_id >= 0:
+		if lib and not chameleon_voxel_ids.is_empty():
 			var models = lib.get_models()
-			if chameleon_voxel_id < models.size():
-				var model = models[chameleon_voxel_id]
-				if model is VoxelBlockyModelMesh:
-					var mat = model.get_material_override(0)
-					if mat is ShaderMaterial:
-						_chameleon_material = mat
-						_chameleon_material.set_shader_parameter("chameleon_keys", _keys_texture)
-						_chameleon_material.set_shader_parameter("chameleon_data", _data_texture)
-						if debug_mode:
-							print("   ✅ Материал хамелеона подключён через terrain")
+			for cham_id in chameleon_voxel_ids:
+				if cham_id >= 0 and cham_id < models.size():
+					var model = models[cham_id]
+					if model is VoxelBlockyModelMesh:
+						var mat = model.get_material_override(0)
+						if mat is ShaderMaterial:
+							_chameleon_material = mat
+							_chameleon_material.set_shader_parameter("chameleon_keys", _keys_texture)
+							_chameleon_material.set_shader_parameter("chameleon_data", _data_texture)
+							if debug_mode:
+								print("   ✅ Материал хамелеона подключён через terrain (ID: ", cham_id, ")")
+							return
 
 
 # ═══════════════════════════════════════════════════════════
@@ -170,7 +183,7 @@ func connect_to_terrain(terrain: VoxelTerrain):
 # ═══════════════════════════════════════════════════════════
 
 func is_chameleon_block(voxel_id: int) -> bool:
-	return voxel_id == chameleon_voxel_id and chameleon_voxel_id >= 0
+	return voxel_id in chameleon_voxel_ids
 
 
 func paint_chameleon(pos: Vector3i, texture_name: String) -> bool:

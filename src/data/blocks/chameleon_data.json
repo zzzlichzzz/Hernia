@@ -6,5 +6,8 @@
 		"4": "cherry_planks",
 		"5": "stone"
 	},
-	"chameleon_voxel_id": 7
+	"chameleon_voxel_ids": [
+		6,
+		7
+	]
 }

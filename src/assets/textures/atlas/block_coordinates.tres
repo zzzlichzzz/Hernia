@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="AtlasCoordinates" format=3 uid="uid://d1vh6nqptdnq7"]
+[gd_resource type="Resource" script_class="AtlasCoordinates" format=3 uid="uid://b5nk32cdkfws0"]
 
 [ext_resource type="Script" uid="uid://cu61r4woic15r" path="res://src/scripts/resources/atlas_coordinates.gd" id="1_dme3w"]
 

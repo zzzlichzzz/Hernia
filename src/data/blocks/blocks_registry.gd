@@ -22,9 +22,9 @@ var library: VoxelBlockyLibrary
 var block_count: int = 0
 var mesher_manager: Node
 # ═══ ХАМЕЛЕОН ═══
-var _block_id_to_texture: Dictionary = {}   # {voxel_id: texture_name}
-var _chameleon_voxel_id: int = -1           # ID хамелеона в библиотеке
-var _chameleon_defs: Array = []             # Отложенные определения
+var _block_id_to_texture: Dictionary = {}
+var _chameleon_voxel_ids: Array[int] = []     # ← МАССИВ вместо одного int
+var _chameleon_defs: Array = []
 
 const CHAMELEON_SHADER_PATH = "res://src/shaders/blocks/block_chameleon.gdshader"
 const CHAMELEON_DATA_PATH = "res://src/data/blocks/chameleon_data.tres"
@@ -63,7 +63,7 @@ func _build_library():
 	
 	# Очищаем данные предыдущей сборки
 	_block_id_to_texture.clear()
-	_chameleon_voxel_id = -1
+	_chameleon_voxel_ids.clear()          # ← было _chameleon_voxel_id = -1
 	_chameleon_defs.clear()
 	
 	if debug_mode:
@@ -398,13 +398,11 @@ static func get_block_id(block_name: String) -> int:
 # ═══════════════════════════════════════════════════════════
 
 func _register_chameleon_blocks():
-	"""Регистрирует все хамелеон-блоки. Вызывается ПОСЛЕ всех обычных блоков."""
 	if _chameleon_defs.is_empty():
 		if debug_mode:
 			print("   ℹ️ Хамелеон-блоки не найдены")
 		return
 	
-	# Загружаем шейдер
 	var chameleon_shader: Shader = null
 	if ResourceLoader.exists(CHAMELEON_SHADER_PATH):
 		chameleon_shader = load(CHAMELEON_SHADER_PATH)
@@ -412,7 +410,6 @@ func _register_chameleon_blocks():
 		print("   ❌ Шейдер хамелеона не найден: ", CHAMELEON_SHADER_PATH)
 		return
 	
-	# Загружаем текстуру атласа
 	var atlas_texture: Texture2D = null
 	if _atlas_coords and _atlas_coords.atlas_texture:
 		atlas_texture = _atlas_coords.atlas_texture
@@ -425,6 +422,11 @@ func _register_chameleon_blocks():
 		print("   ❌ Текстура атласа не найдена")
 		return
 	
+	# ═══ ОБЩИЙ материал для ВСЕХ хамелеонов ═══
+	# Все хамелеоны используют один и тот же ShaderMaterial,
+	# чтобы data-текстуры были общими
+	var shared_material: ShaderMaterial = null
+	
 	for cham_def in _chameleon_defs:
 		if debug_mode:
 			print("\n   🔄 Регистрация хамелеона: ", cham_def.block_name)
@@ -433,7 +435,6 @@ func _register_chameleon_blocks():
 			print("   ❌ У хамелеона нет модели!")
 			continue
 		
-		# Создаём модель
 		var model = VoxelBlockyModelMesh.new()
 		model.resource_name = cham_def.block_name
 		model.mesh = cham_def.model
@@ -442,19 +443,26 @@ func _register_chameleon_blocks():
 		model.collision_aabbs = cham_def.collision_aabbs
 		model.set("collision_enabled_0", cham_def.collision_enabled)
 		
-		# Создаём материал прямо здесь (без ChameleonManager)
-		var mat = _create_chameleon_material(chameleon_shader, atlas_texture, cham_def.texture_name)
-		if mat:
-			model.set_material_override(0, mat)
+		# Создаём материал только один раз, потом переиспользуем
+		if shared_material == null:
+			shared_material = _create_chameleon_material(
+				chameleon_shader, atlas_texture, cham_def.texture_name)
+		
+		if shared_material:
+			model.set_material_override(0, shared_material)
 			if debug_mode:
 				print("   ✅ Шейдер хамелеона применён")
 		
 		var id = library.add_model(model)
-		_chameleon_voxel_id = id
+		_chameleon_voxel_ids.append(id)       # ← добавляем в массив
 		block_count += 1
 		
 		if debug_mode:
 			print("   ✅ Хамелеон добавлен с ID: ", id)
+	
+	if debug_mode:
+		print("\n   📊 Всего хамелеонов: ", _chameleon_voxel_ids.size())
+		print("   📋 ID хамелеонов: ", _chameleon_voxel_ids)
 
 
 func _create_chameleon_material(shader: Shader, atlas: Texture2D, default_texture: String) -> ShaderMaterial:
@@ -490,13 +498,6 @@ func _create_chameleon_material(shader: Shader, atlas: Texture2D, default_textur
 
 
 func _save_chameleon_data():
-	"""Сохраняет маппинг ID→текстура и ID хамелеона в файл для ChameleonManager"""
-	var data = {
-		"chameleon_voxel_id": _chameleon_voxel_id,
-		"block_id_to_texture": _block_id_to_texture.duplicate()
-	}
-	
-	# Сохраняем как JSON (простейший способ без доп. ресурсов)
 	var json_path = "res://src/data/blocks/chameleon_data.json"
 	var dir = json_path.get_base_dir()
 	if not DirAccess.dir_exists_absolute(dir):
@@ -504,13 +505,13 @@ func _save_chameleon_data():
 	
 	var file = FileAccess.open(json_path, FileAccess.WRITE)
 	if file:
-		# Dictionary ключи int → конвертируем в string для JSON
 		var save_mapping = {}
 		for id in _block_id_to_texture:
 			save_mapping[str(id)] = _block_id_to_texture[id]
 		
+		# ═══ Сохраняем массив ID ═══
 		var save_data = {
-			"chameleon_voxel_id": _chameleon_voxel_id,
+			"chameleon_voxel_ids": _chameleon_voxel_ids,    # ← массив
 			"block_id_to_texture": save_mapping
 		}
 		file.store_string(JSON.stringify(save_data, "\t"))
@@ -518,6 +519,6 @@ func _save_chameleon_data():
 		if debug_mode:
 			print("   💾 Данные хамелеона сохранены: ", json_path)
 			print("   📋 Блоков в маппинге: ", _block_id_to_texture.size())
-			print("   🔄 ID хамелеона: ", _chameleon_voxel_id)
+			print("   🔄 ID хамелеонов: ", _chameleon_voxel_ids)
 	else:
 		print("   ❌ Не удалось сохранить данные хамелеона")

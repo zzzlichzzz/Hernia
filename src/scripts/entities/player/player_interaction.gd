@@ -66,7 +66,7 @@ func _ready():
 	# ══════════════════════════════════════════
 	#  ХАМЕЛЕОН — получаем менеджер
 	# ══════════════════════════════════════════
-	_chameleon_mgr = get_node_or_null("/root/ChameleonManager")
+	_chameleon_mgr = ChameleonManager.get_instance()
 	if _chameleon_mgr:
 		print("✅ ChameleonManager подключён к PlayerInteraction")
 	else:
@@ -166,8 +166,9 @@ func _setup_terrain_tool():
 	# ══════════════════════════════════════════
 	#  ХАМЕЛЕОН — подключаем материал через terrain
 	# ══════════════════════════════════════════
-	if _chameleon_mgr:
-		_chameleon_mgr.connect_to_terrain(_terrain)
+	var cham = ChameleonManager.get_instance()
+	if cham:
+		cham.connect_to_terrain(_terrain)
 	# ══════════════════════════════════════════
 	
 	print("✅ Terrain найден: ", _terrain.name)
@@ -274,41 +275,30 @@ func _handle_input():
 # ══════════════════════════════════════════════════════════
 
 func _try_paint_chameleon(hit_pos: Vector3i) -> bool:
-	"""
-	Пытается покрасить хамелеон на позиции hit_pos.
-	Возвращает true если это был хамелеон и покраска удалась.
-	"""
-	if _chameleon_mgr == null:
+	var cham = ChameleonManager.get_instance()
+	if cham == null:
 		return false
 	
 	if _terrain_tool == null:
 		return false
 	
-	# Проверяем: блок на этой позиции — хамелеон?
 	var voxel_id = _terrain_tool.get_voxel(hit_pos)
-	if not _chameleon_mgr.is_chameleon_block(voxel_id):
+	if not cham.is_chameleon_block(voxel_id):
 		return false
 	
-	# Нельзя красить воздухом
 	if _selected_block_id <= 0:
 		return false
 	
-	# Пытаемся покрасить по ID блока в руке
-	var success = _chameleon_mgr.paint_chameleon_by_block_id(hit_pos, _selected_block_id)
+	var success = cham.paint_chameleon_by_block_id(hit_pos, _selected_block_id)
 	
 	if success:
 		print("🎨 Хамелеон покрашен: ", hit_pos, " блоком ID: ", _selected_block_id)
 	else:
-		# Фоллбек: пробуем через текстуру из нашего маппинга
 		var tex = _block_to_texture.get(_selected_block_id, "")
 		if tex != "":
-			success = _chameleon_mgr.paint_chameleon(hit_pos, tex)
+			success = cham.paint_chameleon(hit_pos, tex)
 			if success:
 				print("🎨 Хамелеон покрашен: ", hit_pos, " текстурой: ", tex)
-			else:
-				print("❌ Не удалось покрасить хамелеон")
-		else:
-			print("❌ Нет текстуры для блока ID: ", _selected_block_id)
 	
 	return success
 
@@ -399,8 +389,9 @@ func _break_block(pos: Vector3i):
 	# ══════════════════════════════════════════
 	#  ХАМЕЛЕОН — очистка при разрушении
 	# ══════════════════════════════════════════
-	if _chameleon_mgr and _chameleon_mgr.is_chameleon_block(old_id):
-		_chameleon_mgr.remove_chameleon(pos)
+	var cham = ChameleonManager.get_instance()
+	if cham and cham.is_chameleon_block(old_id):
+		cham.remove_chameleon(pos)
 	# ══════════════════════════════════════════
 	
 	_terrain_tool.value = 0

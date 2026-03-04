@@ -8,10 +8,6 @@
 
 config_version=5
 
-[animation]
-
-compatibility/default_parent_skeleton_in_mesh_instance_3d=true
-
 [application]
 
 config/name="VoxelPrototype"
@@ -21,6 +17,10 @@ config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 [editor_plugins]
 
 enabled=PackedStringArray()
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
 
 [file_customization]
 

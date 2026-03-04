@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://bmubscenbb6w7"]
+
+[ext_resource type="Script" uid="uid://8h16xkwa7brc" path="res://src/scripts/network/scenes/remote_player.gd" id="1_wljrj"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wljrj"]
+albedo_color = Color(1, 0, 0, 1)
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_wljrj"]
+material = SubResource("StandardMaterial3D_wljrj")
+radius = 0.4
+height = 1.8
+
+[node name="RemotePlayer" type="CharacterBody3D" unique_id=1745835335]
+script = ExtResource("1_wljrj")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1464326302]
+mesh = SubResource("CapsuleMesh_wljrj")

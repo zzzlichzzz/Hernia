@@ -1,6 +1,0 @@
-[gd_scene format=3 uid="uid://bv0i7qkihk0ts"]
-
-[ext_resource type="Script" uid="uid://bvb4t6c0kumm3" path="res://src/scripts/network/player/NetPlayer.gd" id="1_xbd6h"]
-
-[node name="NetPlayer" type="CharacterBody3D" unique_id=1869396276]
-script = ExtResource("1_xbd6h")

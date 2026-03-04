@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://pseh8t62am1g"]
+
+[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_tikig"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_tikig"]
+size = Vector2(50, 50)
+
+[node name="World" type="Node3D" unique_id=1969125486]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2077665189]
+transform = Transform3D(1, 0, 0, 0, 0.7071067811865476, 0.7071067811865476, 0, -0.7071067811865476, 0.7071067811865476, 0, 8.322717311671514, 0)
+
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=275686105]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=141096025]
+shape = SubResource("WorldBoundaryShape3D_tikig")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D" unique_id=182107807]
+mesh = SubResource("PlaneMesh_tikig")
+
+[node name="Players" type="Node3D" parent="." unique_id=2031400499]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.596749949931759, 0)

@@ -4,6 +4,8 @@ extends VoxelTerrain
 const CONFIG_PATH := "user://voxel_settings.cfg"
 
 func _ready():
+	# Добавляем в группу для доступа из настроек
+	add_to_group("voxel_terrain")
 	load_settings()
 
 func load_settings():

@@ -6,6 +6,9 @@ extends Control
 var _inventory: Node = null
 var _slot_controls: Array[Control] = []
 
+# Drag & drop
+var _dragged_block: Dictionary = {}
+
 func _ready():
 	_find_inventory()
 	if _inventory:
@@ -59,23 +62,14 @@ func _initialize_slots():
 		_on_selected_slot_changed(_inventory.selected_slot)
 
 func _create_slot(index: int) -> Control:
-	var panel = Panel.new()
+	var panel = Control.new()
 	panel.custom_minimum_size = Vector2(48, 48)
 	panel.set_meta("slot_index", index)
 	
-	# Создаём стиль с серым фоном
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.15, 0.15, 0.15, 0.9)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.4, 0.4, 0.4)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	panel.add_theme_stylebox_override("panel", style)
+	# Поддержка drag & drop
+	panel.set_script(load("res://src/scripts/ui/inventory_ui/hotbar_slot.gd"))
+	panel.slot_index = index
+	panel.inventory = _inventory
 	
 	# Иконка (в центре)
 	var icon = TextureRect.new()

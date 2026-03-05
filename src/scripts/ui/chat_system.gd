@@ -108,7 +108,12 @@ func _open_chat(force_command: bool = false):
 	_chat_open = true
 	_chat_panel.visible = true
 	_chat_panel.offset_bottom = 200  # Показываем историю
-	_chat_input.text = command_prefix if force_command else ""
+	# Устанавливаем текст через отложенный вызов, чтобы перехватить ввод
+	var prefix = command_prefix if force_command else ""
+	call_deferred("_set_chat_text", prefix)
+
+func _set_chat_text(text: String):
+	_chat_input.text = text
 	_chat_input.grab_focus()
 
 func _close_chat():

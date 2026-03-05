@@ -4,8 +4,7 @@ class_name BlockManager
 static var atlas: AtlasCoordinates = null
 
 static func init():
-	if atlas == null:
-		atlas = load("res://src/assets/textures/atlas/block_coordinates.tres")
+	if atlas == null: atlas = load("res://src/assets/textures/atlas/block_coordinates.tres")
 
 static func get_uv(block: String) -> Rect2:
 	init()

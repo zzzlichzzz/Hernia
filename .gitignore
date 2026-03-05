@@ -15,3 +15,4 @@ export_credentials.cfg
 data_*/
 mono_crash.*.json
 /.vscode
+src/data/blocks/voxel_blocky_library.tres

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://4jch786af7ti"]
 
-[ext_resource type="Script" uid="uid://dj2f7nu2vtiaf" path="res://src/scripts/network/client_main.gd" id="1_6b4o1"]
+[ext_resource type="Script" uid="uid://6mfnl2p1siba" path="res://src/scripts/network/client_main.gd" id="1_6b4o1"]
 [ext_resource type="PackedScene" uid="uid://d3y2efe3txy0r" path="res://src/scripts/network/scenes/world.tscn" id="2_dtaj1"]
 
 [node name="ClientMain" type="Node3D" unique_id=504714921]

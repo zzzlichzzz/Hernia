@@ -1,44 +1,43 @@
-[gd_resource type="Resource" script_class="NetworkPacketDef" format=3 uid="uid://ddrgh31k8v0eq"]
+[gd_resource type="Resource" script_class="NetworkPacketDef" format=3 uid="uid://dx4j6vkvgym7u"]
 
-[ext_resource type="Script" uid="uid://btch1jd2smm4m" path="res://src/scripts/network/net/network_field_def.gd" id="1_a8ed2"]
-[ext_resource type="Script" uid="uid://3kiamyek5h1n" path="res://src/scripts/network/net/network_packet_def.gd" id="2_gtxbc"]
+[ext_resource type="Script" uid="uid://3kiamyek5h1n" path="res://src/scripts/network/net/network_packet_def.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://btch1jd2smm4m" path="res://src/scripts/network/net/network_field_def.gd" id="2_script"]
 
-[sub_resource type="Resource" id="Resource_a8ed2"]
-script = ExtResource("1_a8ed2")
+[sub_resource type="Resource" id="Resource_peer_id"]
+script = ExtResource("2_script")
 field_name = "peer_id"
 byte_size = 2
-metadata/_custom_type_script = "uid://btch1jd2smm4m"
+quantize_max = 0.0
+source_description = "ID игрока"
 
-[sub_resource type="Resource" id="Resource_gtxbc"]
-script = ExtResource("1_a8ed2")
+[sub_resource type="Resource" id="Resource_position"]
+script = ExtResource("2_script")
 field_name = "position"
 field_type = 4
-byte_size = 3
-metadata/_custom_type_script = "uid://btch1jd2smm4m"
+byte_size = 2
+quantize_max = 0.0
+source_description = "Позиция в мире"
 
-[sub_resource type="Resource" id="Resource_tq747"]
-script = ExtResource("1_a8ed2")
+[sub_resource type="Resource" id="Resource_head_pitch"]
+script = ExtResource("2_script")
 field_name = "head_pitch"
 field_type = 2
 byte_size = 2
-use_quantization = true
-quantize_min = -1.5
-quantize_max = 1.5
-metadata/_custom_type_script = "uid://btch1jd2smm4m"
+quantize_max = 0.0
+source_description = "Наклон головы"
 
-[sub_resource type="Resource" id="Resource_hcua1"]
-script = ExtResource("1_a8ed2")
+[sub_resource type="Resource" id="Resource_body_yaw"]
+script = ExtResource("2_script")
 field_name = "body_yaw"
 field_type = 2
 byte_size = 2
-use_quantization = true
-quantize_min = -3.15
-quantize_max = 3.15
-metadata/_custom_type_script = "uid://btch1jd2smm4m"
+quantize_max = 0.0
+source_description = "Поворот тела"
 
 [resource]
-script = ExtResource("2_gtxbc")
+script = ExtResource("1_script")
 packet_name = "player_move"
 channel = 1
 send_rate_hz = 20
-fields = Array[ExtResource("1_a8ed2")]([SubResource("Resource_a8ed2"), SubResource("Resource_gtxbc"), SubResource("Resource_tq747"), SubResource("Resource_hcua1")])
+fields = Array[ExtResource("2_script")]([SubResource("Resource_peer_id"), SubResource("Resource_position"), SubResource("Resource_head_pitch"), SubResource("Resource_body_yaw")])
+description = "Пакет синхронизации позиции игрока. Клиент → Сервер → Остальные клиенты."

@@ -1,0 +1,251 @@
+Обсуждение: Система NetworkAction (.tres)
+Твоя идея — краткое описание
+text
+
+Разработчик:
+  1. Написал механику (gun.gd → shoot())
+  2. Создал .tres файл: "хочу синхронизировать shoot() с параметрами (Vector3, float)"
+  3. Система сама: назначила packet_id, сериализовала, отправила, десериализовала
+  4. На другой стороне вызвала нужную функцию
+Плюсы
+#	Плюс	Пояснение
+1	Нулевой порог входа	Разработчик механики НЕ пишет сетевой код
+2	Декларативно	Всё описывается в редакторе через инспектор
+3	Единообразие	Как твоя система BlockDefinition — знакомый паттерн
+4	Модульность	Каждая механика = отдельный .tres, легко включать/выключать
+5	Авто-сериализация	Типы параметров известны из .tres → система сама пакует
+6	Авто-регистрация	Сканирование папки → нет ручного register_handler
+7	Отладка в редакторе	Можно кликнуть .tres и увидеть все параметры
+Минусы и риски
+#	Минус	Решение
+1	Стабильность packet_id	Если назначать по порядку файлов — переименование сломает. Решение: хеш от action_name
+2	Ограниченные типы	Нельзя передать произвольный объект. Решение: фиксированный список типов (int, float, Vector3, String, bool, PackedByteArray)
+3	Сложные структуры	Массивы, словари, вложенные объекты — трудно описать в .tres. Решение: для сложного — ручной PackedByteArray
+4	Валидация на сервере	.tres описывает формат, но не логику проверки. Решение: опциональная функция-валидатор
+5	Отладка	Ещё один слой абстракции. Решение: verbose-логирование
+6	Производительность	Dictionary-based вызовы медленнее прямых. Решение: для горячих путей (PLAYER_UPDATE) оставить прямой подход
+Предлагаемая архитектура
+text
+
+res://src/scripts/network/
+├── net/
+│   ├── packet_types.gd            ← оставляем (базовые пакеты)
+│   ├── network_manager.gd         ← оставляем
+│   ├── player_manager.gd          ← оставляем
+│   ├── cmd_args.gd                ← оставляем
+│   ├── network_action.gd          ← НОВЫЙ: Resource-класс
+│   ├── network_param.gd           ← НОВЫЙ: описание параметра
+│   ├── network_action_registry.gd ← НОВЫЙ: авторегистрация
+│   └── network_action_serializer.gd ← НОВЫЙ: авто-сериализация
+├── actions/                       ← папка с .tres файлами
+│   ├── shoot_action.tres
+│   ├── place_block_action.tres
+│   └── chat_message_action.tres
+└── ...
+Конкретный дизайн ресурсов
+net/network_param.gd
+gdscript
+
+class_name NetworkParam
+extends Resource
+## Описание одного параметра сетевого действия.
+
+enum ParamType {
+	INT,
+	FLOAT,
+	BOOL,
+	STRING,
+	VECTOR2,
+	VECTOR3,
+	COLOR,
+	PACKED_BYTES,   # произвольные данные
+}
+
+@export var param_name: String = ""
+@export var param_type: ParamType = ParamType.INT
+net/network_action.gd
+gdscript
+
+class_name NetworkAction
+extends Resource
+## Описание сетевого действия.
+## Создаётся как .tres файл в папке actions/.
+
+## ═══ Идентификация ═══
+@export var action_name: String = ""           # уникальное имя ("shoot", "place_block")
+
+## ═══ Направление ═══
+enum SyncMode {
+	CLIENT_TO_SERVER,       # клиент отправляет, сервер обрабатывает
+	SERVER_TO_ALL,          # сервер рассылает всем клиентам
+	SERVER_TO_OTHERS,       # сервер рассылает всем кроме отправителя
+	SERVER_TO_OWNER,        # сервер отвечает только отправителю
+	CLIENT_TO_ALL_VIA_SERVER,  # клиент → сервер → все остальные (самый частый)
+}
+@export var sync_mode: SyncMode = SyncMode.CLIENT_TO_ALL_VIA_SERVER
+
+## ═══ Надёжность ═══
+enum ChannelType { RELIABLE, UNRELIABLE }
+@export var channel: ChannelType = ChannelType.RELIABLE
+
+## ═══ Параметры ═══
+@export var params: Array[NetworkParam] = []
+
+## ═══ Серверная валидация ═══
+## Если true — сервер вызовет функцию validate_<action_name>(peer_id, data) → bool
+## Если false или функция не найдена — пропускает без проверки
+@export var server_validates: bool = false
+
+## ═══ Описание (для документации) ═══
+@export_multiline var description: String = ""
+
+
+## Вычислить packet_id из имени (детерминированный хеш).
+func get_packet_id() -> int:
+	# Начинаем с 100, чтобы не пересекаться с базовыми типами (1-99)
+	return 100 + (action_name.hash() & 0xFFFF)
+Как это выглядит в редакторе
+Разработчик создаёт actions/shoot_action.tres:
+
+text
+
+┌─────────────────────────────────────────────────────┐
+│ NetworkAction                              [.tres]  │
+├─────────────────────────────────────────────────────┤
+│ Action Name:     shoot                              │
+│ Sync Mode:       CLIENT_TO_ALL_VIA_SERVER           │
+│ Channel:         RELIABLE                           │
+│ Server Validates: ✓                                 │
+│ Description:     Игрок стреляет                     │
+│                                                     │
+│ Params:                                             │
+│   [0] NetworkParam                                  │
+│       ├── param_name: "origin"                      │
+│       └── param_type: VECTOR3                       │
+│   [1] NetworkParam                                  │
+│       ├── param_name: "direction"                   │
+│       └── param_type: VECTOR3                       │
+│   [2] NetworkParam                                  │
+│       ├── param_name: "weapon_id"                   │
+│       └── param_type: INT                           │
+└─────────────────────────────────────────────────────┘
+Как разработчик использует в коде
+Отправка (в скрипте механики)
+gdscript
+
+# gun.gd — сингл-плеер механика
+extends Node3D
+
+func shoot() -> void:
+	var origin = global_position
+	var direction = -global_transform.basis.z
+	var weapon_id = current_weapon
+
+	# Одиночная игра — просто стреляем
+	_create_bullet(origin, direction)
+
+	# Мультиплеер — ОДНА СТРОКА:
+	NetworkActions.send("shoot", {
+		"origin": origin,
+		"direction": direction,
+		"weapon_id": weapon_id,
+	})
+Приём (там же или в другом скрипте)
+gdscript
+
+func _ready() -> void:
+	# Подписка на действие от других игроков
+	NetworkActions.on("shoot", _on_remote_shoot)
+
+func _on_remote_shoot(peer_id: int, data: Dictionary) -> void:
+	# data["origin"] — Vector3, data["direction"] — Vector3
+	_create_bullet(data["origin"], data["direction"])
+Серверная валидация (опционально)
+gdscript
+
+# server_game_logic.gd
+func _ready():
+	NetworkActions.on_validate("shoot", _validate_shoot)
+
+func _validate_shoot(peer_id: int, data: Dictionary) -> bool:
+	# Проверить что игрок жив, не в кулдауне, и т.д.
+	var player_data = _pm.get_player_data(peer_id)
+	if player_data.is_empty():
+		return false
+	# Проверить дистанцию origin от реальной позиции
+	var real_pos: Vector3 = player_data["position"]
+	if real_pos.distance_to(data["origin"]) > 5.0:
+		return false   # подозрительно далеко
+	return true
+Что происходит «под капотом»
+text
+
+Клиент вызывает NetworkActions.send("shoot", {...})
+	│
+	▼
+NetworkActionRegistry ищет "shoot" → находит shoot_action.tres
+	│
+	▼
+Вычисляет packet_id = 100 + hash("shoot")
+	│
+	▼
+NetworkActionSerializer.serialize(params_def, data) → PackedByteArray
+	│  (знает что origin=Vector3, direction=Vector3, weapon_id=int)
+	│  (пакует: [4B float][4B float][4B float][4B float][4B float][4B float][4B int])
+	▼
+PacketTypes.write_packet(packet_id, body) → с заголовком
+	│
+	▼
+NetworkManager.send_to_server(packet)
+	│
+	══════════════════════ СЕТЬ ══════════════════════
+	│
+	▼
+Сервер: NetworkManager._on_enet_receive → диспетчер
+	│
+	▼
+NetworkActionRegistry._on_action(peer_id, body)
+	│
+	▼
+NetworkActionSerializer.deserialize(params_def, body) → Dictionary
+	│
+	▼
+server_validates? → вызвать validate_shoot(peer_id, data)
+	│                   │
+	│ false → drop      │ true
+	│                   ▼
+	│            sync_mode = CLIENT_TO_ALL_VIA_SERVER
+	│                   │
+	│                   ▼
+	│            broadcast_except(peer_id, packet)
+	│
+	══════════════════════ СЕТЬ ══════════════════════
+	│
+	▼
+Другие клиенты: диспетчер → _on_remote_shoot(peer_id, data)
+Сравнение: до и после
+До (ручной подход — текущий)
+gdscript
+
+# 1. packet_types.gd — добавить enum + write + read (15 строк)
+# 2. server_main.gd — register_handler + обработчик (10 строк)
+# 3. client_main.gd — register_handler + обработчик (10 строк)
+# 4. gun.gd — вызов PacketTypes.write_shoot() + send (5 строк)
+# Итого: ~40 строк в 4 файлах
+После (система NetworkAction)
+gdscript
+
+# 1. Создать shoot_action.tres в редакторе (0 строк кода)
+# 2. gun.gd — NetworkActions.send("shoot", {...}) (1 строка)
+# 3. gun.gd — NetworkActions.on("shoot", handler) (1 строка)
+# Итого: 2 строки в 1 файле
+Моя рекомендация
+Идея отличная. Реализовывать стоит, но с оговорками:
+
+Базовые пакеты (PLAYER_UPDATE, WELCOME и т.д.) оставить как есть — они горячий путь, прямой код быстрее
+
+NetworkAction использовать для геймплейных механик — стрельба, размещение блоков, чат, открытие дверей, крафт — всё что вызывается событийно, не 20 раз в секунду
+
+Начать с простого — сначала поддержать базовые типы (int, float, Vector3, String, bool), массивы и словари добавить позже
+
+Packet ID через хеш имени — детерминированно, не зависит от порядка файлов, но добавить проверку на коллизии при старте

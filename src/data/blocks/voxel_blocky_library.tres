@@ -5,7 +5,7 @@
 [ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/blocks/models/cube.obj" id="3_bnw2r"]
 [ext_resource type="Shader" uid="uid://dulw00g7k64cw" path="res://src/shaders/blocks/block_opaque.gdshader" id="4_36qk5"]
 [ext_resource type="ArrayMesh" uid="uid://cdrw07cs74bqw" path="res://src/assets/blocks/models/stair_block.obj" id="5_jjnj3"]
-[ext_resource type="Shader" uid="uid://btqqi314tt4j4" path="res://src/shaders/blocks/block_chameleon.gdshader" id="6_s4m86"]
+[ext_resource type="Shader" path="res://src/shaders/blocks/block_chameleon.gdshader" id="6_s4m86"]
 
 [sub_resource type="VoxelBlockyModelEmpty" id="VoxelBlockyModelEmpty_plqvt"]
 resource_name = "air"

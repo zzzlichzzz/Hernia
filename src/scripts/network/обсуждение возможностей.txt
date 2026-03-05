@@ -249,3 +249,322 @@ NetworkAction использовать для геймплейных механ�
 Начать с простого — сначала поддержать базовые типы (int, float, Vector3, String, bool), массивы и словари добавить позже
 
 Packet ID через хеш имени — детерминированно, не зависит от порядка файлов, но добавить проверку на коллизии при старте
+
+Кодогенерация из .tres — разбор идеи
+Суть
+текст
+
+.tres файлы (схема)
+	   │
+	   ▼
+  Сборщик (builder) — @tool скрипт или отдельная сцена
+	   │
+	   ▼
+  generated_packets.gd — чистый GDScript с write_*/read_*
+	   │
+	   ▼
+  Runtime — никаких Dictionary, рефлексии, поиска по имени
+			прямые вызовы сгенерированных функций
+Оценка задумки: отлично
+Это по сути protobuf для Godot, но с тремя бонусами:
+
+Настраивается в инспекторе (не текстовый .proto)
+Генерирует нативный GDScript (не внешний компилятор)
+Контроль байтов на уровне каждого компонента вектора
+Детальный контроль байтов — зачем это мощно
+текст
+
+Пример: PLAYER_UPDATE отправляется 20 раз в секунду
+
+Текущий формат:
+  id(4) + pos.x(4) + pos.y(4) + pos.z(4) + rot.x(4) + rot.y(4) + rot.z(4)
+  = 28 байт × 20 Гц × 32 игрока = 17.5 КБ/сек
+
+Оптимизированный через .tres:
+  id(2) + pos.x(2 half) + pos.y(2 half) + pos.z(2 half) + rot.y(2 quantized)
+  = 10 байт × 20 Гц × 32 игрока = 6.25 КБ/сек
+
+Экономия: 64%
+Проектирование ресурсов
+NetworkFieldDef — один параметр пакета
+gdscript
+
+class_name NetworkFieldDef
+extends Resource
+
+## Имя поля (используется в Dictionary и в сгенерированном коде)
+@export var field_name: String = ""
+
+## ═══ Тип данных ═══
+enum FieldType {
+	BOOL,           # true/false
+	INT,            # целое число
+	FLOAT,          # дробное число
+	VECTOR2,        # два компонента
+	VECTOR3,        # три компонента
+	STRING,         # UTF-8 строка (всегда length-prefixed)
+	PACKED_BYTES,   # произвольные данные (всегда length-prefixed)
+}
+@export var field_type: FieldType = FieldType.INT
+
+## ═══ Размер в байтах (на компонент) ═══
+## Для VECTOR3: каждый компонент будет этого размера
+## Для STRING/PACKED_BYTES: игнорируется (length-prefixed)
+enum ByteSize {
+	AUTO,       # по умолчанию: INT→4, FLOAT→4, BOOL→1
+	BITS_8,     # 1 байт  (uint8 / int8)
+	BITS_16,    # 2 байта (uint16 / int16 / half_float)
+	BITS_32,    # 4 байта (uint32 / int32 / float32)
+}
+@export var byte_size: ByteSize = ByteSize.AUTO
+
+## ═══ Знаковость (для INT) ═══
+@export var is_signed: bool = false
+
+## ═══ Квантизация (для FLOAT / компонентов вектора) ═══
+## Вместо float → целое число в диапазоне [min, max]
+@export var use_quantization: bool = false
+@export var quantize_min: float = 0.0
+@export var quantize_max: float = 360.0
+
+## ═══ Источник данных (для документации и будущей автосвязки) ═══
+@export var source_description: String = ""
+NetworkPacketDef — описание пакета
+gdscript
+
+class_name NetworkPacketDef
+extends Resource
+
+## ═══ Идентификация ═══
+@export var packet_name: String = ""    # "player_move", "shoot", "place_block"
+
+## ═══ Направление ═══
+enum SyncMode {
+	CLIENT_TO_SERVER,
+	SERVER_TO_ALL,
+	SERVER_TO_OTHERS,
+	CLIENT_TO_ALL_VIA_SERVER,
+	SERVER_TO_OWNER,
+}
+@export var sync_mode: SyncMode = SyncMode.CLIENT_TO_ALL_VIA_SERVER
+
+## ═══ Канал ═══
+enum ChannelMode { RELIABLE, UNRELIABLE }
+@export var channel: ChannelMode = ChannelMode.RELIABLE
+
+## ═══ Серверная валидация ═══
+@export var server_validates: bool = false
+
+## ═══ Поля пакета (порядок = порядок байтов) ═══
+@export var fields: Array[NetworkFieldDef] = []
+
+## ═══ Описание ═══
+@export_multiline var description: String = ""
+
+## Packet ID — хеш от имени, начиная с 100
+func get_packet_id() -> int:
+	return 100 + (packet_name.hash() & 0xFFFF)
+
+## Подсчёт размера тела в байтах (для фиксированных полей)
+func calc_fixed_body_size() -> int:
+	var total := 0
+	for f: NetworkFieldDef in fields:
+		total += _field_byte_count(f)
+	return total  # -1 если есть STRING/PACKED_BYTES
+
+func _field_byte_count(f: NetworkFieldDef) -> int:
+	var per_component := _resolve_byte_size(f)
+	if per_component == -1:
+		return -1
+	match f.field_type:
+		NetworkFieldDef.FieldType.BOOL:          return 1
+		NetworkFieldDef.FieldType.INT:           return per_component
+		NetworkFieldDef.FieldType.FLOAT:         return per_component
+		NetworkFieldDef.FieldType.VECTOR2:       return per_component * 2
+		NetworkFieldDef.FieldType.VECTOR3:       return per_component * 3
+		NetworkFieldDef.FieldType.STRING:        return -1
+		NetworkFieldDef.FieldType.PACKED_BYTES:  return -1
+	return -1
+
+func _resolve_byte_size(f: NetworkFieldDef) -> int:
+	if f.byte_size != NetworkFieldDef.ByteSize.AUTO:
+		return [0, 1, 2, 4][f.byte_size]
+	match f.field_type:
+		NetworkFieldDef.FieldType.BOOL:   return 1
+		NetworkFieldDef.FieldType.INT:    return 4
+		NetworkFieldDef.FieldType.FLOAT:  return 4
+		NetworkFieldDef.FieldType.VECTOR2: return 4
+		NetworkFieldDef.FieldType.VECTOR3: return 4
+	return -1
+Как выглядит в инспекторе
+текст
+
+┌─────────────────────────────────────────────────────────────┐
+│ NetworkPacketDef: player_move.tres                          │
+├─────────────────────────────────────────────────────────────┤
+│ Packet Name:      player_move                               │
+│ Sync Mode:        CLIENT_TO_ALL_VIA_SERVER                  │
+│ Channel:          UNRELIABLE                                │
+│ Server Validates: ☐                                         │
+│ Description:      Позиция и поворот игрока (20 Гц)          │
+│                                                             │
+│ Fields: [4 элемента]                                        │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ [0] NetworkFieldDef                                  │   │
+│  │  field_name:  "peer_id"                              │   │
+│  │  field_type:  INT                                    │   │
+│  │  byte_size:   BITS_16          ← 2 байта (до 65535) │   │
+│  │  is_signed:   ☐                                      │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ [1] NetworkFieldDef                                  │   │
+│  │  field_name:  "position"                             │   │
+│  │  field_type:  VECTOR3                                │   │
+│  │  byte_size:   BITS_16          ← half-float (6 байт)│   │
+│  └──────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ [2] NetworkFieldDef                                  │   │
+│  │  field_name:  "head_pitch"                           │   │
+│  │  field_type:  FLOAT                                  │   │
+│  │  byte_size:   BITS_16                                │   │
+│  │  use_quantization: ✓                                 │   │
+│  │  quantize_min:    -1.5          ← рад               │   │
+│  │  quantize_max:     1.5                               │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ [3] NetworkFieldDef                                  │   │
+│  │  field_name:  "body_yaw"                             │   │
+│  │  field_type:  FLOAT                                  │   │
+│  │  byte_size:   BITS_16                                │   │
+│  │  use_quantization: ✓                                 │   │
+│  │  quantize_min:    -3.15         ← рад (≈-π)         │   │
+│  │  quantize_max:     3.15         ← рад (≈+π)         │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                             │
+│ Итого: 2 + 6 + 2 + 2 = 12 байт (было 28)                  │
+└─────────────────────────────────────────────────────────────┘
+Сборщик — что генерирует
+Вход: player_move.tres (описанный выше)
+Выход: фрагмент в generated_packets.gd
+gdscript
+
+# ═══ AUTO-GENERATED — DO NOT EDIT ═══
+# Source: res://actions/player_move.tres
+# Packet: player_move | ID: 31847 | Body: 12 bytes (fixed)
+# Fields: peer_id(u16) position(vec3_half) head_pitch(q16[-1.5,1.5]) body_yaw(q16[-3.15,3.15])
+
+const PACKET_ID_PLAYER_MOVE := 31847
+
+static func write_player_move(peer_id: int, position: Vector3,
+		head_pitch: float, body_yaw: float) -> PackedByteArray:
+	var _b := StreamPeerBuffer.new()
+	_b.big_endian = false
+	# peer_id: uint16
+	_b.put_u16(peer_id)
+	# position: Vector3 as 3× half_float
+	_b.put_u16(_f2h(position.x))
+	_b.put_u16(_f2h(position.y))
+	_b.put_u16(_f2h(position.z))
+	# head_pitch: quantized float [-1.5, 1.5] → uint16
+	_b.put_u16(_quantize(head_pitch, -1.5, 1.5))
+	# body_yaw: quantized float [-3.15, 3.15] → uint16
+	_b.put_u16(_quantize(body_yaw, -3.15, 3.15))
+	return PacketTypes.write_packet(31847, _b.data_array)
+
+
+static func read_player_move(_b: StreamPeerBuffer) -> Dictionary:
+	return {
+		"peer_id":    _b.get_u16(),
+		"position":   Vector3(_h2f(_b.get_u16()), _h2f(_b.get_u16()), _h2f(_b.get_u16())),
+		"head_pitch": _dequantize(_b.get_u16(), -1.5, 1.5),
+		"body_yaw":   _dequantize(_b.get_u16(), -3.15, 3.15),
+	}
+Общие хелперы (генерируются один раз)
+gdscript
+
+# ═══ Хелперы квантизации и half-float ═══
+
+static func _quantize(val: float, min_v: float, max_v: float) -> int:
+	return int(clampf((val - min_v) / (max_v - min_v), 0.0, 1.0) * 65535.0)
+
+static func _dequantize(raw: int, min_v: float, max_v: float) -> float:
+	return min_v + (float(raw) / 65535.0) * (max_v - min_v)
+
+static func _f2h(v: float) -> int:
+	# IEEE 754 float32 → float16
+	var b := PackedFloat32Array([v]).to_byte_array()
+	var bits := b.decode_u32(0)
+	var sign := (bits >> 31) & 1
+	var exp_ := int((bits >> 23) & 0xFF) - 127 + 15
+	var mant := (bits >> 13) & 0x3FF
+	if exp_ <= 0:    return sign << 15
+	if exp_ >= 31:   return (sign << 15) | 0x7C00
+	return (sign << 15) | (exp_ << 10) | mant
+
+static func _h2f(h: int) -> float:
+	var sign := (h >> 15) & 1
+	var exp_ := (h >> 10) & 0x1F
+	var mant := h & 0x3FF
+	if exp_ == 0:    return 0.0
+	if exp_ == 31:   return INF if sign == 0 else -INF
+	var bits := (sign << 31) | ((exp_ - 15 + 127) << 23) | (mant << 13)
+	var b := PackedByteArray()
+	b.resize(4)
+	b.encode_u32(0, bits)
+	return b.decode_float(0)
+Сборщик — структура
+текст
+
+res://src/scripts/network/
+├── net/
+│   ├── network_field_def.gd       ← Resource: описание поля
+│   ├── network_packet_def.gd      ← Resource: описание пакета
+│   └── packet_builder.gd          ← @tool скрипт: генератор кода
+├── actions/                       ← папка с .tres файлами
+│   ├── player_move.tres
+│   ├── shoot.tres
+│   └── place_block.tres
+├── generated/
+│   └── generated_packets.gd       ← СГЕНЕРИРОВАННЫЙ файл
+└── builder_scene.tscn             ← сцена для запуска сборки
+	  └── Node (скрипт: packet_builder.gd)
+Сборка запускается:
+текст
+
+Вариант 1: Запустить builder_scene.tscn → автосборка → quit
+Вариант 2: @tool кнопка в инспекторе
+Вариант 3: EditorPlugin с кнопкой в тулбаре
+Как это работает в итоге
+текст
+
+РАЗРАБОТЧИК МЕХАНИКИ                    СЕТЕВОЙ ПРОГРАММИСТ
+										 (один раз настроил систему)
+	  │                                        │
+	  │ 1. Написал gun.gd                      │
+	  │    func shoot(origin, dir): ...        │
+	  │                                        │
+	  │ 2. Создал shoot.tres в редакторе       │
+	  │    (тыкал мышкой в инспекторе)         │
+	  │                                        │
+	  │ 3. Нажал "Собрать пакеты"              │
+	  │                                        │
+	  │         ┌──────────────────┐           │
+	  │         │  packet_builder  │           │
+	  │         │  сканирует .tres │           │
+	  │         │  генерирует .gd  │           │
+	  │         └──────────────────┘           │
+	  │                                        │
+	  │ 4. В gun.gd добавил 2 строки:         │
+	  │    GeneratedPackets.send_shoot(...)    │
+	  │    GeneratedPackets.on_shoot(handler)  │
+	  │                                        │
+	  │ ГОТОВО. Мультиплеер работает.          │
+	  ▼                                        ▼
+Итого — что думаю
+Аспект	Рейтинг
+Производительность	Сгенерированный код = скорость ручного. Никаких Dictionary-поисков в рантайме
+Оптимизация трафика	Half-float и квантизация из коробки — экономия 50-70%
+Простота для разработчика	Создал .tres → нажал кнопку → 2 строки в скрипте
+Расширяемость	Новый тип поля = новая ветка в генераторе
+Отладка	Сгенерированный код читаем, есть комментарии с источником
+Единственный минус	Нужен шаг «пересобрать» после изменения .tres

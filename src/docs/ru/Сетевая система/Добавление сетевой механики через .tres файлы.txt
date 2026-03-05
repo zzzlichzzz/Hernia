@@ -1,0 +1,398 @@
+╔══════════════════════════════════════════════════════════════════╗
+║    ГАЙД: Добавление сетевой механики через .tres файлы           ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+════════════════════════════════════════════════════════════════════
+ БЫСТРЫЙ СТАРТ (5 шагов)
+════════════════════════════════════════════════════════════════════
+
+Пример: делаем сетевую стрельбу.
+
+
+───────────────────────────────────────────────────────────────────
+ ШАГ 1: Создать .tres файл
+───────────────────────────────────────────────────────────────────
+
+  1. Открыть FileSystem в Godot
+  2. ПКМ на папке  res://src/scripts/network/actions/
+  3. New Resource → набрать "NetworkPacketDef" → Create
+  4. Сохранить как  shoot.tres
+
+
+───────────────────────────────────────────────────────────────────
+ ШАГ 2: Настроить в инспекторе
+───────────────────────────────────────────────────────────────────
+
+  Кликнуть на shoot.tres → в инспекторе заполнить:
+
+  ┌─────────────────────────────────────────────────────────┐
+  │ Packet Name:       shoot                                │
+  │                    ↑ уникальное имя, латиницей,         │
+  │                      без пробелов, snake_case           │
+  │                                                         │
+  │ Sync Mode:         CLIENT_TO_ALL_VIA_SERVER             │
+  │                    ↑ клиент шлёт серверу,               │
+  │                      сервер рассылает остальным         │
+  │                                                         │
+  │ Channel:           RELIABLE                             │
+  │                    ↑ гарантированная доставка           │
+  │                      (для важных событий)               │
+  │                                                         │
+  │ Server Validates:  ✓                                    │
+  │                    ↑ сервер будет проверять             │
+  │                      можно ли стрелять                  │
+  │                                                         │
+  │ Description:       Игрок стреляет из оружия             │
+  └─────────────────────────────────────────────────────────┘
+
+
+───────────────────────────────────────────────────────────────────
+ ШАГ 3: Добавить поля (параметры пакета)
+───────────────────────────────────────────────────────────────────
+
+  В инспекторе → Fields → Add Element
+
+  Каждое поле = один NetworkFieldDef:
+
+  ┌─────────────────────────────────────────────────────────┐
+  │ [0] field_name:  origin                                 │
+  │     field_type:  VECTOR3                                │
+  │     byte_size:   BITS_32    ← полный float              │
+  │                                                         │
+  │ [1] field_name:  direction                              │
+  │     field_type:  VECTOR3                                │
+  │     byte_size:   BITS_16    ← half-float (экономия)     │
+  │                                                         │
+  │ [2] field_name:  weapon_id                              │
+  │     field_type:  INT                                    │
+  │     byte_size:   BITS_8     ← до 255 видов оружия       │
+  │     is_signed:   ☐                                      │
+  └─────────────────────────────────────────────────────────┘
+
+  Размер пакета: 12 + 6 + 1 = 19 байт
+
+
+───────────────────────────────────────────────────────────────────
+ ШАГ 4: Собрать пакеты
+───────────────────────────────────────────────────────────────────
+
+  1. Открыть  builder/builder_scene.tscn
+  2. Нажать F6 (Run Current Scene)
+  3. Дождаться вывода "Сборка завершена!"
+  4. Файл generated/generated_packets.gd обновлён
+
+  ВАЖНО: пересобирать нужно КАЖДЫЙ РАЗ когда:
+	- Создали новый .tres
+	- Изменили поля или настройки в .tres
+	- Удалили .tres
+
+
+───────────────────────────────────────────────────────────────────
+ ШАГ 5: Использовать в коде
+───────────────────────────────────────────────────────────────────
+
+  # В скрипте механики (gun.gd):
+
+  # ═══ Нужна ссылка на NetworkActionManager ═══
+  # Получить можно через:
+  #   @onready var _nam = get_node("/root/ClientMain/NetworkActionManager")
+  #   или передать при инициализации
+
+  var _nam: NetworkActionManager   # ← передаётся извне
+
+
+  func _ready() -> void:
+	  # Подписаться на стрельбу ДРУГИХ игроков
+	  _nam.on_action("shoot", _on_remote_shoot)
+
+
+  func shoot() -> void:
+	  # Локальная логика (одиночная игра работает и без сети)
+	  var origin = global_position
+	  var direction = -global_transform.basis.z
+	  _create_bullet(origin, direction)
+
+	  # Отправить по сети — ОДНА СТРОКА:
+	  _nam.send_action("shoot", [origin, direction, current_weapon_id])
+	  #                          ↑       ↑          ↑
+	  #                      порядок совпадает с полями в .tres!
+
+
+  func _on_remote_shoot(peer_id: int, data: Dictionary) -> void:
+	  # Другой игрок выстрелил
+	  _create_bullet(data["origin"], data["direction"])
+	  #              ↑ ключи = field_name из .tres
+
+
+════════════════════════════════════════════════════════════════════
+ СПРАВОЧНИК НАСТРОЕК
+════════════════════════════════════════════════════════════════════
+
+
+─── Sync Mode (режим синхронизации) ───────────────────────────────
+
+  CLIENT_TO_SERVER        Только серверу. Сервер НЕ пересылает.
+						  Пример: чит-команда, запрос инвентаря
+
+  SERVER_TO_ALL           Сервер → всем клиентам (включая отправителя)
+						  Пример: смена времени суток, глобальное событие
+
+  SERVER_TO_OTHERS        Сервер → всем КРОМЕ отправителя
+						  Пример: редко нужен
+
+  CLIENT_TO_ALL_VIA_SERVER  Клиент → сервер → все КРОМЕ отправителя
+							↑ САМЫЙ ЧАСТЫЙ. Стрельба, чат, действия.
+							Отправитель уже применил локально.
+
+  SERVER_TO_OWNER         Сервер → только отправителю
+						  Пример: ответ на запрос, результат крафта
+
+
+─── Channel (канал) ───────────────────────────────────────────────
+
+  RELIABLE        Гарантированная доставка, порядок сохраняется.
+				  Пример: стрельба, размещение блока, чат
+
+  UNRELIABLE      Без гарантий, самый быстрый.
+				  Пример: позиция игрока (PLAYER_UPDATE)
+
+
+─── Типы полей (FieldType) ────────────────────────────────────────
+
+  BOOL            true / false                    1 байт
+  INT             целое число                     1/2/4 байта
+  FLOAT           дробное число                   2/4 байта
+  VECTOR2         два компонента (x, y)           2×(2/4) байта
+  VECTOR3         три компонента (x, y, z)        3×(2/4) байта
+  STRING          UTF-8 строка                    2 + N байт
+  PACKED_BYTES    произвольные данные              4 + N байт
+
+
+─── Размер компонента (ByteSize) ──────────────────────────────────
+
+  AUTO            По умолчанию: BOOL→1, INT→4, FLOAT→4
+
+  BITS_8          1 байт
+				  INT:   0..255 (unsigned) или -128..127 (signed)
+				  Хорошо для: weapon_id, slot_index, item_count
+
+  BITS_16         2 байта
+				  INT:   0..65535 или -32768..32767
+				  FLOAT: half-float (±65504, точность ~3 знака)
+				  Хорошо для: peer_id, углы поворота, направления
+
+  BITS_32         4 байта
+				  INT:   полный диапазон
+				  FLOAT: float32 (полная точность)
+				  Хорошо для: позиция, здоровье (точное)
+
+
+─── Квантизация (для FLOAT / вектор) ─────────────────────────────
+
+  Вместо float → целое число в диапазоне [min, max].
+  Позволяет впихнуть дробное значение в 1-2 байта с известным диапазоном.
+
+  use_quantization: ✓
+  quantize_min:     -3.15        ← минимальное значение
+  quantize_max:      3.15        ← максимальное значение
+  byte_size:        BITS_16      ← 65535 градаций
+
+  Пример:
+	Угол поворота тела: [-π, +π] → 2 байта, точность ~0.0001 рад
+	Наклон головы:      [-1.5, 1.5] → 2 байта
+
+  ВАЖНО: значения за пределами [min, max] будут обрезаны!
+
+
+════════════════════════════════════════════════════════════════════
+ ТАБЛИЦА РАЗМЕРОВ (шпаргалка для оптимизации)
+════════════════════════════════════════════════════════════════════
+
+  ┌────────────────────┬────────┬──────────┬────────────────────┐
+  │ Что передаём       │ Тип    │ Байт     │ Настройка          │
+  ├────────────────────┼────────┼──────────┼────────────────────┤
+  │ peer_id            │ INT    │ 2        │ BITS_16, unsigned  │
+  │ позиция (точная)   │ VEC3   │ 12       │ BITS_32            │
+  │ позиция (экономная)│ VEC3   │ 6        │ BITS_16 (half)     │
+  │ угол поворота      │ FLOAT  │ 2        │ BITS_16 + quantize │
+  │ weapon_id          │ INT    │ 1        │ BITS_8             │
+  │ здоровье (0-100)   │ INT    │ 1        │ BITS_8             │
+  │ здоровье (точное)  │ FLOAT  │ 4        │ BITS_32            │
+  │ направление        │ VEC3   │ 6        │ BITS_16 (half)     │
+  │ имя игрока         │ STRING │ 2+N      │ AUTO               │
+  │ цвет               │ VEC3   │ 3        │ BITS_8 + quantize  │
+  │                    │        │          │ [0, 1]             │
+  │ флаг (вкл/выкл)   │ BOOL   │ 1        │ AUTO                │
+  │ блок (id)          │ INT    │ 2        │ BITS_16            │
+  │ координата блока   │ VEC3   │ 6        │ BITS_16 (signed)   │
+  └────────────────────┴────────┴──────────┴────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════
+ ПРИМЕРЫ .tres ФАЙЛОВ
+════════════════════════════════════════════════════════════════════
+
+
+─── Чат (chat_message.tres) ───────────────────────────────────────
+
+  packet_name:      chat_message
+  sync_mode:        CLIENT_TO_ALL_VIA_SERVER
+  channel:          RELIABLE
+  server_validates: ✓ (проверка на спам/длину)
+
+  fields:
+	[0] sender_id    INT      BITS_16
+	[1] text         STRING   AUTO
+
+
+─── Размещение блока (place_block.tres) ───────────────────────────
+
+  packet_name:      place_block
+  sync_mode:        CLIENT_TO_ALL_VIA_SERVER
+  channel:          RELIABLE
+  server_validates: ✓ (проверка дистанции)
+
+  fields:
+	[0] block_pos    VECTOR3  BITS_16  signed  (координаты блока в мире)
+	[1] block_id     INT      BITS_16          (какой блок)
+	[2] face         INT      BITS_8           (на какую грань, 0-5)
+
+
+─── Удаление блока (break_block.tres) ─────────────────────────────
+
+  packet_name:      break_block
+  sync_mode:        CLIENT_TO_ALL_VIA_SERVER
+  channel:          RELIABLE
+  server_validates: ✓
+
+  fields:
+	[0] block_pos    VECTOR3  BITS_16  signed
+
+
+─── Анимация (play_animation.tres) ────────────────────────────────
+
+  packet_name:      play_animation
+  sync_mode:        CLIENT_TO_ALL_VIA_SERVER
+  channel:          RELIABLE
+
+  fields:
+	[0] peer_id      INT      BITS_16
+	[1] anim_id      INT      BITS_8           (0=idle, 1=walk, 2=run, 3=attack)
+
+
+─── Перемещение (player_move.tres) — уже создан ───────────────────
+
+  packet_name:      player_move
+  sync_mode:        CLIENT_TO_ALL_VIA_SERVER
+  channel:          UNRELIABLE
+
+  fields:
+	[0] peer_id      INT      BITS_16
+	[1] position     VECTOR3  BITS_32
+	[2] head_pitch   FLOAT    BITS_16  quantize [-1.5, 1.5]
+	[3] body_yaw     FLOAT    BITS_16  quantize [-3.15, 3.15]
+
+
+════════════════════════════════════════════════════════════════════
+ СЕРВЕРНАЯ ВАЛИДАЦИЯ
+════════════════════════════════════════════════════════════════════
+
+  Если в .tres включён Server Validates, нужно зарегистрировать
+  валидатор на сервере:
+
+  # server_main.gd или server_game_logic.gd
+
+  func _ready():
+	  _nam.on_validate("shoot", _validate_shoot)
+	  _nam.on_validate("place_block", _validate_place_block)
+
+  func _validate_shoot(peer_id: int, data: Dictionary) -> bool:
+	  # Проверить что игрок существует
+	  if not _pm.has_player(peer_id):
+		  return false
+	  # Проверить дистанцию
+	  var player_pos: Vector3 = _pm.get_player_data(peer_id)["position"]
+	  if player_pos.distance_to(data["origin"]) > 5.0:
+		  return false    # подозрительно далеко
+	  return true
+
+  func _validate_place_block(peer_id: int, data: Dictionary) -> bool:
+	  var player_pos: Vector3 = _pm.get_player_data(peer_id)["position"]
+	  if player_pos.distance_to(data["block_pos"]) > 10.0:
+		  return false    # слишком далеко
+	  return true
+
+  Если валидатор вернёт false — пакет отбрасывается,
+  другие клиенты его НЕ получат.
+
+
+════════════════════════════════════════════════════════════════════
+ ЧАСТЫЕ ОШИБКИ
+════════════════════════════════════════════════════════════════════
+
+  ❌ Забыл пересобрать после изменения .tres
+  ✅ Запусти builder_scene.tscn (F6) после каждого изменения
+
+  ❌ Порядок аргументов в send_action не совпадает с полями
+  ✅ Аргументы идут В ТОМ ЖЕ ПОРЯДКЕ что и поля в .tres
+
+  ❌ Packet Name содержит пробелы или спецсимволы
+  ✅ Только латиница, цифры, подчёркивание: snake_case
+
+  ❌ Два .tres с одинаковым Packet Name
+  ✅ Сборщик выдаст ошибку — переименуй один из них
+
+  ❌ Квантизация с min == max
+  ✅ Диапазон должен быть > 0, иначе деление на ноль
+
+  ❌ Значение выходит за quantize_min/max
+  ✅ Оно будет обрезано (clamp), но данные потеряются
+
+
+════════════════════════════════════════════════════════════════════
+ ПОЛНЫЙ ПРИМЕР: от нуля до работающей сетевой механики
+════════════════════════════════════════════════════════════════════
+
+  Задача: игрок подбирает предмет, остальные видят.
+
+  1. Создать  actions/pickup_item.tres:
+	 packet_name:      pickup_item
+	 sync_mode:        CLIENT_TO_ALL_VIA_SERVER
+	 channel:          RELIABLE
+	 server_validates: ✓
+	 fields:
+	   [0] item_id     INT  BITS_16
+	   [1] item_pos    VECTOR3  BITS_32
+
+  2. Запустить builder_scene.tscn (F6)
+
+  3. В скрипте предмета (item.gd):
+
+	 var _nam: NetworkActionManager
+
+	 func pickup(player_node) -> void:
+		 # Локальная логика
+		 _add_to_inventory(player_node)
+		 queue_free()
+
+		 # Сеть
+		 _nam.send_action("pickup_item", [item_id, global_position])
+
+	 func _ready():
+		 _nam.on_action("pickup_item", _on_remote_pickup)
+
+	 func _on_remote_pickup(peer_id: int, data: Dictionary):
+		 # Другой игрок подобрал предмет
+		 var item = _find_item_by_id(data["item_id"])
+		 if item:
+			 item.queue_free()
+
+  4. На сервере (server_main.gd):
+
+	 _nam.on_validate("pickup_item", func(peer_id, data):
+		 # Проверить что предмет ещё не подобран
+		 return _world.item_exists(data["item_id"])
+	 )
+
+  ГОТОВО!

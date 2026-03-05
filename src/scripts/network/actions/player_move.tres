@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="NetworkPacketDef" format=3 uid="uid://ddrgh31k8v0eq"]
+
+[ext_resource type="Script" uid="uid://btch1jd2smm4m" path="res://src/scripts/network/net/network_field_def.gd" id="1_a8ed2"]
+[ext_resource type="Script" uid="uid://3kiamyek5h1n" path="res://src/scripts/network/net/network_packet_def.gd" id="2_gtxbc"]
+
+[sub_resource type="Resource" id="Resource_a8ed2"]
+script = ExtResource("1_a8ed2")
+field_name = "peer_id"
+byte_size = 2
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_gtxbc"]
+script = ExtResource("1_a8ed2")
+field_name = "position"
+field_type = 4
+byte_size = 3
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_tq747"]
+script = ExtResource("1_a8ed2")
+field_name = "head_pitch"
+field_type = 2
+byte_size = 2
+use_quantization = true
+quantize_min = -1.5
+quantize_max = 1.5
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_hcua1"]
+script = ExtResource("1_a8ed2")
+field_name = "body_yaw"
+field_type = 2
+byte_size = 2
+use_quantization = true
+quantize_min = -3.15
+quantize_max = 3.15
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[resource]
+script = ExtResource("2_gtxbc")
+packet_name = "player_move"
+channel = 1
+send_rate_hz = 20
+fields = Array[ExtResource("1_a8ed2")]([SubResource("Resource_a8ed2"), SubResource("Resource_gtxbc"), SubResource("Resource_tq747"), SubResource("Resource_hcua1")])

@@ -21,5 +21,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6999999999970896, 0)
 
 [node name="Camera3D" type="Camera3D" parent="Head" unique_id=605212547]
 
+[node name="VoxelViewer" type="VoxelViewer" parent="Head" unique_id=1252342829]
+
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=314066327]
 mesh = SubResource("CapsuleMesh_61xn6")

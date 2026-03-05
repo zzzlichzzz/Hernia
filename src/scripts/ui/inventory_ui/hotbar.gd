@@ -11,19 +11,31 @@ func _ready():
 		if _inventory.has_signal("hotbar_updated"): _inventory.hotbar_updated.connect(_on_hotbar_updated)
 		if _inventory.has_signal("selected_slot_changed"): _inventory.selected_slot_changed.connect(_on_selected_slot_changed)
 		_initialize_slots()
-	else: push_error("hotbar.gd: инвентарь не найден")
+	else: 
+		push_error("hotbar.gd: инвентарь не найден")
+		# Пробуем повторно найти через таймер
+		await get_tree().create_timer(0.5).timeout
+		_find_inventory()
+		if _inventory:
+			if _inventory.has_signal("hotbar_updated"): _inventory.hotbar_updated.connect(_on_hotbar_updated)
+			if _inventory.has_signal("selected_slot_changed"): _inventory.selected_slot_changed.connect(_on_selected_slot_changed)
+			_initialize_slots()
 
 func _find_inventory():
 	if inventory_path:
 		_inventory = get_node(inventory_path)
 		if _inventory and _inventory.has_method("get_selected_block_info"): return
+	
+	# Ищем игрока через группу
 	var player = get_tree().get_first_node_in_group("player")
 	if player:
-		_inventory = player.get_node_or_null("CreativeInventory")
-		if _inventory and _inventory.has_method("get_selected_block_info"): return
 		_inventory = player.get_node_or_null("inventory")
 		if _inventory and _inventory.has_method("get_selected_block_info"): return
-	_inventory = _find_inventory_recursive(get_tree().current_scene)
+		_inventory = player.get_node_or_null("CreativeInventory")
+		if _inventory and _inventory.has_method("get_selected_block_info"): return
+	
+	# Пробуем найти через все дерево
+	_inventory = _find_inventory_recursive(get_tree().root)
 
 func _find_inventory_recursive(node: Node) -> Node:
 	if node.has_method("get_selected_block_info"): return node
@@ -40,7 +52,8 @@ func _initialize_slots():
 		slots_container.add_child(slot)
 		_slot_controls.append(slot)
 	_update_all_slots()
-	if _inventory: _on_selected_slot_changed(_inventory.selected_slot)
+	if _inventory: 
+		_on_selected_slot_changed(_inventory.selected_slot)
 
 func _create_slot(index: int) -> Control:
 	var panel = Control.new()
@@ -49,6 +62,20 @@ func _create_slot(index: int) -> Control:
 	panel.set_script(load("res://src/scripts/ui/inventory_ui/hotbar_slot.gd"))
 	panel.slot_index = index
 	panel.inventory = _inventory
+	
+	# Инициализируем стиль панели
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.15, 0.15, 0.15, 0.9)
+	style.border_color = Color(0.4, 0.4, 0.4)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	panel.add_theme_stylebox_override("panel", style)
 	
 	var icon = TextureRect.new()
 	icon.name = "Icon"
@@ -111,12 +138,14 @@ func _highlight_slot(index: int, selected: bool):
 		style.border_width_right = 3
 		style.border_width_top = 3
 		style.border_width_bottom = 3
+		style.bg_color = Color(0.25, 0.25, 0.25, 0.95)
 	else:
 		style.border_color = Color(0.4, 0.4, 0.4)
 		style.border_width_left = 2
 		style.border_width_right = 2
 		style.border_width_top = 2
 		style.border_width_bottom = 2
+		style.bg_color = Color(0.15, 0.15, 0.15, 0.9)
 	panel.add_theme_stylebox_override("panel", style)
 
 func _on_hotbar_updated(index: int):

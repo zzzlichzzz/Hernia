@@ -89,22 +89,30 @@ func _input(event: InputEvent):
 	if event is InputEventKey:
 		var key_event = event as InputEventKey
 		
+		# Закрытие чата - Escape (всегда обрабатываем)
+		if key_event.keycode == KEY_ESCAPE and key_event.pressed:
+			_close_chat()
+			return
+		
+		# Если чат открыт, игнорируем остальные клавиши кроме стрелок
+		if _chat_open:
+			# История команд - стрелки вверх/вниз
+			if key_event.keycode == KEY_UP and key_event.pressed:
+				_navigate_history(1)
+			elif key_event.keycode == KEY_DOWN and key_event.pressed:
+				_navigate_history(-1)
+			return
+		
 		# Открытие чата - T или /
 		if key_event.keycode == KEY_T and key_event.pressed and not key_event.echo:
 			_open_chat()
 		elif key_event.keycode == KEY_SLASH and key_event.pressed and not key_event.echo:
 			_open_chat(true)
-		# Закрытие чата - Escape
-		elif key_event.keycode == KEY_ESCAPE and key_event.pressed and _chat_open:
-			_close_chat()
-		# История команд - стрелки вверх/вниз
-		elif _chat_open:
-			if key_event.keycode == KEY_UP and key_event.pressed:
-				_navigate_history(1)
-			elif key_event.keycode == KEY_DOWN and key_event.pressed:
-				_navigate_history(-1)
 
 func _open_chat(force_command: bool = false):
+	# Если чат уже открыт, не открываем снова
+	if _chat_open:
+		return
 	_chat_open = true
 	_chat_panel.visible = true
 	_chat_panel.offset_bottom = 200  # Показываем историю
@@ -115,6 +123,9 @@ func _open_chat(force_command: bool = false):
 func _set_chat_text(text: String):
 	_chat_input.text = text
 	_chat_input.grab_focus()
+	# Перемещаем курсор в конец текста (после /)
+	if text.length() > 0:
+		_chat_input.caret_column = text.length()
 
 func _close_chat():
 	_chat_open = false

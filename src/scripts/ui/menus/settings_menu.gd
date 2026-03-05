@@ -54,10 +54,8 @@ func create_ui():
 	
 	vsync_checkbox = _checkbox("V-Sync", current_vsync)
 	gpu_checkbox = _checkbox("GPU генерация", current_gpu)
-	collisions_checkbox = _checkbox("Коллизии", current_collisions)
 	vbox.add_child(vsync_checkbox)
 	vbox.add_child(gpu_checkbox)
-	vbox.add_child(collisions_checkbox)
 	vbox.add_child(_spacer(15))
 	
 	vbox.add_child(_section_label("УПРАВЛЕНИЕ"))
@@ -147,7 +145,6 @@ func _button(text: String, color: Color, callback: Callable) -> Button:
 
 func _connect_signals():
 	if view_distance_slider: view_distance_slider.value_changed.connect(_on_view_distance_changed)
-	if collisions_checkbox: collisions_checkbox.toggled.connect(func(v): current_collisions = v)
 	if gpu_checkbox: gpu_checkbox.toggled.connect(func(v): current_gpu = v)
 	if vsync_checkbox: vsync_checkbox.toggled.connect(func(v): current_vsync = v)
 	if fov_slider: fov_slider.value_changed.connect(_on_fov_changed)
@@ -213,7 +210,6 @@ func _update_ui():
 	if view_distance_label: view_distance_label.text = str(current_view_distance)
 	if vsync_checkbox: vsync_checkbox.button_pressed = current_vsync
 	if gpu_checkbox: gpu_checkbox.button_pressed = current_gpu
-	if collisions_checkbox: collisions_checkbox.button_pressed = current_collisions
 	if fov_slider:
 		fov_slider.min_value = 50; fov_slider.max_value = 120; fov_slider.step = 5; fov_slider.value = current_fov
 	if fov_label: fov_label.text = str(current_fov)

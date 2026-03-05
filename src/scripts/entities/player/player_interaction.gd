@@ -203,7 +203,7 @@ func _is_chat_or_inventory_open() -> bool:
 			return true
 	
 	var player = get_tree().get_first_node_in_group("player")
-	if player and player.has("inventory_open"):
+	if player and "inventory_open" in player:
 		if player.inventory_open:
 			return true
 	

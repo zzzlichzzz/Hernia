@@ -430,9 +430,27 @@ func _create_inventory_slot_style(border_color: Color) -> StyleBoxFlat:
 	return style
 
 func _input(event: InputEvent):
-	# Открытие/закрытие инвентаря по E
-	if event is InputEventKey and event.keycode == KEY_E and event.pressed:
+	# Проверяем, открыт ли чат
+	var chat_open = _is_chat_open()
+	
+	# Открытие/закрытие инвентаря по E (только если чат закрыт)
+	if event is InputEventKey and event.keycode == KEY_E and event.pressed and not chat_open:
 		toggle_inventory()
+	
+	# Если чат открыт, игнорируем остальной ввод
+	if chat_open:
+		return
+	
+	# Переключение слотов колесиком мыши (только если инвентарь закрыт)
+	if event is InputEventMouseButton and not inventory_open:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+			# Предыдущий слот
+			var new_slot = (selected_slot - 1 + 9) % 9
+			set_selected_slot(new_slot)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+			# Следующий слот
+			var new_slot = (selected_slot + 1) % 9
+			set_selected_slot(new_slot)
 	
 	# Если инвентарь открыт, цифры кладут наведённый блок в слот
 	if inventory_open and event is InputEventKey and event.pressed and not event.echo:
@@ -471,6 +489,11 @@ func toggle_inventory():
 		player.inventory_open = false
 		hovered_block = {}
 
+# Проверка, открыт ли чат
+func _is_chat_open() -> bool:
+	var chat = get_tree().get_first_node_in_group("chat")
+	return chat and chat.has_method("is_chat_open") and chat.is_chat_open()
+
 func _on_inventory_slot_mouse_entered(block: Dictionary):
 	hovered_block = block
 	print("Наведён блок: ", block.name, " ID: ", block.id)
@@ -499,7 +522,25 @@ func set_selected_slot(index: int):
 	selected_slot = index
 	selected_block = hotbar_items[index] if hotbar_items[index] != null else {}
 	selected_slot_changed.emit(index)
+	
+	# Обновляем руку игрока
+	_update_hand()
 	print("Выбран слот: ", index + 1, ", блок: ", selected_block.get("name", "пусто"), " ID: ", selected_block.get("id", "?"))
+
+# Обновить отображение блока в руке
+func _update_hand():
+	var player = get_tree().get_first_node_in_group("player")
+	if player:
+		# Ищем руку - теперь она дочерний элемент Camera3D
+		var camera = player.get_node_or_null("Neck/Camera3D")
+		if camera:
+			var hand = camera.get_node_or_null("Hand")
+			if hand and hand.has_method("set_block"):
+				var block_info = get_selected_block_info()
+				if not block_info.is_empty():
+					hand.set_block(block_info.get("name", ""), block_info.get("id", -1))
+				else:
+					hand.hide_hand()
 
 func select_next_slot():
 	set_selected_slot((selected_slot + 1) % 9)

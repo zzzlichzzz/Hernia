@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://o5n2duwrvo0s"
-path="res://.godot/imported/stone.png-6f876152ae94443798da6253b0f449aa.ctex"
+uid="uid://ci5o7en5y2l8p"
+path="res://.godot/imported/chameleon.png-85976236f49b857ab58572648b31dfd4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://src/assets/icons/blocks/stone.png"
-dest_files=["res://.godot/imported/stone.png-6f876152ae94443798da6253b0f449aa.ctex"]
+source_file="res://src/assets/textures/gui/icons/blocks/chameleon.png"
+dest_files=["res://.godot/imported/chameleon.png-85976236f49b857ab58572648b31dfd4.ctex"]
 
 [params]
 

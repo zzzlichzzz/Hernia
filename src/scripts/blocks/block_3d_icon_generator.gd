@@ -5,7 +5,7 @@ class_name Block3DIconGenerator
 ## видны верхняя, левая и правая грани блока
 
 const LIBRARY_PATH = "res://src/data/blocks/voxel_blocky_library.tres"
-const ICONS_FOLDER = "res://src/assets/icons/blocks/"
+const ICONS_FOLDER = "res://src/assets/textures/gui/icons/blocks/"
 const ICON_SIZE = 128
 
 # ===== Углы камеры в стиле Minecraft =====

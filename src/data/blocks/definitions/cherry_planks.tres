@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="BlockDefinition" format=3 uid="uid://dtuwfvbm0uvv3"]
 
-[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/blocks/models/cube.obj" id="1_1luvj"]
+[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/models/blocks/cube.obj" id="1_1luvj"]
 [ext_resource type="Script" uid="uid://c4qx5vqwkdro2" path="res://src/data/blocks/block_definition.gd" id="2_bf2gt"]
 
 [resource]

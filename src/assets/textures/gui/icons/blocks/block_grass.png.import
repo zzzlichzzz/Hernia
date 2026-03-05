@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://drqnpuytd3os"
-path="res://.godot/imported/stair_chameleon.png-6f0942031a255a85f08f1462ae5da7e9.ctex"
+uid="uid://ypk2pp3f51w5"
+path="res://.godot/imported/block_grass.png-8f31d51c6708719a8524f004a940c87e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://src/assets/icons/blocks/stair_chameleon.png"
-dest_files=["res://.godot/imported/stair_chameleon.png-6f0942031a255a85f08f1462ae5da7e9.ctex"]
+source_file="res://src/assets/textures/gui/icons/blocks/block_grass.png"
+dest_files=["res://.godot/imported/block_grass.png-8f31d51c6708719a8524f004a940c87e.ctex"]
 
 [params]
 

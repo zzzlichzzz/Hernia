@@ -4,7 +4,7 @@ class_name BlockRegistry
 
 var LIBRARY_PATH = "res://src/data/blocks/voxel_blocky_library.tres"
 var BLOCKS_FOLDER = "res://src/data/blocks/definitions/"
-var MODELS_FOLDER = "res://src/assets/blocks/"
+var MODELS_FOLDER = "res://src/assets/models/blocks/"
 const MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
 
 const ATLAS_COORDS_PATH = "res://src/assets/textures/atlas/block_coordinates.tres"

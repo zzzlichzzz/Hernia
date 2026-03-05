@@ -5,7 +5,7 @@ extends Node
 # Путь к папке с текстурами блоков (для иконок)
 @export var textures_directory: String = "res://src/assets/textures/blocks/"
 # Путь к папке с иконками блоков
-@export var icons_directory: String = "res://src/assets/icons/blocks/"
+@export var icons_directory: String = "res://src/assets/textures/gui/icons/blocks/"
 # Ручное сопоставление имени блока (из библиотеки) к имени папки с текстурой (если отличаются)
 @export var texture_name_mapping: Dictionary = {}
 

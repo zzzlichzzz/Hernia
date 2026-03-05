@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="BlockDefinition" format=3 uid="uid://bg2wy5eat83mk"]
 
-[ext_resource type="ArrayMesh" uid="uid://cdrw07cs74bqw" path="res://src/assets/blocks/models/stair_block.obj" id="1_jcuo1"]
+[ext_resource type="ArrayMesh" uid="uid://cdrw07cs74bqw" path="res://src/assets/models/blocks/stair_block.obj" id="1_jcuo1"]
 [ext_resource type="Script" uid="uid://c4qx5vqwkdro2" path="res://src/data/blocks/block_definition.gd" id="1_lsm2c"]
 
 [resource]

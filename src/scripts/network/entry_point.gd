@@ -1,14 +1,14 @@
 extends Node
 ## Точка входа.
-## Headless → сразу server_main.tscn
-## Обычный → menu.tscn (или что у тебя главное меню)
+## Headless → server_main.tscn
+## Обычный → menu.tscn
 
 const SERVER_SCENE := "res://src/scripts/network/server_main.tscn"
-const MENU_SCENE   := "res://src/scenes/menu.tscn"   # ← поменяй на свой путь
+const MENU_SCENE   := "res://src/scenes/menu.tscn"
 
 
 func _ready() -> void:
-	if CmdArgs.is_headless():
+	if DisplayServer.get_name() == "headless":
 		print("[entry] Headless режим → запуск сервера")
 		get_tree().change_scene_to_file(SERVER_SCENE)
 	else:

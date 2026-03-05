@@ -14,7 +14,7 @@ source_description = "ID игрока"
 script = ExtResource("2_script")
 field_name = "position"
 field_type = 4
-byte_size = 2
+byte_size = 3
 quantize_max = 0.0
 source_description = "Позиция в мире"
 
@@ -23,7 +23,9 @@ script = ExtResource("2_script")
 field_name = "head_pitch"
 field_type = 2
 byte_size = 2
-quantize_max = 0.0
+use_quantization = true
+quantize_min = -1.5
+quantize_max = 1.5
 source_description = "Наклон головы"
 
 [sub_resource type="Resource" id="Resource_body_yaw"]
@@ -31,13 +33,15 @@ script = ExtResource("2_script")
 field_name = "body_yaw"
 field_type = 2
 byte_size = 2
-quantize_max = 0.0
+use_quantization = true
+quantize_min = -3.1
+quantize_max = 3.1
 source_description = "Поворот тела"
 
 [resource]
 script = ExtResource("1_script")
 packet_name = "player_move"
 channel = 1
-send_rate_hz = 20
+server_validates = true
 fields = Array[ExtResource("2_script")]([SubResource("Resource_peer_id"), SubResource("Resource_position"), SubResource("Resource_head_pitch"), SubResource("Resource_body_yaw")])
 description = "Пакет синхронизации позиции игрока. Клиент → Сервер → Остальные клиенты."

@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════
 # AUTO-GENERATED — DO NOT EDIT
 # Source: res://src/scripts/network/actions/
-# Date:   2026-03-05T23:09:06
+# Date:   2026-03-06T00:43:52
 # ═══════════════════════════════════════════════════
 class_name GeneratedPackets
 
@@ -13,30 +13,31 @@ const PACKETS := {
 		"name": "player_move",
 		"sync_mode": 3,
 		"channel": 1,
-		"server_validates": false,
+		"server_validates": true,
+		"field_names": ["peer_id", "position", "head_pitch", "body_yaw"],
 	},
 }
 
 
-# ─── player_move (id=37676, 12 bytes (fixed)) ───
+# ─── player_move (id=37676, 18 bytes (fixed)) ───
 
 static func write_player_move(peer_id: int, position: Vector3, head_pitch: float, body_yaw: float) -> PackedByteArray:
 	var _b := StreamPeerBuffer.new()
 	_b.big_endian = false
 	_b.put_u16(peer_id)
-	_b.put_u16(_f2h(position.x))
-	_b.put_u16(_f2h(position.y))
-	_b.put_u16(_f2h(position.z))
-	_b.put_u16(_f2h(head_pitch))
-	_b.put_u16(_f2h(body_yaw))
+	_b.put_float(position.x)
+	_b.put_float(position.y)
+	_b.put_float(position.z)
+	_b.put_u16(int(clampf((head_pitch - (-1.5)) / ((1.5) - (-1.5)), 0.0, 1.0) * 65535.0))
+	_b.put_u16(int(clampf((body_yaw - (-3.1)) / ((3.1) - (-3.1)), 0.0, 1.0) * 65535.0))
 	return PacketTypes.write_packet(37676, _b.data_array)
 
 
 static func read_player_move(_b: StreamPeerBuffer) -> Dictionary:
 	var _peer_id := _b.get_u16()
-	var _position := Vector3(_h2f(_b.get_u16()), _h2f(_b.get_u16()), _h2f(_b.get_u16()))
-	var _head_pitch := _h2f(_b.get_u16())
-	var _body_yaw := _h2f(_b.get_u16())
+	var _position := Vector3(_b.get_float(), _b.get_float(), _b.get_float())
+	var _head_pitch := (-1.5) + (float(_b.get_u16()) / 65535.0) * ((1.5) - (-1.5))
+	var _body_yaw := (-3.1) + (float(_b.get_u16()) / 65535.0) * ((3.1) - (-3.1))
 	return {
 		"peer_id": _peer_id,
 		"position": _position,

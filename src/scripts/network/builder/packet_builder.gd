@@ -115,11 +115,17 @@ func _generate(defs: Array[NetworkPacketDef]) -> String:
 	L.append("## Метаданные пакетов для NetworkActionManager")
 	L.append("const PACKETS := {")
 	for d in defs:
+		# Собираем имена полей для гарантированного порядка
+		var fn_arr := PackedStringArray()
+		for f: NetworkFieldDef in d.fields:
+			fn_arr.append("\"%s\"" % f.field_name)
+
 		L.append("\t%d: {" % d.get_packet_id())
 		L.append("\t\t\"name\": \"%s\"," % d.packet_name)
 		L.append("\t\t\"sync_mode\": %d," % d.sync_mode)
 		L.append("\t\t\"channel\": %d," % d.channel)
 		L.append("\t\t\"server_validates\": %s," % ("true" if d.server_validates else "false"))
+		L.append("\t\t\"field_names\": [%s]," % ", ".join(fn_arr))
 		L.append("\t},")
 	L.append("}")
 	L.append("")
@@ -393,7 +399,6 @@ func _quant_max_val(bs: int) -> int:
 
 
 func _fstr(v: float) -> String:
-	## Отформатировать float для кода без потери точности
 	var s := str(v)
 	if "." not in s and "e" not in s and "inf" not in s.to_lower():
 		s += ".0"
@@ -401,7 +406,6 @@ func _fstr(v: float) -> String:
 
 
 func _calc_body_size(d: NetworkPacketDef) -> int:
-	## Вернёт -1 если есть поля переменной длины
 	var total := 0
 	for f: NetworkFieldDef in d.fields:
 		match f.field_type:

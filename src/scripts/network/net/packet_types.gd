@@ -1,8 +1,8 @@
 class_name PacketTypes
 ## Типы пакетов и утилиты ручной сериализации.
 ##
-## Формат заголовка (7 байт):
-##   [ 1B type ][ 2B body_len ][ 2B fragment_id ][ 2B total_fragments ]
+## Формат заголовка (8 байт):
+##   [ 2B type ][ 2B body_len ][ 2B fragment_id ][ 2B total_fragments ]
 ##
 ## Если total_fragments == 0 — обычный нефрагментированный пакет.
 ## Если total_fragments >  0 — fragment_id от 0 до total_fragments-1.
@@ -19,7 +19,7 @@ enum {
 	WELCOME        = 8,
 }
 
-const HEADER_SIZE       := 7
+const HEADER_SIZE       := 8          # ← было 7, стало 8
 const MAX_FRAGMENT_BODY := 1024
 
 
@@ -33,7 +33,7 @@ static func write_packet(type: int,
 		total_fragments: int = 0) -> PackedByteArray:
 	var buf := StreamPeerBuffer.new()
 	buf.big_endian = false
-	buf.put_u8(type)
+	buf.put_u16(type)                    # ← было put_u8
 	buf.put_u16(body.size())
 	buf.put_u16(fragment_id)
 	buf.put_u16(total_fragments)
@@ -50,7 +50,7 @@ static func read_packet(raw: PackedByteArray) -> Dictionary:
 	r.big_endian = false
 	r.data_array = raw
 	r.seek(0)
-	var pkt_type        : int = r.get_u8()
+	var pkt_type        : int = r.get_u16()    # ← было get_u8
 	var body_len        : int = r.get_u16()
 	var fragment_id     : int = r.get_u16()
 	var total_fragments : int = r.get_u16()

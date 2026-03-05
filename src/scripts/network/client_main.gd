@@ -1,9 +1,9 @@
 extends Node3D
 
-const ADDRESS       := "127.0.0.1"
-const PORT          := 9999
+const ADDRESS    := "127.0.0.1"
+const PORT       := 9999
+const TICK_RATE  := 20
 const PING_INTERVAL := 3.0
-const DEFAULT_TICK_RATE := 20
 
 const PLAYER_SCENE        = preload("res://src/scripts/network/scenes/player.tscn")
 const REMOTE_PLAYER_SCENE = preload("res://src/scripts/network/scenes/remote_player.tscn")
@@ -14,36 +14,20 @@ var _nam          : NetworkActionManager
 var _local_player : CharacterBody3D = null
 var _my_id        : int = 0
 var _ping_timer   : Timer
-var _address      : String = ADDRESS
-var _port         : int    = PORT
-var _tick_rate    : int    = DEFAULT_TICK_RATE
 
-# Простая система tick rate без сложных таймеров
+# Tick rate
 var _tick_accumulator : float = 0.0
-var _tick_interval    : float = 1.0 / DEFAULT_TICK_RATE
-
-# Отладка
-var _debug            : bool = false
-var _packets_sent     : int   = 0
-var _packets_received : int   = 0
+var _tick_interval    : float = 1.0 / float(TICK_RATE)
 
 
 func _ready() -> void:
-	var args := CmdArgs.new()
-	_address   = args.get_string("--address", _address)
-	_port      = args.get_int("--port", _port)
-	_tick_rate = args.get_int("--tick-rate", _tick_rate)
-	_debug     = args.has_flag("--debug")
-
-	_tick_interval = 1.0 / float(_tick_rate)
-
 	print("═══════════════════════════════════════")
 	print("[client] Запуск клиента")
-	print("[client] Адрес: %s:%d" % [_address, _port])
-	print("[client] Tick rate: %d Гц (интервал: %.3f сек)" % [_tick_rate, _tick_interval])
-	print("[client] Отладка: %s" % ("ВКЛ" if _debug else "ВЫКЛ"))
+	print("[client] Адрес: %s:%d" % [ADDRESS, PORT])
+	print("[client] Tick rate: %d Гц" % TICK_RATE)
 	print("═══════════════════════════════════════")
 
+	# ── Сеть ──────────────────────────────────────
 	_net = NetworkManager.new()
 	_net.name = "NetworkManager"
 	add_child(_net)
@@ -60,42 +44,33 @@ func _ready() -> void:
 	_net.peer_connected.connect(_on_connected)
 	_net.peer_disconnected.connect(_on_disconnected)
 
-	# Базовые обработчики
+	# ── Базовые обработчики (хардкод-пакеты) ─────
 	_net.register_handler(PacketTypes.WELCOME,       _on_welcome)
 	_net.register_handler(PacketTypes.PLAYER_JOINED, _on_player_joined)
 	_net.register_handler(PacketTypes.PLAYER_LEFT,   _on_player_left)
 	_net.register_handler(PacketTypes.PONG,          _on_pong)
 
-	# NAM setup с отладкой
-	_nam.setup(_net, _debug)
+	# ── NAM (генерируемые пакеты) ─────────────────
+	_nam.setup(_net)
 	_nam.on_action("player_move", _on_remote_player_move)
 
-	# Отслеживание пакетов
-	_nam.packet_sent.connect(_on_packet_sent)
-	_nam.packet_received.connect(_on_packet_received)
-
-	# Таймер ping
+	# ── Ping таймер ───────────────────────────────
 	_ping_timer = Timer.new()
 	_ping_timer.wait_time = PING_INTERVAL
 	_ping_timer.autostart = false
 	_ping_timer.timeout.connect(_send_ping)
 	add_child(_ping_timer)
 
-	var err := _net.create_client(_address, _port)
+	# ── Подключение ───────────────────────────────
+	var err := _net.create_client(ADDRESS, PORT)
 	if err != OK:
 		push_error("[client] Не удалось подключиться! Error: %d" % err)
 		get_tree().quit(1)
 
 
-func _on_packet_sent(action_name: String) -> void:
-	_packets_sent += 1
-	if _debug and _packets_sent % 60 == 0:
-		print("[client] Статистика: отправлено=%d, получено=%d" % [_packets_sent, _packets_received])
-
-
-func _on_packet_received(action_name: String, peer_id: int, data: Dictionary) -> void:
-	_packets_received += 1
-
+# ══════════════════════════════════════════════════
+#  СОБЫТИЯ СЕТИ
+# ══════════════════════════════════════════════════
 
 func _on_connected(_id: int) -> void:
 	print("[client] ✓ Соединение установлено, жду WELCOME...")
@@ -116,6 +91,10 @@ func _cleanup() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
+# ══════════════════════════════════════════════════
+#  ХАРДКОД-ПАКЕТЫ (от сервера)
+# ══════════════════════════════════════════════════
+
 func _on_welcome(_peer_id: int, body: StreamPeerBuffer) -> void:
 	var data := PacketTypes.read_welcome(body)
 	_my_id = data["id"]
@@ -123,9 +102,7 @@ func _on_welcome(_peer_id: int, body: StreamPeerBuffer) -> void:
 	var pos: Vector3 = data["position"]
 	var rot: Vector3 = data["rotation"]
 
-	print("[client] ✓ WELCOME получен!")
-	print("[client]   Мой ID: %d" % _my_id)
-	print("[client]   Позиция: %s" % str(pos))
+	print("[client] ✓ WELCOME: id=%d pos=%s" % [_my_id, pos])
 
 	_local_player = PLAYER_SCENE.instantiate() as CharacterBody3D
 	_local_player.name = "LocalPlayer"
@@ -134,8 +111,7 @@ func _on_welcome(_peer_id: int, body: StreamPeerBuffer) -> void:
 	_local_player.rotation.y = rot.y
 
 	_ping_timer.start()
-
-	print("[client] ✓ Готов к игре! Управление: WASD + мышь")
+	print("[client] ✓ Готов к игре! WASD + мышь")
 
 
 func _on_player_joined(_peer_id: int, body: StreamPeerBuffer) -> void:
@@ -143,7 +119,7 @@ func _on_player_joined(_peer_id: int, body: StreamPeerBuffer) -> void:
 	var id: int = data["id"]
 	if id == _my_id:
 		return
-	print("[client] → Игрок %d присоединился в %s" % [id, data["position"]])
+	print("[client] → Игрок %d присоединился" % id)
 	_pm.add_player(id, data["position"], data["rotation"])
 
 
@@ -157,33 +133,35 @@ func _on_pong(_peer_id: int, _body: StreamPeerBuffer) -> void:
 	pass
 
 
-func _on_remote_player_move(peer_id: int, data: Dictionary) -> void:
+# ══════════════════════════════════════════════════
+#  ГЕНЕРИРУЕМЫЕ ПАКЕТЫ (через NAM)
+# ══════════════════════════════════════════════════
+
+func _on_remote_player_move(_peer_id: int, data: Dictionary) -> void:
+	# _peer_id = SERVER_ID (пакет пришёл от сервера)
+	# Реальный ID отправителя — в data["peer_id"] (защищён сервером)
 	var id: int = data["peer_id"]
 	if id == _my_id:
-		return  # Игнорируем свои пакеты
+		return
 
 	var pos: Vector3 = data["position"]
 	var rot := Vector3(data["head_pitch"], data["body_yaw"], 0.0)
-
-	if _debug and _packets_received % 60 == 0:
-		print("[client] → player_move от %d: pos=%s" % [id, pos])
-
 	_pm.update_player(id, pos, rot)
 
+
+# ══════════════════════════════════════════════════
+#  ИГРОВОЙ ЦИКЛ
+# ══════════════════════════════════════════════════
 
 func _physics_process(delta: float) -> void:
 	if _local_player == null or _my_id == 0:
 		return
 
-	# Простой tick rate: накапливаем время и отправляем по интервалу
 	_tick_accumulator += delta
-
 	if _tick_accumulator >= _tick_interval:
 		_tick_accumulator -= _tick_interval
 
 		var state: Dictionary = _local_player.get_network_state()
-
-		# Отправляем немедленно через send_action
 		_nam.send_action("player_move", [
 			_my_id,
 			state["position"],
@@ -199,6 +177,5 @@ func _send_ping() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		print("[client] Завершение работы...")
-		print("[client] Итоговая статистика: отправлено=%d, получено=%d" % [_packets_sent, _packets_received])
 		_net.shutdown()
 		get_tree().quit()

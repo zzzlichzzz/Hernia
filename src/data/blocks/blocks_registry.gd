@@ -5,7 +5,6 @@ class_name BlockRegistry
 var LIBRARY_PATH = "res://src/data/blocks/voxel_blocky_library.tres"
 var BLOCKS_FOLDER = "res://src/data/blocks/block/"
 var MODELS_FOLDER = "res://src/assets/models/blocks/"
-const MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
 
 const ATLAS_COORDS_PATH = "res://src/assets/textures/atlas/block_coordinates.tres"
 const MATERIAL_PATHS = {
@@ -15,10 +14,14 @@ const MATERIAL_PATHS = {
 	"multi_face": "res://src/assets/textures/atlas/block_material_multi_face.tres"
 }
 
+var ITEM_LIBRARY_PATH = "res://src/data/items/item_library.tres"
+
 @export var auto_build: bool = true
 @export var debug_mode: bool = true
 
 var library: VoxelBlockyLibrary
+var item_library: ItemLibrary
+
 var block_count: int = 0
 var mesher_manager: Node
 # ═══ ХАМЕЛЕОН ═══
@@ -32,6 +35,8 @@ const CHAMELEON_DATA_PATH = "res://src/data/blocks/chameleon_data.tres"
 var _atlas_coords: Resource = null
 var _base_materials: Dictionary = {}
 
+
+
 func _ready():
 	if Engine.is_editor_hint():
 		if auto_build:
@@ -41,26 +46,13 @@ func _ready():
 			await get_tree().create_timer(1.0).timeout
 			call_deferred("_build_library")
 	
-	_init_mesher_manager()
-
-func _init_mesher_manager():
-	if ResourceLoader.exists("res://src/data/blocks/mesher_manager_path.gd"):
-		var MesherManagerClass = load("res://src/data/blocks/mesher_manager_path.gd")
-		if MesherManagerClass:
-			mesher_manager = MesherManagerClass.new()
-			add_child(mesher_manager)
-			if debug_mode:
-				print("✅ MesherManagerPath инициализирован")
-	else:
-		if debug_mode:
-			print("⚠️ MesherManagerPath не найден")
-
-func _build_library():
+func _build_library(blocks: Array[ItemData]):
 	if debug_mode:
 		print("🏗️ АВТОСБОРЩИК БИБЛИОТЕКИ БЛОКОВ")
 		if Engine.is_editor_hint():
 			print("📌 Режим: РЕДАКТОР")
 	
+
 	# Очищаем данные предыдущей сборки
 	_block_id_to_texture.clear()
 	_chameleon_voxel_ids.clear()          # ← было _chameleon_voxel_id = -1
@@ -68,6 +60,8 @@ func _build_library():
 	
 	if debug_mode:
 		print("\n📁 ШАГ 1: Создание новой библиотеки")
+
+
 	library = VoxelBlockyLibrary.new()
 	
 	if debug_mode:
@@ -76,9 +70,9 @@ func _build_library():
 	
 	if debug_mode:
 		print("\n🔍 ШАГ 2: Поиск определений блоков")
-	var block_files = _find_block_definitions()
+	
 	if debug_mode:
-		print("📁 Найдено определений: ", block_files.size())
+		print("📁 Найдено определений: ", blocks.size())
 	
 	if debug_mode:
 		print("\n🌬️ ШАГ 3: Добавление воздуха")
@@ -86,7 +80,7 @@ func _build_library():
 	
 	if debug_mode:
 		print("\n🧱 ШАГ 4: Добавление блоков")
-	for file_path in block_files:
+	for file_path in blocks:
 		_process_block_definition(file_path)
 	
 	# ══════════════════════════════════════════
@@ -111,9 +105,14 @@ func _build_library():
 		print("\n💾 ШАГ 6: Сохранение")
 	
 	var target_dir = LIBRARY_PATH.get_base_dir()
+	
+	
+
 	if not DirAccess.dir_exists_absolute(target_dir):
 		DirAccess.make_dir_recursive_absolute(target_dir)
 	
+	ResourceSaver.save(item_library, ITEM_LIBRARY_PATH)
+
 	var result = ResourceSaver.save(library, LIBRARY_PATH)
 	if result == OK:
 		if debug_mode:
@@ -252,22 +251,15 @@ func _create_multi_face_material(def: BlockDefinition) -> ShaderMaterial:
 #  ОБРАБОТКА БЛОКА
 # ═══════════════════════════════════════════════════════════
 
-func _process_block_definition(file_path: String):
-	if debug_mode:
-		print("\n🔧 Обработка: ", file_path.get_file())
-	
-	if not FileAccess.file_exists(file_path):
-		return
-	
-	var def_resource = load(file_path)
-	if not def_resource or not def_resource is ItemBlock:
-		if debug_mode:
-			print("   ❌ Неверный формат: ", file_path)
-		return
+func _process_block_definition(def_resource: ItemData):
+
+	#if not def_resource is ItemBlock:
+		#if debug_mode:
+			#print("   ❌ Неверный формат: ", file_path)
+		#return
 	
 	var def: ItemBlock = def_resource
 	
-		# Синхронизация material_type
 	match def.getBlockDefinition().material_type_enum:
 		BlockDefinition.MaterialType.OPAQUE:
 			def.getBlockDefinition().material_type = "opaque"
@@ -321,6 +313,9 @@ func _process_block_definition(file_path: String):
 			print("   ✅ Материал применён к surface 0")
 	
 	var id = library.add_model(model)
+
+	item_library.addItem(def)
+
 	if debug_mode:
 		print("   ✅ Блок добавлен с ID: ", id)
 	block_count += 1
@@ -343,19 +338,19 @@ func _process_block_definition(file_path: String):
 #  ОСТАЛЬНОЕ
 # ═══════════════════════════════════════════════════════════
 
-func _find_block_definitions() -> Array:
-	var files = []
-	var dir = DirAccess.open(BLOCKS_FOLDER)
-	if not dir:
-		return files
-	dir.list_dir_begin()
-	var file_name = dir.get_next()
-	while file_name != "":
-		if file_name.ends_with(".tres") and file_name != "item_block.gd":
-			files.append(BLOCKS_FOLDER + file_name)
-		file_name = dir.get_next()
-	dir.list_dir_end()
-	return files
+# func _find_block_definitions() -> Array:
+# 	var files = []
+# 	var dir = DirAccess.open(BLOCKS_FOLDER)
+# 	if not dir:
+# 		return files
+# 	dir.list_dir_begin()
+# 	var file_name = dir.get_next()
+# 	while file_name != "":
+# 		if file_name.ends_with(".tres") and file_name != "item_block.gd":
+# 			files.append(BLOCKS_FOLDER + file_name)
+# 		file_name = dir.get_next()
+# 	dir.list_dir_end()
+# 	return files
 
 func _add_air():
 	var air_model = VoxelBlockyModelEmpty.new()
@@ -453,6 +448,9 @@ func _register_chameleon_blocks():
 			if debug_mode:
 				print("   ✅ Шейдер хамелеона применён")
 		
+
+		item_library.addItem(cham_def)
+
 		var id = library.add_model(model)
 		_chameleon_voxel_ids.append(id)       # ← добавляем в массив
 		block_count += 1

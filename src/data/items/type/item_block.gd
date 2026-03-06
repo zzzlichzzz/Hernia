@@ -1,8 +1,8 @@
-class_name ItemBlock extends "res://src/data/items/item_data.gd"
+@tool
+class_name ItemBlock extends ItemData
 
 
 @export var block_definition: BlockDefinition
-
 
 func _ready():
 	pass

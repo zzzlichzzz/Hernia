@@ -26,7 +26,7 @@ func _on_btn_client_pressed() -> void:
 # Обработчик кнопки "Test Evil Client"
 func _on_btn_evil_client_pressed() -> void:
 	print("Запуск тестового evil клиента...")
-	get_tree().change_scene_to_file("res://src/scripts/network/test/test_evil_client.tscn")
+	get_tree().change_scene_to_file("res://src/scripts/network/auto_tests/test_evil_client.tscn")
 
 # Обработчик кнопки "Выход"
 func _on_btn_exit_pressed() -> void:

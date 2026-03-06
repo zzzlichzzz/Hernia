@@ -1,0 +1,404 @@
+╔══════════════════════════════════════════════════════════════════╗
+║         ГАЙД: Работа с .tres файлами сетевых пакетов             ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+════════════════════════════════════════════════════════════════════
+ БЫСТРЫЙ СТАРТ: от нуля до работающей сетевой механики
+════════════════════════════════════════════════════════════════════
+
+
+─── ШАГ 1: Создать .tres файл ─────────────────────────────────────
+
+  FileSystem → ПКМ на папке actions/
+  → New Resource → NetworkPacketDef → Create
+  → Сохранить как: имя_действия.tres
+
+
+─── ШАГ 2: Настроить основные параметры ────────────────────────────
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │ Packet Name:       имя_действия                             │
+  │                    Уникальное, snake_case, латиница          │
+  │                                                             │
+  │ Sync Mode:         CLIENT_TO_ALL_VIA_SERVER                 │
+  │                    (самый частый вариант)                    │
+  │                                                             │
+  │ Channel:           RELIABLE или UNRELIABLE                  │
+  │                    RELIABLE = гарантия доставки              │
+  │                    UNRELIABLE = быстро, но может потеряться  │
+  │                                                             │
+  │ Send Rate Hz:      0 = событийный (стрельба, чат)           │
+  │                    20 = тиковый (позиция игрока)             │
+  │                                                             │
+  │ Server Validates:  ✓ = включить проверки на сервере         │
+  └─────────────────────────────────────────────────────────────┘
+
+
+─── ШАГ 3: Добавить поля ──────────────────────────────────────────
+
+  Инспектор → Fields → Add Element
+
+  Каждое поле:
+  ┌─────────────────────────────────────────────────────────────┐
+  │ field_name:  имя_поля  (snake_case)                         │
+  │ field_type:  тип данных                                     │
+  │ byte_size:   размер (AUTO для начала)                       │
+  │ source_key:  откуда брать данные (может быть пустым)         │
+  └─────────────────────────────────────────────────────────────┘
+
+
+─── ШАГ 4: Настроить Auto Sync ────────────────────────────────────
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │ Source Method:   get_имя_действия_state                     │
+  │                  Метод на локальном игроке                   │
+  │                                                             │
+  │ Receive Method:  apply_имя_действия_state                   │
+  │                  Метод на удалённом игроке                   │
+  │                                                             │
+  │ Auto Peer Id:    ✓ (обычно всегда включено)                 │
+  └─────────────────────────────────────────────────────────────┘
+
+
+─── ШАГ 5: Настроить Server Validation Rules ───────────────────────
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │ Player Exists:      ✓  (почти всегда)                       │
+  │ Authenticated:      ✓  (почти всегда)                       │
+  │ Max Distance:       50.0  (для пакетов с позицией)          │
+  │ Max Speed:          10.0  (для пакетов с позицией)          │
+  │ Speed Tolerance:    1.5   (запас на лаг)                    │
+  │ Cooldown:           0.1   (для событийных: стрельба)        │
+  │ Position Field:     position  (имя поля с позицией)         │
+  │ Max Action Distance: 10.0 (для действий: place_block)      │
+  └─────────────────────────────────────────────────────────────┘
+
+
+─── ШАГ 6: F6 (пересборка) ────────────────────────────────────────
+
+  Открыть builder/builder_scene.tscn → F6
+  Дождаться "Сборка завершена!"
+
+
+─── ШАГ 7: Добавить методы в скрипты ──────────────────────────────
+
+  В player.gd (локальный игрок):
+
+	func get_имя_действия_state() -> Dictionary:
+		return {
+			"поле1": значение1,
+			"поле2": значение2,
+		}
+
+  В remote_player.gd (удалённый игрок):
+
+	func apply_имя_действия_state(peer_id: int, data: Dictionary) -> void:
+		# Применить данные к визуалу
+		pass
+
+  В server_main.gd (ТОЛЬКО если нужна дополнительная логика):
+
+	func _on_имя_действия(peer_id: int, data: Dictionary) -> void:
+		# Обновить мир/PlayerManager
+		pass
+
+  ГОТОВО! Никаких изменений в client_main.gd!
+
+
+════════════════════════════════════════════════════════════════════
+ ТИПИЧНЫЕ КОНФИГУРАЦИИ
+════════════════════════════════════════════════════════════════════
+
+
+─── Позиция игрока (player_move.tres) ─────────────────────────────
+
+  packet_name:       player_move
+  sync_mode:         CLIENT_TO_ALL_VIA_SERVER
+  channel:           UNRELIABLE        ← потеря не страшна
+  send_rate_hz:      20                ← тиковый, 20 раз/сек
+  server_validates:  ✓
+
+  Auto Sync:
+	source_method:   get_network_state
+	receive_method:  apply_network_state
+	auto_peer_id:    ✓
+
+  Validation Rules:
+	player_exists:      ✓
+	authenticated:      ✓
+	max_distance:       50.0
+	max_speed:          10.0
+	speed_tolerance:    1.5
+	cooldown:           0.0      ← rate limit уже есть
+	position_field:     position
+
+  Fields:
+	[0] peer_id      INT      BITS_16
+	[1] position     VECTOR3  BITS_32    source_key: "position"
+	[2] head_pitch   FLOAT    BITS_16    source_key: "rotation.x"
+		quantize [-1.5, 1.5]
+	[3] body_yaw     FLOAT    BITS_16    source_key: "rotation.y"
+		quantize [-3.15, 3.15]
+
+  Размер: 2 + 12 + 2 + 2 = 18 байт
+  Трафик: 18 × 20 = 360 байт/сек на игрока
+
+
+─── Стрельба (shoot.tres) ─────────────────────────────────────────
+
+  packet_name:       shoot
+  sync_mode:         CLIENT_TO_ALL_VIA_SERVER
+  channel:           RELIABLE         ← важно доставить
+  send_rate_hz:      0                ← событийный
+  server_validates:  ✓
+
+  Auto Sync:
+	source_method:   get_shoot_state
+	receive_method:  apply_shoot_state
+	auto_peer_id:    ☐               ← не нужен peer_id в пакете
+
+  Validation Rules:
+	player_exists:      ✓
+	authenticated:      ✓
+	max_distance:       0.0          ← не проверяем позицию
+	max_speed:          0.0
+	cooldown:           0.1          ← макс 10 выстрелов/сек
+	position_field:     origin
+	max_action_dist:    5.0          ← origin не далее 5 от игрока
+
+  Fields:
+	[0] origin       VECTOR3  BITS_32    source_key: "origin"
+	[1] direction    VECTOR3  BITS_16    source_key: "direction"
+	[2] weapon_id    INT      BITS_8     source_key: "weapon_id"
+
+  Размер: 12 + 6 + 1 = 19 байт
+
+  player.gd:
+	func get_shoot_state() -> Dictionary:
+		return {
+			"origin": global_position,
+			"direction": -global_transform.basis.z,
+			"weapon_id": current_weapon_id,
+		}
+
+	func shoot():
+		_create_bullet(...)
+		# Событийный → ручная отправка
+		_nam.send_action_now("shoot", [...])
+
+  remote_player.gd:
+	func apply_shoot_state(peer_id: int, data: Dictionary) -> void:
+		_create_bullet(data["origin"], data["direction"])
+
+
+─── Размещение блока (place_block.tres) ────────────────────────────
+
+  packet_name:       place_block
+  sync_mode:         CLIENT_TO_ALL_VIA_SERVER
+  channel:           RELIABLE
+  send_rate_hz:      0
+  server_validates:  ✓
+
+  Auto Sync:
+	source_method:   get_place_block_state
+	receive_method:  apply_place_block_state
+	auto_peer_id:    ☐
+
+  Validation Rules:
+	player_exists:      ✓
+	authenticated:      ✓
+	cooldown:           0.5          ← макс 2 блока/сек
+	position_field:     block_pos
+	max_action_dist:    10.0         ← макс 10 юнитов от игрока
+
+  Fields:
+	[0] block_pos    VECTOR3  BITS_16  signed  source_key: "block_pos"
+	[1] block_id     INT      BITS_16          source_key: "block_id"
+	[2] face         INT      BITS_8           source_key: "face"
+
+  Размер: 6 + 2 + 1 = 9 байт
+
+
+─── Чат (chat_message.tres) ────────────────────────────────────────
+
+  packet_name:       chat_message
+  sync_mode:         CLIENT_TO_ALL_VIA_SERVER
+  channel:           RELIABLE
+  send_rate_hz:      0
+  server_validates:  ✓
+
+  Auto Sync:
+	source_method:                   ← пусто (ручная отправка)
+	receive_method:                  ← пусто (ручной приём)
+	auto_peer_id:    ☐
+
+  Validation Rules:
+	player_exists:      ✓
+	authenticated:      ✓
+	cooldown:           1.0          ← макс 1 сообщение/сек
+
+  Fields:
+	[0] text         STRING   AUTO   source_key: "text"
+
+  Размер: переменный (2 + длина текста)
+
+  ⚠ Для чата лучше использовать on_action() вручную,
+	потому что source_method не имеет смысла
+	(текст вводится пользователем, а не каждый кадр).
+
+
+════════════════════════════════════════════════════════════════════
+ СПРАВОЧНИК ВСЕХ ПАРАМЕТРОВ
+════════════════════════════════════════════════════════════════════
+
+
+─── Основные ──────────────────────────────────────────────────────
+
+  packet_name        String     Уникальное имя (snake_case)
+  sync_mode          Enum       Маршрутизация (см. ниже)
+  channel            Enum       RELIABLE / UNRELIABLE
+  send_rate_hz       Int 0-120  0=событийный, N=тиковый
+  server_validates   Bool       Включить серверную проверку
+  fields             Array      Массив NetworkFieldDef
+  description        String     Комментарий (не влияет)
+
+
+─── Auto Sync ─────────────────────────────────────────────────────
+
+  source_method      String     Метод на локальном игроке → Dict
+  receive_method     String     Метод на удалённом игроке (id, data)
+  auto_peer_id       Bool       Авто-подстановка peer_id
+
+
+─── Server Validation Rules ───────────────────────────────────────
+
+  validate_player_exists      Bool     Игрок существует?
+  validate_authenticated      Bool     Игрок аутентифицирован?
+  validate_max_distance       Float    Макс перемещение (0=выкл)
+  validate_max_speed          Float    Макс скорость ед/сек (0=выкл)
+  validate_speed_tolerance    Float    Множитель запаса (1.5)
+  validate_cooldown           Float    Мин. интервал сек (0=выкл)
+  validate_position_field     String   Имя поля с позицией
+  validate_max_action_distance Float   Макс дистанция действия (0=выкл)
+
+
+─── Поля (NetworkFieldDef) ────────────────────────────────────────
+
+  field_name         String     Имя поля (snake_case)
+  field_type         Enum       BOOL/INT/FLOAT/VEC2/VEC3/STRING/BYTES
+  byte_size          Enum       AUTO/BITS_8/BITS_16/BITS_32
+  is_signed          Bool       Знаковость (для INT)
+  use_quantization   Bool       Квантизация (для FLOAT/VEC)
+  quantize_min       Float      Минимум диапазона
+  quantize_max       Float      Максимум диапазона
+  source_key         String     Ключ в Dictionary (точечная нотация)
+  source_description String     Комментарий
+
+
+─── Sync Mode ─────────────────────────────────────────────────────
+
+  0  CLIENT_TO_SERVER         Клиент → Сервер (не пересылается)
+  1  SERVER_TO_ALL            Сервер → Все клиенты
+  2  SERVER_TO_OTHERS         Сервер → Все кроме отправителя
+  3  CLIENT_TO_ALL_VIA_SERVER Клиент → Сервер → Остальные ★
+  4  SERVER_TO_OWNER          Сервер → Только отправителю
+
+
+─── Channel ───────────────────────────────────────────────────────
+
+  0  RELIABLE      Гарантия + порядок.  Для: стрельба, блоки, чат
+  1  UNRELIABLE    Без гарантий.        Для: позиция (20 Гц)
+
+
+─── Field Type ────────────────────────────────────────────────────
+
+  BOOL           1 байт        true/false
+  INT            1/2/4 байт    целое число
+  FLOAT          2/4 байт      дробное число
+  VECTOR2        2×(2/4) байт  два компонента (x, y)
+  VECTOR3        3×(2/4) байт  три компонента (x, y, z)
+  STRING         2+N байт      UTF-8 строка (макс 4096 байт)
+  PACKED_BYTES   4+N байт      произвольные данные (макс 65536)
+
+
+─── Byte Size ─────────────────────────────────────────────────────
+
+  AUTO     BOOL→1, INT→4, FLOAT→4
+  BITS_8   1 байт.  INT: 0-255 / -128..127
+  BITS_16  2 байта. INT: 0-65535. FLOAT: half (±65504, ~3 знака)
+  BITS_32  4 байта. Полный диапазон
+
+
+════════════════════════════════════════════════════════════════════
+ ТАБЛИЦА РАЗМЕРОВ (шпаргалка)
+════════════════════════════════════════════════════════════════════
+
+  ┌────────────────────┬────────┬──────┬──────────────────────────┐
+  │ Что                │ Тип    │ Байт │ Настройка                │
+  ├────────────────────┼────────┼──────┼──────────────────────────┤
+  │ peer_id            │ INT    │ 2    │ BITS_16 unsigned         │
+  │ позиция (точная)   │ VEC3   │ 12   │ BITS_32                  │
+  │ позиция (экономная)│ VEC3   │ 6    │ BITS_16 (half) ⚠         │
+  │ угол поворота      │ FLOAT  │ 2    │ BITS_16 + quantize       │
+  │ weapon_id          │ INT    │ 1    │ BITS_8                   │
+  │ здоровье (0-100)   │ INT    │ 1    │ BITS_8                   │
+  │ направление        │ VEC3   │ 6    │ BITS_16 (half)           │
+  │ имя игрока         │ STRING │ 2+N  │ AUTO                     │
+  │ блок (id)          │ INT    │ 2    │ BITS_16                  │
+  │ координата блока   │ VEC3   │ 6    │ BITS_16 signed           │
+  │ флаг (вкл/выкл)   │ BOOL   │ 1    │ AUTO                     │
+  └────────────────────┴────────┴──────┴──────────────────────────┘
+
+  ⚠ Half-float теряет точность:
+	10.0 → ±0.01,  100.0 → ±0.1,  1000.0 → ±1.0,  2048+ → ±2.0
+	Позицию ВСЕГДА через BITS_32!
+
+
+════════════════════════════════════════════════════════════════════
+ ЧЕКЛИСТ: Создание нового пакета
+════════════════════════════════════════════════════════════════════
+
+  □ Создать .tres в actions/
+  □ Заполнить packet_name (уникальный, snake_case)
+  □ Выбрать sync_mode (обычно CLIENT_TO_ALL_VIA_SERVER)
+  □ Выбрать channel (RELIABLE для событий, UNRELIABLE для тиков)
+  □ Установить send_rate_hz (0 для событий, 20 для позиции)
+  □ Добавить поля с правильными типами и размерами
+  □ Заполнить source_key для каждого поля
+  □ Указать source_method и receive_method
+  □ Настроить валидацию (если server_validates = true)
+  □ F6 — пересборка
+  □ Добавить get_*_state() в player.gd
+  □ Добавить apply_*_state() в remote_player.gd
+  □ (Опционально) _on_* в server_main.gd
+  □ Протестировать
+
+
+════════════════════════════════════════════════════════════════════
+ ЧАСТЫЕ ОШИБКИ
+════════════════════════════════════════════════════════════════════
+
+  ❌ Забыл F6 после изменения .tres
+  ✅ Пересобирай КАЖДЫЙ раз
+
+  ❌ source_key не совпадает с ключами Dictionary
+  ✅ Проверь что get_*_state() возвращает нужные ключи
+
+  ❌ Позиция через BITS_16
+  ✅ Позиция ВСЕГДА через BITS_32
+
+  ❌ quantize_max ≤ quantize_min
+  ✅ max СТРОГО больше min
+
+  ❌ Два .tres с одинаковым packet_name
+  ✅ Билдер выдаст ошибку
+
+  ❌ Метод receive_method не существует на remote_player
+  ✅ Проверь имя метода и сигнатуру (peer_id: int, data: Dictionary)
+
+  ❌ send_rate_hz > 0 для событийного пакета (стрельба)
+  ✅ Стрельба = 0. Тиковый только для позиции/анимации
+
+  ❌ validate_cooldown для тикового пакета
+  ✅ Cooldown для событийных. Для тиковых уже есть rate limiting

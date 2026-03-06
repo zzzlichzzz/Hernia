@@ -8,6 +8,7 @@ signal peer_disconnected(peer_id: int)
 enum Mode { NONE, SERVER, CLIENT }
 const SERVER_ID := 1
 
+const MAX_CONNECTIONS_PER_IP := 3  # Максимум игроков с одного пира
 const TIMEOUT_LIMIT   := 5
 const TIMEOUT_MIN_MS  := 1000
 const TIMEOUT_MAX_MS  := 5000
@@ -18,6 +19,8 @@ var _host       : ENetConnection   = null
 var _mode       : Mode             = Mode.NONE
 var _my_id      : int              = 0
 
+var _ip_count   : Dictionary = {}         # ip_string → int
+var _peer_ip    : Dictionary = {}         # peer_id → ip_string
 var _peers      : Dictionary       = {}
 var _next_id    : int              = 2
 
@@ -31,6 +34,7 @@ var _server_last_seen : float      = 0.0
 # ── Сборщик фрагментов ───────────────────────────
 var _assembler := PacketTypes.FragmentAssembler.new()
 var _fragment_cleanup_timer : float = 0.0
+
 
 
 # ══════════════════════════════════════════════════
@@ -253,11 +257,25 @@ func _check_heartbeats() -> void:
 
 func _on_enet_connect(peer: ENetPacketPeer) -> void:
 	_apply_timeout(peer)
+
 	if _mode == Mode.SERVER:
+		var ip := peer.get_remote_address()
+
+		# Проверка лимита IP
+		var count: int = _ip_count.get(ip, 0)
+		if count >= MAX_CONNECTIONS_PER_IP:
+			print("[net|srv] ✗ IP %s: лимит подключений (%d)" % [ip, MAX_CONNECTIONS_PER_IP])
+			peer.peer_disconnect_now(0)
+			return
+
 		var id := _next_id; _next_id += 1
 		_peers[id] = peer
 		_last_seen[id] = Time.get_unix_time_from_system()
-		print("[net|srv] + id=%d (онлайн: %d)" % [id, _peers.size()])
+		_peer_ip[id] = ip
+		_ip_count[ip] = count + 1
+
+		print("[net|srv] + id=%d ip=%s (с этого IP: %d, онлайн: %d)" % [
+			id, ip, count + 1, _peers.size()])
 		peer_connected.emit(id)
 	else:
 		_server_last_seen = Time.get_unix_time_from_system()
@@ -269,6 +287,17 @@ func _on_enet_disconnect(peer: ENetPacketPeer) -> void:
 	if _mode == Mode.SERVER:
 		var id := _find_id(peer)
 		if id == -1: return
+
+		# Уменьшить счётчик IP
+		if id in _peer_ip:
+			var ip: String = _peer_ip[id]
+			var count: int = _ip_count.get(ip, 1)
+			if count <= 1:
+				_ip_count.erase(ip)
+			else:
+				_ip_count[ip] = count - 1
+			_peer_ip.erase(id)
+
 		_peers.erase(id)
 		_last_seen.erase(id)
 		print("[net|srv] − id=%d (онлайн: %d)" % [id, _peers.size()])

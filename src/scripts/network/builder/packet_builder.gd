@@ -5,6 +5,10 @@ extends Node
 const ACTIONS_DIR := "res://src/scripts/network/actions/"
 const OUTPUT_PATH := "res://src/scripts/network/generated/generated_packets.gd"
 
+const KNOWN_SCRIPTS := [
+	"res://src/scripts/network/scenes/player.gd",
+	"res://src/scripts/network/scenes/remote_player.gd",
+]
 
 func _ready() -> void:
 	print("═══════════════════════════════════════")
@@ -89,6 +93,41 @@ func _validate(defs: Array[NetworkPacketDef]) -> bool:
 			field_names[f.field_name] = true
 	return ok
 
+func _validate_methods(defs: Array[NetworkPacketDef]) -> void:
+	# Загружаем скрипты для проверки наличия методов
+	var scripts: Array[GDScript] = []
+	for path in KNOWN_SCRIPTS:
+		if ResourceLoader.exists(path):
+			scripts.append(load(path) as GDScript)
+
+	for d in defs:
+		# Проверить source_method
+		if d.source_method != "":
+			var found := false
+			for s in scripts:
+				if s.has_method(d.source_method):
+					found = true
+					break
+				# Проверяем через список методов
+				for m in s.get_script_method_list():
+					if m["name"] == d.source_method:
+						found = true
+						break
+			if not found:
+				push_warning("[builder] ⚠ Пакет '%s': source_method '%s' не найден ни в одном скрипте" % [
+					d.packet_name, d.source_method])
+
+		# Проверить receive_method
+		if d.receive_method != "":
+			var found := false
+			for s in scripts:
+				for m in s.get_script_method_list():
+					if m["name"] == d.receive_method:
+						found = true
+						break
+			if not found:
+				push_warning("[builder] ⚠ Пакет '%s': receive_method '%s' не найден ни в одном скрипте" % [
+					d.packet_name, d.receive_method])
 
 # ══════════════════════════════════════════════════
 #  ГЕНЕРАЦИЯ
@@ -115,10 +154,14 @@ func _generate(defs: Array[NetworkPacketDef]) -> String:
 	L.append("## Метаданные пакетов для NetworkActionManager")
 	L.append("const PACKETS := {")
 	for d in defs:
-		# Собираем имена полей для гарантированного порядка
 		var fn_arr := PackedStringArray()
 		for f: NetworkFieldDef in d.fields:
 			fn_arr.append("\"%s\"" % f.field_name)
+
+		var sk_arr := PackedStringArray()
+		for f: NetworkFieldDef in d.fields:
+			var key: String = f.source_key if f.source_key != "" else f.field_name
+			sk_arr.append("\"%s\": \"%s\"" % [f.field_name, key])
 
 		L.append("\t%d: {" % d.get_packet_id())
 		L.append("\t\t\"name\": \"%s\"," % d.packet_name)
@@ -127,6 +170,21 @@ func _generate(defs: Array[NetworkPacketDef]) -> String:
 		L.append("\t\t\"server_validates\": %s," % ("true" if d.server_validates else "false"))
 		L.append("\t\t\"field_names\": [%s]," % ", ".join(fn_arr))
 		L.append("\t\t\"send_rate_hz\": %d," % d.send_rate_hz)
+		L.append("\t\t\"source_method\": \"%s\"," % d.source_method)
+		L.append("\t\t\"receive_method\": \"%s\"," % d.receive_method)
+		L.append("\t\t\"auto_peer_id\": %s," % ("true" if d.auto_peer_id else "false"))
+		L.append("\t\t\"source_keys\": {%s}," % ", ".join(sk_arr))
+
+		# Правила валидации
+		L.append("\t\t\"v_player_exists\": %s," % ("true" if d.validate_player_exists else "false"))
+		L.append("\t\t\"v_authenticated\": %s," % ("true" if d.validate_authenticated else "false"))
+		L.append("\t\t\"v_max_distance\": %s," % _fstr(d.validate_max_distance))
+		L.append("\t\t\"v_max_speed\": %s," % _fstr(d.validate_max_speed))
+		L.append("\t\t\"v_speed_tolerance\": %s," % _fstr(d.validate_speed_tolerance))
+		L.append("\t\t\"v_cooldown\": %s," % _fstr(d.validate_cooldown))
+		L.append("\t\t\"v_position_field\": \"%s\"," % d.validate_position_field)
+		L.append("\t\t\"v_max_action_dist\": %s," % _fstr(d.validate_max_action_distance))
+
 		L.append("\t},")
 	L.append("}")
 	L.append("")

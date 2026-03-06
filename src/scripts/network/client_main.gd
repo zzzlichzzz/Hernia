@@ -36,9 +36,14 @@ func _ready() -> void:
 	_net.register_handler(PacketTypes.PLAYER_JOINED, _on_player_joined)
 	_net.register_handler(PacketTypes.PLAYER_LEFT,   _on_player_left)
 	_net.register_handler(PacketTypes.PONG,          _on_pong)
+	_net.register_handler(PacketTypes.AUTH_RESPONSE,  _on_auth_response)
 
 	_nam.setup(_net)
-	_nam.on_action("player_move", _on_remote_player_move)
+
+	# ═══ АВТОПРИВЯЗКА ПОЛУЧАТЕЛЯ — ОДНА СТРОКА НА ВЕСЬ ПРОЕКТ ═══
+	# Работает для ВСЕХ пакетов с receive_method в .tres
+	# Новые пакеты подхватываются автоматически
+	_nam.auto_bind_receiver(_pm)
 
 	_ping_timer = Timer.new()
 	_ping_timer.wait_time = PING_INTERVAL
@@ -53,21 +58,18 @@ func _ready() -> void:
 
 
 func _on_connected(_id: int) -> void:
-	print("[client] Соединение установлено, отправка токена...")
+	print("[client] Соединение установлено")
 	_net.send_to_server(PacketTypes.write_auth_request("my_game_v1"))
-	# Подписка на ответ
-	_net.register_handler(PacketTypes.AUTH_RESPONSE, _on_auth_response)
+
 
 func _on_auth_response(_peer_id: int, body: StreamPeerBuffer) -> void:
 	var data := PacketTypes.read_auth_response(body)
-	if data["success"]:
-		print("[client] Аутентификация успешна!")
-	else:
+	if not data["success"]:
 		print("[client] Аутентификация отклонена: %s" % data["message"])
 		_net.shutdown()
 
+
 func _on_disconnected(_id: int) -> void:
-	print("[client] Отключён от сервера")
 	_cleanup()
 
 
@@ -85,64 +87,35 @@ func _on_welcome(_peer_id: int, body: StreamPeerBuffer) -> void:
 	var data := PacketTypes.read_welcome(body)
 	_my_id = data["id"]
 	_net.set_my_id(_my_id)
-	var pos: Vector3 = data["position"]
-	var rot: Vector3 = data["rotation"]
 
 	_local_player = PLAYER_SCENE.instantiate() as CharacterBody3D
 	_local_player.name = "LocalPlayer"
 	$World/Players.add_child(_local_player)
-	_local_player.global_position = pos
-	_local_player.rotation.y = rot.y
+	_local_player.global_position = data["position"]
+	_local_player.rotation.y = data["rotation"].y
+
+	# ═══ АВТОПРИВЯЗКА ИСТОЧНИКА — ОДНА СТРОКА НА ВЕСЬ ПРОЕКТ ═══
+	# Сканирует ВСЕ пакеты в PACKETS
+	# Привязывает те, чей source_method есть у _local_player
+	# Новые пакеты подхватываются автоматически
+	_nam.auto_bind_source(_local_player, _my_id)
 
 	_ping_timer.start()
-	print("[client] WELCOME: id=%d pos=%s" % [_my_id, pos])
 
 
 func _on_player_joined(_peer_id: int, body: StreamPeerBuffer) -> void:
 	var data := PacketTypes.read_player_joined(body)
-	var id: int = data["id"]
-	if id == _my_id:
+	if data["id"] == _my_id:
 		return
-	_pm.add_player(id, data["position"], data["rotation"])
+	_pm.add_player(data["id"], data["position"], data["rotation"])
 
 
 func _on_player_left(_peer_id: int, body: StreamPeerBuffer) -> void:
-	var data := PacketTypes.read_player_left(body)
-	_pm.remove_player(data["id"])
+	_pm.remove_player(PacketTypes.read_player_left(body)["id"])
 
 
 func _on_pong(_peer_id: int, _body: StreamPeerBuffer) -> void:
 	pass
-
-
-func _on_remote_player_move(_peer_id: int, data: Dictionary) -> void:
-	var id: int = data["peer_id"]
-	if id == _my_id:
-		return
-	var pos: Vector3 = data["position"]
-	var rot := Vector3(data["head_pitch"], data["body_yaw"], 0.0)
-	_pm.update_player(id, pos, rot)
-
-
-# ══════════════════════════════════════════════════
-#  ИГРОВОЙ ЦИКЛ — просто обновляем данные каждый кадр,
-#  NAM сам отправит с нужной герцовкой
-# ══════════════════════════════════════════════════
-
-func _physics_process(_delta: float) -> void:
-	if _local_player == null or _my_id == 0:
-		return
-
-	var state: Dictionary = _local_player.get_network_state()
-
-	# NAM сам контролирует частоту отправки (send_rate_hz в .tres)
-	# Просто обновляем данные каждый кадр
-	_nam.send_action("player_move", [
-		_my_id,
-		state["position"],
-		state["rotation"].x,
-		state["rotation"].y,
-	])
 
 
 func _send_ping() -> void:

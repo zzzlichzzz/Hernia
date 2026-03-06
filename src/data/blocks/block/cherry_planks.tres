@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemBlock" format=3 uid="uid://ltsfa64w0xq1"]
+
+[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/models/blocks/cube.obj" id="1_a4vv7"]
+[ext_resource type="Script" uid="uid://b8dv18bqxc5uj" path="res://src/data/items/item_block.gd" id="1_duywr"]
+[ext_resource type="Script" uid="uid://c4qx5vqwkdro2" path="res://src/data/blocks/block_definition.gd" id="2_fs2w7"]
+
+[sub_resource type="Resource" id="Resource_8t35y"]
+script = ExtResource("2_fs2w7")
+block_name = "cherry_planks"
+texture_name = "cherry_planks"
+model = ExtResource("1_a4vv7")
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[resource]
+script = ExtResource("1_duywr")
+block_definition = SubResource("Resource_8t35y")
+metadata/_custom_type_script = "uid://b8dv18bqxc5uj"

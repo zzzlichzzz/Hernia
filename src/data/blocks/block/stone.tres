@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemBlock" format=3 uid="uid://b78npyqqf2afx"]
+
+[ext_resource type="ArrayMesh" uid="uid://b8icebmj6pg4q" path="res://src/assets/models/blocks/frame_cube.obj" id="1_5vxs4"]
+[ext_resource type="Script" uid="uid://b8dv18bqxc5uj" path="res://src/data/items/item_block.gd" id="1_q3pgx"]
+[ext_resource type="Script" uid="uid://c4qx5vqwkdro2" path="res://src/data/blocks/block_definition.gd" id="2_p18bh"]
+
+[sub_resource type="Resource" id="Resource_lp0n8"]
+script = ExtResource("2_p18bh")
+block_name = "stone"
+texture_name = "stone"
+model = ExtResource("1_5vxs4")
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[resource]
+script = ExtResource("1_q3pgx")
+block_definition = SubResource("Resource_lp0n8")
+metadata/_custom_type_script = "uid://b8dv18bqxc5uj"

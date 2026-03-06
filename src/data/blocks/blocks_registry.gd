@@ -3,7 +3,7 @@ extends Node
 class_name BlockRegistry
 
 var LIBRARY_PATH = "res://src/data/blocks/voxel_blocky_library.tres"
-var BLOCKS_FOLDER = "res://src/data/blocks/definitions/"
+var BLOCKS_FOLDER = "res://src/data/blocks/block/"
 var MODELS_FOLDER = "res://src/assets/models/blocks/"
 const MESHER_PATH = "res://src/data/blocks/voxel_mesher_blocky.tres"
 
@@ -260,60 +260,60 @@ func _process_block_definition(file_path: String):
 		return
 	
 	var def_resource = load(file_path)
-	if not def_resource or not def_resource is BlockDefinition:
+	if not def_resource or not def_resource is ItemBlock:
 		if debug_mode:
 			print("   ❌ Неверный формат: ", file_path)
 		return
 	
-	var def: BlockDefinition = def_resource
+	var def: ItemBlock = def_resource
 	
 		# Синхронизация material_type
-	match def.material_type_enum:
+	match def.getBlockDefinition().material_type_enum:
 		BlockDefinition.MaterialType.OPAQUE:
-			def.material_type = "opaque"
+			def.getBlockDefinition().material_type = "opaque"
 		BlockDefinition.MaterialType.TRANSPARENT:
-			def.material_type = "transparent"
+			def.getBlockDefinition().material_type = "transparent"
 		BlockDefinition.MaterialType.FOLIAGE:
-			def.material_type = "foliage"
+			def.getBlockDefinition().material_type = "foliage"
 		BlockDefinition.MaterialType.MULTI_FACE:
-			def.material_type = "multi_face"
+			def.getBlockDefinition().material_type = "multi_face"
 		BlockDefinition.MaterialType.CHAMELEON:
-			def.material_type = "chameleon"
-			def.is_chameleon = true
+			def.getBlockDefinition().material_type = "chameleon"
+			def.getBlockDefinition().is_chameleon = true
 	
 	# Хамелеон — откладываем
-	if def.is_chameleon:
+	if def.getBlockDefinition().is_chameleon:
 		_chameleon_defs.append(def)
 		if debug_mode:
-			print("   🔄 Хамелеон отложен: ", def.block_name)
+			print("   🔄 Хамелеон отложен: ", def.getBlockDefinition().block_name)
 		return
 	# ══════════════════════════════════════════
 	
 	if debug_mode:
-		print("   📦 Блок: ", def.block_name)
-		print("   🎨 Материал: ", def.material_type)
+		print("   📦 Блок: ", def.getBlockDefinition().block_name)
+		print("   🎨 Материал: ", def.getBlockDefinition().material_type)
 	
-	if def.model == null:
+	if def.getBlockDefinition().model == null:
 		if debug_mode:
 			print("   ⚠️ Модель не указана, пропуск")
 		return
 	
 	if debug_mode:
-		print("   📐 Меш (surfaces: ", def.model.get_surface_count(), ")")
+		print("   📐 Меш (surfaces: ", def.getBlockDefinition().model.get_surface_count(), ")")
 	
 	var model = VoxelBlockyModelMesh.new()
-	model.resource_name = def.block_name
-	model.mesh = def.model
-	model.culls_neighbors = def.culls_neighbors
-	model.transparency_index = def.transparency_index
-	model.collision_aabbs = def.collision_aabbs
-	model.set("collision_enabled_0", def.collision_enabled)
+	model.resource_name = def.getBlockDefinition().block_name
+	model.mesh = def.getBlockDefinition().model
+	model.culls_neighbors = def.getBlockDefinition().culls_neighbors
+	model.transparency_index = def.getBlockDefinition().transparency_index
+	model.collision_aabbs = def.getBlockDefinition().collision_aabbs
+	model.set("collision_enabled_0", def.getBlockDefinition().collision_enabled)
 	
 	var mat: ShaderMaterial = null
-	if def.material_type == "multi_face" or def.has_per_face_textures():
-		mat = _create_multi_face_material(def)
+	if def.getBlockDefinition().material_type == "multi_face" or def.getBlockDefinition().has_per_face_textures():
+		mat = _create_multi_face_material(def.getBlockDefinition())
 	else:
-		mat = _create_simple_material(def.material_type, def.texture_name)
+		mat = _create_simple_material(def.getBlockDefinition().material_type, def.getBlockDefinition().texture_name)
 	
 	if mat:
 		model.set_material_override(0, mat)
@@ -328,12 +328,12 @@ func _process_block_definition(file_path: String):
 	# ══════════════════════════════════════════
 	#  Запоминаем текстуру для маппинга
 	# ══════════════════════════════════════════
-	var primary_tex = def.texture_name
+	var primary_tex = def.getBlockDefinition().texture_name
 	if primary_tex == "":
-		if def.texture_side != "":
-			primary_tex = def.texture_side
+		if def.getBlockDefinition().texture_side != "":
+			primary_tex = def.getBlockDefinition().texture_side
 		elif def.texture_top != "":
-			primary_tex = def.texture_top
+			primary_tex = def.getBlockDefinition().texture_top
 	if primary_tex != "":
 		_block_id_to_texture[id] = primary_tex
 	# ══════════════════════════════════════════
@@ -351,7 +351,7 @@ func _find_block_definitions() -> Array:
 	dir.list_dir_begin()
 	var file_name = dir.get_next()
 	while file_name != "":
-		if file_name.ends_with(".tres") and file_name != "block_definition.gd":
+		if file_name.ends_with(".tres") and file_name != "item_block.gd":
 			files.append(BLOCKS_FOLDER + file_name)
 		file_name = dir.get_next()
 	dir.list_dir_end()
@@ -429,24 +429,24 @@ func _register_chameleon_blocks():
 	
 	for cham_def in _chameleon_defs:
 		if debug_mode:
-			print("\n   🔄 Регистрация хамелеона: ", cham_def.block_name)
+			print("\n   🔄 Регистрация хамелеона: ", cham_def.getBlockDefinition().block_name)
 		
-		if cham_def.model == null:
+		if cham_def.getBlockDefinition().model == null:
 			print("   ❌ У хамелеона нет модели!")
 			continue
 		
 		var model = VoxelBlockyModelMesh.new()
-		model.resource_name = cham_def.block_name
-		model.mesh = cham_def.model
-		model.culls_neighbors = cham_def.culls_neighbors
-		model.transparency_index = cham_def.transparency_index
-		model.collision_aabbs = cham_def.collision_aabbs
-		model.set("collision_enabled_0", cham_def.collision_enabled)
+		model.resource_name = cham_def.getBlockDefinition().block_name
+		model.mesh = cham_def.getBlockDefinition().model
+		model.culls_neighbors = cham_def.getBlockDefinition().culls_neighbors
+		model.transparency_index = cham_def.getBlockDefinition().transparency_index
+		model.collision_aabbs = cham_def.getBlockDefinition().collision_aabbs
+		model.set("collision_enabled_0", cham_def.getBlockDefinition().collision_enabled)
 		
 		# Создаём материал только один раз, потом переиспользуем
 		if shared_material == null:
 			shared_material = _create_chameleon_material(
-				chameleon_shader, atlas_texture, cham_def.texture_name)
+				chameleon_shader, atlas_texture, cham_def.getBlockDefinition().texture_name)
 		
 		if shared_material:
 			model.set_material_override(0, shared_material)

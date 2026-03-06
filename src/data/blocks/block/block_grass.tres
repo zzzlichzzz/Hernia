@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemBlock" format=3 uid="uid://fd3m3oq3ta3r"]
+
+[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/models/blocks/cube.obj" id="1_nopn7"]
+[ext_resource type="Script" uid="uid://c4qx5vqwkdro2" path="res://src/data/blocks/block_definition.gd" id="2_3p1bk"]
+[ext_resource type="Script" uid="uid://b8dv18bqxc5uj" path="res://src/data/items/item_block.gd" id="3_en2dv"]
+
+[sub_resource type="Resource" id="Resource_vk8ym"]
+script = ExtResource("2_3p1bk")
+block_name = "block_grass"
+texture_name = "dirt"
+texture_top = "grass_block_top"
+texture_bottom = "dirt"
+texture_side = "dirt"
+texture_side_overlay = "grass_block_side_overlay"
+model = ExtResource("1_nopn7")
+material_type_enum = 3
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[resource]
+script = ExtResource("3_en2dv")
+block_definition = SubResource("Resource_vk8ym")
+metadata/_custom_type_script = "uid://b8dv18bqxc5uj"

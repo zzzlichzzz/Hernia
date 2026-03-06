@@ -25,7 +25,7 @@ const FRAME_COLLISION_LAYER = 2  # Layer 2 (бит 1)
 const ATLAS_COORDS_PATH = "res://src/assets/textures/atlas/block_coordinates.tres"
 const ATLAS_TEXTURE_PATH = "res://src/assets/textures/atlas/block_atlas.png"
 const SHADER_PATH = "res://src/shaders/blocks/block_opaque.gdshader"
-const FRAME_MESH_PATH = "res://src/assets/blocks/models/frame_cube.obj"
+const FRAME_MESH_PATH = "res://src/assets//models/blocks/frame_cube.obj"
 
 
 func _ready():

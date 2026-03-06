@@ -42,6 +42,7 @@ source_description = "Поворот тела"
 script = ExtResource("1_script")
 packet_name = "player_move"
 channel = 1
+send_rate_hz = 20
 server_validates = true
 fields = Array[ExtResource("2_script")]([SubResource("Resource_peer_id"), SubResource("Resource_position"), SubResource("Resource_head_pitch"), SubResource("Resource_body_yaw")])
 description = "Пакет синхронизации позиции игрока. Клиент → Сервер → Остальные клиенты."

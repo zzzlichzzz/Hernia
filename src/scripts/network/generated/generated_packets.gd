@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════
 # AUTO-GENERATED — DO NOT EDIT
 # Source: res://src/scripts/network/actions/
-# Date:   2026-03-06T00:43:52
+# Date:   2026-03-06T02:52:57
 # ═══════════════════════════════════════════════════
 class_name GeneratedPackets
 
@@ -15,6 +15,7 @@ const PACKETS := {
 		"channel": 1,
 		"server_validates": true,
 		"field_names": ["peer_id", "position", "head_pitch", "body_yaw"],
+		"send_rate_hz": 20,
 	},
 }
 

@@ -1,0 +1,321 @@
+╔══════════════════════════════════════════════════════════════════╗
+║     ПАМЯТКА: СИСТЕМА БЕЗОПАСНОСТИ СЕТЕВОГО КОДА                  ║
+║     Для будущих доработок и запросов в нейросеть                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+═══ КАРТА ЗАЩИТ И ГДЕ ОНИ ЖИВУТ ═══
+
+┌───┬─────────────────────┬──────────────────────┬────────────────┐
+│ # │ Защита              │ Файл                 │ Метод/место    │
+├───┼─────────────────────┼──────────────────────┼────────────────┤
+│ 1 │ Подмена peer_id     │ network_action_mgr   │ _handle_server │
+│ 2 │ Rate limiting       │ network_action_mgr   │ _check_rate    │
+│ 3 │ Лимит строк/байтов  │ generated_packets    │ read_* функции │
+│ 4 │ Аутентификация      │ packet_types +       │ AUTH_REQUEST/  │
+│   │                     │ server_main +        │ AUTH_RESPONSE  │
+│   │                     │ client_main          │                │
+│ 5 │ Антителепорт        │ server_main          │ _validate_*    │
+│ 6 │ Антиспидхак         │ server_main          │ _validate_*    │
+│ 7 │ Cooldown действий   │ server_main          │ _check_cooldown│
+│ 8 │ Фрагмент-бомба      │ packet_types         │ FragmentAssem. │
+│ 9 │ Heartbeat таймаут   │ network_manager      │ _check_heartb. │
+└───┴─────────────────────┴──────────────────────┴────────────────┘
+
+
+═══ ЗАЩИТА 1: ПОДМЕНА PEER_ID ═══
+
+Файл:     network_action_manager.gd
+Метод:    _handle_server()
+Строка:   if "peer_id" in data: data["peer_id"] = peer_id
+
+Как работает:
+  Клиент может отправить в теле пакета любой peer_id.
+  Сервер ВСЕГДА перезаписывает поле "peer_id" на реальный
+  ENet ID отправителя перед валидацией и маршрутизацией.
+
+Что защищает:
+  - Управление чужим персонажем
+  - Подделка авторства действий
+
+Как доработать:
+  Если появится новое поле идентификации (например "target_id"),
+  его тоже нужно проверять в валидаторе.
+
+
+═══ ЗАЩИТА 2: RATE LIMITING ═══
+
+Файл:     network_action_manager.gd
+Метод:    _check_rate_limit(peer_id, pid) → bool
+Данные:   _rate_limits: Dictionary  { peer_id → { pid → {count, window_start} } }
+		  _rate_max: Dictionary     { pid → int (макс. пакетов/сек) }
+
+Как работает:
+  Скользящее окно 1 секунда. Считает пакеты каждого типа
+  от каждого пира. Если count > max → пакет отбрасывается.
+
+Лимиты (настраиваются в setup()):
+  - Тиковые пакеты: send_rate_hz × 3 (с запасом на лаг)
+  - Событийные пакеты: 30/сек по умолчанию
+
+Вызывается:
+  В _on_packet() ПЕРЕД десериализацией.
+
+Как доработать:
+  - Добавить бан при многократном превышении:
+	if exceed_count > 100: kick_peer(peer_id)
+  - Добавить поле max_rate в NetworkPacketDef (.tres)
+	для индивидуальной настройки через инспектор
+  - Логировать превышения для анализа
+
+Очистка:
+  clear_peer_data(peer_id) — вызывать при отключении пира.
+
+
+═══ ЗАЩИТА 3: ЛИМИТ СТРОК И БАЙТОВ ═══
+
+Файл:     generated_packets.gd (автогенерация)
+Генератор: packet_builder.gd → _gen_read_field()
+
+Как работает:
+  При чтении STRING проверяется длина ≤ 4096 байт.
+  При чтении PACKED_BYTES проверяется длина ≤ 65536 байт.
+  Если превышено — поле остаётся пустым.
+
+Генерируемый код:
+  STRING:       if _len > 0 and _len <= 4096: ...
+  PACKED_BYTES: if _len > 0 and _len <= 65536: ...
+
+Как доработать:
+  - Добавить @export var max_length: int = 4096
+	в NetworkFieldDef для индивидуального лимита
+  - В packet_builder.gd использовать f.max_length
+	вместо хардкод-констант
+
+
+═══ ЗАЩИТА 4: АУТЕНТИФИКАЦИЯ ═══
+
+Файлы:
+  packet_types.gd   → AUTH_REQUEST (9), AUTH_RESPONSE (10)
+  server_main.gd    → _on_auth_request(), _authenticated dict
+  client_main.gd    → _on_connected() отправляет токен
+
+Как работает:
+  1. Клиент подключается → ENet EVENT_CONNECT
+  2. Сервер ставит _authenticated[peer_id] = false
+  3. Клиент отправляет AUTH_REQUEST с токеном
+  4. Сервер проверяет токен:
+	 - Совпадает → _authenticated[peer_id] = true → WELCOME
+	 - Не совпадает → AUTH_RESPONSE(false) → kick через 0.5 сек
+  5. В _handle_server: if not _authenticated[peer_id]: return
+
+Токен:
+  Сейчас: const SERVER_TOKEN = "my_game_v1" (простая проверка версии)
+
+Как доработать:
+  - Заменить на JWT или хеш пароля
+  - Добавить challenge-response (сервер шлёт случайное число,
+	клиент хеширует с паролем и возвращает)
+  - Хранить whitelist/blacklist IP
+  - Добавить таймаут на аутентификацию:
+	если через 5 сек не прислал AUTH_REQUEST → kick
+
+Очистка:
+  _authenticated.erase(peer_id) в _on_peer_disconnected()
+
+
+═══ ЗАЩИТА 5: АНТИТЕЛЕПОРТ ═══
+
+Файл:     server_main.gd
+Метод:    _validate_player_move(peer_id, data) → bool
+
+Как работает:
+  Сравнивает old_pos из PlayerManager с new_pos из пакета.
+  Если distance > 50.0 → пакет отклоняется.
+
+Настройки:
+  const MAX_TELEPORT_DISTANCE := 50.0
+
+Как доработать:
+  - Уменьшить порог (50 → 20)
+  - Привязать к реальной максимальной скорости игрока
+  - Вернуть игрока на последнюю валидную позицию:
+	_nam.send_action_to(peer_id, "force_position", [old_pos])
+  - Логировать и банить при повторных нарушениях
+
+
+═══ ЗАЩИТА 6: АНТИСПИДХАК ═══
+
+Файл:     server_main.gd
+Метод:    _validate_player_move(peer_id, data) → bool
+Данные:   _last_move_time: Dictionary { peer_id → float }
+
+Как работает:
+  Вычисляет dt (время между пакетами).
+  max_distance = max_speed × dt × 1.5 (запас на лаг).
+  Если distance > max_distance → пакет отклоняется.
+
+Настройки:
+  const MAX_PLAYER_SPEED := 10.0   # юнит/сек
+  const SPEED_TOLERANCE  := 1.5    # множитель запаса
+
+Как доработать:
+  - Учитывать вертикальную скорость отдельно (прыжок vs полёт)
+  - Добавить счётчик нарушений:
+	if violations > 5: kick_peer(peer_id)
+  - Учитывать режимы (полёт в креативе = другой лимит)
+  - Сглаживать dt через скользящее среднее
+
+Очистка:
+  _last_move_time.erase(peer_id) в _on_peer_disconnected()
+
+
+═══ ЗАЩИТА 7: COOLDOWN ДЕЙСТВИЙ ═══
+
+Файл:     server_main.gd
+Метод:    _check_cooldown(peer_id, action_name, cooldown_sec) → bool
+Данные:   _cooldowns: Dictionary { peer_id → { action → last_time } }
+
+Как работает:
+  Запоминает время последнего действия.
+  Если прошло меньше cooldown_sec → return false.
+
+Использование:
+  func _validate_shoot(peer_id, data) -> bool:
+	  if not _check_cooldown(peer_id, "shoot", 0.1):
+		  return false
+	  return true
+
+Как доработать:
+  - Разные кулдауны для разного оружия:
+	var cd = WEAPON_COOLDOWNS[data["weapon_id"]]
+  - Вынести кулдауны в отдельный словарь/ресурс
+  - Добавить burst-режим: 3 выстрела подряд, потом пауза
+
+Очистка:
+  _cooldowns.erase(peer_id) в _on_peer_disconnected()
+
+
+═══ ЗАЩИТА 8: ФРАГМЕНТ-БОМБА ═══
+
+Файл:     packet_types.gd → class FragmentAssembler
+
+Лимиты (константы):
+  MAX_FRAGMENTS_PER_PACKET = 64    макс. фрагментов в одном пакете
+  MAX_ASSEMBLIES_PER_PEER  = 4     макс. одновременных сборок от пира
+  MAX_TOTAL_ASSEMBLIES     = 256   макс. всего сборок в буфере
+
+Как работает:
+  1. total_fragments > 64 → отклонить
+  2. Буфер полон (256) → отклонить
+  3. У пира уже 4 сборки → отклонить
+  4. Таймаут 10 сек → cleanup() удаляет старые
+
+Как доработать:
+  - Добавить подсчёт суммарного размера байтов:
+	if total_bytes_from_peer > MAX_BYTES: reject
+  - Уменьшить таймаут (10 → 5 сек)
+  - Логировать подозрительных пиров
+
+
+═══ ЗАЩИТА 9: HEARTBEAT ТАЙМАУТ ═══
+
+Файл:     network_manager.gd
+Метод:    _check_heartbeats()
+Данные:   _last_seen: Dictionary { peer_id → float }
+
+Как работает:
+  Каждый принятый пакет обновляет _last_seen[peer_id].
+  Если now - last_seen > HEARTBEAT_TIMEOUT (10 сек) → kick.
+
+Настройки:
+  HEARTBEAT_TIMEOUT = 10.0 сек
+  TIMEOUT_LIMIT     = 5       (ENet внутренний)
+  TIMEOUT_MIN_MS    = 1000
+  TIMEOUT_MAX_MS    = 5000
+
+Как доработать:
+  - Клиент: отправлять PING каждые 3 сек (уже есть)
+  - Сервер: отправлять PING клиентам, если нет пакетов > 5 сек
+  - Добавить измерение RTT (round-trip time)
+
+
+═══ ОЧИСТКА ПРИ ОТКЛЮЧЕНИИ ПИРА (ВАЖНО!) ═══
+
+В server_main.gd → _on_peer_disconnected():
+
+  func _on_peer_disconnected(id: int) -> void:
+	  _pm.remove_player(id)
+	  _net.broadcast(PacketTypes.write_player_left(id))
+	  _authenticated.erase(id)         # Защита 4
+	  _last_move_time.erase(id)        # Защита 6
+	  _cooldowns.erase(id)             # Защита 7
+	  _nam.clear_peer_data(id)         # Защита 2 (rate limits)
+
+В network_action_manager.gd:
+
+  func clear_peer_data(peer_id: int) -> void:
+	  _rate_limits.erase(peer_id)
+
+
+═══ ДОБАВЛЕНИЕ НОВОЙ ЗАЩИТЫ (ШАБЛОН) ═══
+
+1. Определить угрозу:
+   - Что клиент может подделать/злоупотребить?
+   - Какой ущерб?
+
+2. Выбрать место проверки:
+   - packet_types.gd      → уровень протокола (фрагменты, размеры)
+   - network_action_mgr   → уровень маршрутизации (rate, peer_id)
+   - server_main.gd       → уровень игровой логики (позиция, cooldown)
+   - generated_packets.gd → уровень данных (лимиты полей)
+
+3. Реализовать:
+   - Хранилище: Dictionary в нужном файле
+   - Проверка: функция → bool
+   - Вызов: в нужном месте цепочки обработки
+   - Очистка: при отключении пира
+
+4. Цепочка обработки пакета на сервере:
+
+   ENet receive
+	   ↓
+   PacketTypes.read_packet()        ← Защита 8 (фрагмент-бомба)
+	   ↓
+   NetworkManager._on_enet_receive  ← Защита 9 (heartbeat)
+	   ↓
+   NAM._on_packet()                 ← Защита 2 (rate limiting)
+	   ↓
+   GeneratedPackets.read_*()        ← Защита 3 (лимит строк)
+	   ↓
+   NAM._handle_server()             ← Защита 1 (подмена peer_id)
+	   ↓
+   on_validate()                    ← Защита 4 (аутентификация)
+									← Защита 5 (антителепорт)
+									← Защита 6 (антиспидхак)
+									← Защита 7 (cooldown)
+	   ↓
+   on_action() → обработчик
+	   ↓
+   broadcast_except() → другим клиентам
+
+
+═══ НЕРЕАЛИЗОВАННЫЕ ЗАЩИТЫ (НА БУДУЩЕЕ) ═══
+
+Шифрование (DTLS):
+  Godot 4 поддерживает ENet + DTLS.
+  Нужно: сертификат сервера, ключ.
+  Где: NetworkManager.create_server/create_client
+  Сложность: средняя.
+
+Replay-атака:
+  Злоумышленник перехватывает пакет и шлёт повторно.
+  Решение: sequence number + временная метка в заголовке.
+  Где: PacketTypes (расширить заголовок на 4 байта).
+  Сложность: средняя.
+
+IP бан:
+  Хранить список забаненных IP.
+  Где: server_main.gd при _on_peer_connected.
+  Получить IP: peer.get_remote_address()
+  Сложность: лёгкая.

@@ -1,34 +1,28 @@
 class_name NetworkPacketDef
 extends Resource
-## Описание сетевого пакета.
 
-## ═══ Уникальное имя ═══
 @export var packet_name: String = ""
 
-## ═══ Направление и маршрутизация ═══
 enum SyncMode {
-	CLIENT_TO_SERVER,         # 0
-	SERVER_TO_ALL,            # 1
-	SERVER_TO_OTHERS,         # 2
-	CLIENT_TO_ALL_VIA_SERVER, # 3
-	SERVER_TO_OWNER,          # 4
+	CLIENT_TO_SERVER,
+	SERVER_TO_ALL,
+	SERVER_TO_OTHERS,
+	CLIENT_TO_ALL_VIA_SERVER,
+	SERVER_TO_OWNER,
 }
 @export var sync_mode: SyncMode = SyncMode.CLIENT_TO_ALL_VIA_SERVER
 
-## ═══ Надёжность канала ═══
 enum ChannelMode { RELIABLE, UNRELIABLE }
 @export var channel: ChannelMode = ChannelMode.RELIABLE
 
-## ═══ Серверная валидация ═══
+## Частота отправки (Гц). 0 = событийный (send_action вручную).
+## 20 = 20 раз/сек. 60 = 60 раз/сек.
+@export_range(0, 120, 1) var send_rate_hz: int = 0
+
 @export var server_validates: bool = false
-
-## ═══ Поля (порядок = порядок байтов) ═══
 @export var fields: Array[NetworkFieldDef] = []
-
-## ═══ Описание (просто комментарий) ═══
 @export_multiline var description: String = ""
 
 
-## Packet ID — хеш от имени + смещение 100 (не пересекается с PacketTypes 1-8)
 func get_packet_id() -> int:
 	return 100 + (packet_name.hash() & 0xFFFF)

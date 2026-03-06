@@ -126,6 +126,7 @@ func _generate(defs: Array[NetworkPacketDef]) -> String:
 		L.append("\t\t\"channel\": %d," % d.channel)
 		L.append("\t\t\"server_validates\": %s," % ("true" if d.server_validates else "false"))
 		L.append("\t\t\"field_names\": [%s]," % ", ".join(fn_arr))
+		L.append("\t\t\"send_rate_hz\": %d," % d.send_rate_hz)
 		L.append("\t},")
 	L.append("}")
 	L.append("")
@@ -276,13 +277,13 @@ func _gen_read_field(f: NetworkFieldDef) -> PackedStringArray:
 		NetworkFieldDef.FieldType.STRING:
 			L.append("\tvar _%s_len := _b.get_u16()" % f.field_name)
 			L.append("\tvar %s := \"\"" % vn)
-			L.append("\tif _%s_len > 0:" % f.field_name)
+			L.append("\tif _%s_len > 0 and _%s_len <= 4096:" % [f.field_name, f.field_name])
 			L.append("\t\t%s = _b.get_data(_%s_len)[1].get_string_from_utf8()" % [vn, f.field_name])
 
 		NetworkFieldDef.FieldType.PACKED_BYTES:
 			L.append("\tvar _%s_len := _b.get_u32()" % f.field_name)
 			L.append("\tvar %s := PackedByteArray()" % vn)
-			L.append("\tif _%s_len > 0:" % f.field_name)
+			L.append("\tif _%s_len > 0 and _%s_len <= 65536:" % [f.field_name, f.field_name])
 			L.append("\t\t%s = _b.get_data(_%s_len)[1]" % [vn, f.field_name])
 
 	return L

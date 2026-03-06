@@ -1,6 +1,6 @@
-[gd_scene format=3 uid="uid://dwcnc2g5ajr0l"]
+[gd_scene format=3 uid="uid://ofqqrweoqbuv"]
 
-[ext_resource type="Script" uid="uid://wpycd6awje16" path="res://src/scripts/network/scenes/main_menu.gd" id="1_cvx6n"]
+[ext_resource type="Script" uid="uid://cp4qwd0gbacjy" path="res://src/scripts/network/scenes/main_menu.gd" id="1_cvx6n"]
 
 [node name="MainMenu" type="Control" unique_id=136655577]
 layout_mode = 3
@@ -55,6 +55,13 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 18
 text = "Присоединиться к серверу"
+
+[node name="BtnEvilClient" type="Button" parent="CenterContainer/VBoxContainer" unique_id=789123456]
+custom_minimum_size = Vector2(250, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 18
+text = "Test Evil Client"
 
 [node name="Spacer2" type="Control" parent="CenterContainer/VBoxContainer" unique_id=3009192]
 custom_minimum_size = Vector2(0, 20)

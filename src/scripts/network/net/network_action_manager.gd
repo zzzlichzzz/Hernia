@@ -26,7 +26,7 @@ var _receiver_manager: Object = null
 # Внешние зависимости (устанавливаются через setup_server_context)
 var _player_manager: PlayerManager = null
 var _auth_data: Dictionary = {}        # peer_id → bool (ссылка на внешний)
-var _last_move_times: Dictionary = {}  # peer_id → float
+var _last_move_times: Dictionary = {}   # peer_id → { pid → float }
 var _cooldown_times: Dictionary = {}   # peer_id → { action → float }
 var _violation_callback: Callable      # (peer_id, reason) → void
 
@@ -139,6 +139,33 @@ func auto_bind_server(server: Object) -> void:
 
 	print("[NAM] auto_bind_server: %d валидаторов, %d обработчиков" % [validators, handlers])
 
+## Авто-обновление позиции в PlayerManager после валидации.
+## Вызывается ТОЛЬКО после прохождения всех проверок.
+## Работает только для пакетов движения (с антителепортом или антиспидхаком).
+func _auto_update_pm(peer_id: int, data: Dictionary, meta: Dictionary) -> void:
+	# Не обновляем если валидация выключена —
+	# без проверки нет гарантий что позиция легитимна
+	if not meta.get("server_validates", false):
+		return
+	if _player_manager == null or not _player_manager.has_player(peer_id):
+		return
+
+	var pos_field: String = meta.get("v_position_field", "position")
+	if pos_field == "" or pos_field not in data:
+		return
+
+	# Авто-обновляем ТОЛЬКО для пакетов движения.
+	# Пакеты действий (break_block и т.д.) используют position_field
+	# для проверки дистанции действия — это НЕ позиция игрока.
+	var max_dist: float = meta.get("v_max_distance", 0.0)
+	var max_speed: float = meta.get("v_max_speed", 0.0)
+	if max_dist <= 0.0 and max_speed <= 0.0:
+		return
+
+	var new_pos: Vector3 = data[pos_field]
+	var old_data := _player_manager.get_player_data(peer_id)
+	var old_rot: Vector3 = old_data.get("rotation", Vector3.ZERO)
+	_player_manager.update_player(peer_id, new_pos, old_rot)
 
 func update_peer_id(peer_id: int) -> void:
 	for pid: int in _sources:
@@ -328,9 +355,11 @@ func _on_packet(peer_id: int, body: StreamPeerBuffer, pid: int) -> void:
 
 func _handle_server(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) -> void:
 	var sync_mode: int = meta["sync_mode"]
+	# Серверные пакеты (1,2,4) клиент не может слать
 	if sync_mode == 1 or sync_mode == 2 or sync_mode == 4:
 		return
 
+	# Перезапись peer_id — клиент не может притвориться другим
 	if "peer_id" in data:
 		data["peer_id"] = peer_id
 
@@ -338,11 +367,14 @@ func _handle_server(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 	if meta["server_validates"]:
 		if not _auto_validate(pid, peer_id, data, meta):
 			return
-
 		# Ручной валидатор (дополнительно к авто)
 		if pid in _validators:
 			if not (_validators[pid] as Callable).call(peer_id, data):
 				return
+
+	# ── Авто-обновление PlayerManager ─────────────
+	# Только после ВСЕХ проверок, только для движения
+	_auto_update_pm(peer_id, data, meta)
 
 	# ── Обработчик ────────────────────────────────
 	if pid in _handlers:
@@ -396,6 +428,16 @@ func _auto_receive(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) -
 
 func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) -> bool:
 	var action_name: String = meta["name"]
+	var now := Time.get_unix_time_from_system()
+	var cooldown: float = meta.get("v_cooldown", 0.0)
+	var max_speed: float = meta.get("v_max_speed", 0.0)
+
+	# ═══════════════════════════════════════════════
+	# ФАЗА 1: Все проверки (БЕЗ изменения состояния)
+	# Ни один таймер не обновляется до прохождения
+	# всех проверок — иначе отклонённый пакет
+	# портит таймеры для следующего легитимного.
+	# ═══════════════════════════════════════════════
 
 	# ── Проверка аутентификации ───────────────────
 	if meta.get("v_authenticated", true):
@@ -407,17 +449,13 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 		if _player_manager == null or not _player_manager.has_player(peer_id):
 			return false
 
-	# ── Cooldown ──────────────────────────────────
-	var cooldown: float = meta.get("v_cooldown", 0.0)
+	# ── Cooldown (только чтение) ──────────────────
 	if cooldown > 0.0:
-		var now := Time.get_unix_time_from_system()
-		if peer_id not in _cooldown_times:
-			_cooldown_times[peer_id] = {}
-		var peer_cd: Dictionary = _cooldown_times[peer_id]
-		if action_name in peer_cd:
-			if now - peer_cd[action_name] < cooldown:
-				return false
-		peer_cd[action_name] = now
+		if peer_id in _cooldown_times:
+			var peer_cd: Dictionary = _cooldown_times[peer_id]
+			if action_name in peer_cd:
+				if now - peer_cd[action_name] < cooldown:
+					return false
 
 	# ── Проверки позиции ──────────────────────────
 	var pos_field: String = meta.get("v_position_field", "position")
@@ -425,7 +463,6 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 		var new_pos: Vector3 = data[pos_field]
 		var old_data := _player_manager.get_player_data(peer_id)
 		var old_pos: Vector3 = old_data.get("position", Vector3.ZERO)
-
 		var distance := old_pos.distance_to(new_pos)
 
 		# ── Антителепорт ──────────────────────────
@@ -434,15 +471,12 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 			_report_violation(peer_id, "teleport_%s" % action_name)
 			return false
 
-		# ── Антиспидхак ───────────────────────────
-		var max_speed: float = meta.get("v_max_speed", 0.0)
+		# ── Антиспидхак (только чтение) ───────────
 		if max_speed > 0.0:
-			var now := Time.get_unix_time_from_system()
 			var dt := 0.05
-			if peer_id in _last_move_times:
-				dt = clampf(now - _last_move_times[peer_id], 0.01, 2.0)
-			_last_move_times[peer_id] = now
-
+			var peer_times: Dictionary = _last_move_times.get(peer_id, {})
+			if pid in peer_times:
+				dt = clampf(now - peer_times[pid], 0.01, 2.0)
 			var tolerance: float = meta.get("v_speed_tolerance", 1.5)
 			var max_allowed := max_speed * dt * tolerance
 			if distance > max_allowed:
@@ -451,10 +485,23 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 
 		# ── Дистанция действия ────────────────────
 		var max_action: float = meta.get("v_max_action_dist", 0.0)
-		if max_action > 0.0:
-			if old_pos.distance_to(new_pos) > max_action:
-				_report_violation(peer_id, "range_%s" % action_name)
-				return false
+		if max_action > 0.0 and distance > max_action:
+			_report_violation(peer_id, "range_%s" % action_name)
+			return false
+
+	# ═══════════════════════════════════════════════
+	# ФАЗА 2: Все проверки пройдены — обновляем таймеры
+	# ═══════════════════════════════════════════════
+
+	if cooldown > 0.0:
+		if peer_id not in _cooldown_times:
+			_cooldown_times[peer_id] = {}
+		_cooldown_times[peer_id][action_name] = now
+
+	if max_speed > 0.0:
+		if peer_id not in _last_move_times:
+			_last_move_times[peer_id] = {}
+		_last_move_times[peer_id][pid] = now
 
 	return true
 
@@ -494,7 +541,7 @@ func _check_rate_limit(peer_id: int, pid: int) -> bool:
 
 func clear_peer_data(peer_id: int) -> void:
 	_rate_limits.erase(peer_id)
-	_last_move_times.erase(peer_id)
+	_last_move_times.erase(peer_id) # erase удаляет вложенный dict целиком
 	_cooldown_times.erase(peer_id)
 
 

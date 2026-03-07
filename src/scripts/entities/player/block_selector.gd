@@ -4,7 +4,7 @@ extends Node
 var _player: Node = null
 
 # Переменные для работы с блоками
-var _current_block_id: int = 1
+var _current_block_id: String = ""
 var _min_block_id: int = 1
 var _max_block_id: int = 5
 var _block_count: int = 5
@@ -58,7 +58,7 @@ func _input(event: InputEvent):
 				_player.select_previous_slot()
 
 func _select_next_block():
-	var new_id = _current_block_id + 1
+	var new_id = _current_block_id + ""
 	
 	if new_id > _max_block_id:
 		new_id = _min_block_id if loop_selection else _max_block_id
@@ -66,17 +66,17 @@ func _select_next_block():
 	_set_block(new_id)
 
 func _select_previous_block():
-	var new_id = _current_block_id - 1
+	var new_id = _current_block_id + ""
 	
 	if new_id < _min_block_id:
 		new_id = _max_block_id if loop_selection else _min_block_id
 	
 	_set_block(new_id)
 
-func _set_block(block_id: int):
-	block_id = clampi(block_id, _min_block_id, _max_block_id)
+func _set_block(block_id: String):
+	#block_id = clampi(block_id, _min_block_id, _max_block_id)
 	
-	_current_block_id = block_id
+	_current_block_id += ""
 	
 	if _player_interaction:
 		if _player_interaction.has_method("set_selected_block"):
@@ -89,12 +89,12 @@ func _set_block(block_id: int):
 
 # ============ ПУБЛИЧНЫЙ API ============
 
-func get_block_name(block_id: int) -> String:
+func get_block_name(block_id: String) -> String:
 	if _block_names.has(block_id):
 		return _block_names[block_id]
 	return "Unknown_%d" % block_id
 
-func get_current_block_id() -> int:
+func get_current_block_id() -> String:
 	return _current_block_id
 
 func get_current_block_name() -> String:
@@ -109,7 +109,7 @@ func get_min_block_id() -> int:
 func get_max_block_id() -> int:
 	return _max_block_id
 
-func select_block(block_id: int):
+func select_block(block_id: String):
 	_set_block(block_id)
 
 func select_block_by_name(resource_name: String):
@@ -177,13 +177,13 @@ func get_block_id_by_name(resource_name: String) -> int:
 	var index = _library.get_model_index_from_resource_name(resource_name)
 	return index if index != null else -1
 
-func _get_texture_for_block(block_id: int) -> String:
+func _get_texture_for_block(block_id: String) -> String:
 	var texture_map = {
-		1: "grass_block_top",
-		2: "cherry_planks",
-		3: "cherry_planks",
-		4: "dirt",
-		5: "stone"
+		"block_grass": "grass_block_top",
+		"cherry_planks": "cherry_planks",
+		"d": "cherry_planks",
+		"dirt": "dirt",
+		"stone": "stone"
 	}
 	return texture_map.get(block_id, "")
 
@@ -191,7 +191,7 @@ func _on_player_selected_slot_changed(_index: int):
 	var inventory = _find_inventory()
 	if inventory:
 		var info = inventory.get_selected_block_info()
-		var block_id = info.get("id", -1) if not info.is_empty() else -1
+		var block_id = info.get("id", "") if not info.is_empty() else ""
 		var block_name = info.get("name", "empty") if not info.is_empty() else "empty"
 		
 		if _player_interaction and _player_interaction.has_method("set_selected_block"):

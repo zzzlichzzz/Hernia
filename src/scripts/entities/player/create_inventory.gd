@@ -1,13 +1,17 @@
 extends Node
 
 # Путь к библиотеке блоков
-@export var block_library_path: String = "res://src/data/blocks/voxel_blocky_library.tres"
+@export var library_path: String = "res://src/data/items/items.tres"
 # Путь к папке с текстурами блоков (для иконок)
 @export var textures_directory: String = "res://src/assets/textures/blocks/"
 # Путь к папке с иконками блоков
-@export var icons_directory: String = "res://src/assets/textures/gui/icons/blocks/"
+@export var icons_directory: String = "res://src/assets/textures/atlas/icon/"
 # Ручное сопоставление имени блока (из библиотеки) к имени папки с текстурой (если отличаются)
 @export var texture_name_mapping: Dictionary = {}
+
+
+var atlas_coords: AtlasCoordinates = null
+var atlas_path = "src/assets/textures/atlas/icon/block_coordinates.tres"
 
 # Ссылка на игрока (родитель)
 var player: CharacterBody3D
@@ -36,8 +40,12 @@ signal selected_slot_changed(index: int)
 signal hotbar_updated(index: int)  # -1 для полного обновления
 
 # Библиотека
-var _block_library: VoxelBlockyLibrary
+var _items_library: ItemArrayRegistry
 var _block_id_to_info: Dictionary = {}  # id -> {name: String, model: VoxelBlockyModel}
+
+func _init():
+	if atlas_coords == null:
+		load_atlas_data()
 
 func _ready():
 	# Получаем игрока (родитель должен быть CharacterBody3D)
@@ -57,19 +65,23 @@ func _ready():
 	# Создаём UI инвентаря
 	_create_inventory_ui()
 
+func load_atlas_data():
+	if ResourceLoader.exists(atlas_path):
+		atlas_coords = load(atlas_path)
+	else:
+		print("❌ Атлас не найден по пути: ", atlas_path)
+
+
 func _load_block_library():
-	if not ResourceLoader.exists(block_library_path):
-		push_error("Библиотека не найдена: ", block_library_path)
-		return
-	_block_library = load(block_library_path) as VoxelBlockyLibrary
-	if _block_library == null:
+	_items_library = load(library_path)
+	if _items_library == null:
 		push_error("Не удалось загрузить библиотеку")
 		return
 	
-	var models: Array = _block_library.models
-	print("Загружено моделей: ", models.size())
-	for i in range(models.size()):
-		var model = models[i]
+	var items: Dictionary = _items_library.item_array
+	print("Загружено моделей: ", items.size())
+	for i in items:
+		var model = items[i]
 		if model == null:
 			continue
 		var block_name = model.resource_name
@@ -91,22 +103,25 @@ func _create_blocks_list():
 		# Нормализуем имя: заменяем пробелы на подчёркивания для поиска файлов
 		var normalized_name = block_name.replace(" ", "_").to_lower()
 		
+
+		texture = atlas_coords.get_icon_texture(block_name)
+
 		# Проверяем сначала в папке icons/blocks (приоритет)
-		var icon_path = icons_directory + normalized_name + ".png"
-		if FileAccess.file_exists(icon_path):
-			texture = load(icon_path)
-		else:
-			# Пробуем в папке textures/blocks
-			var texture_path = textures_directory + block_name + "/" + block_name + ".png"
-			if FileAccess.file_exists(texture_path):
-				texture = load(texture_path)
-			else:
-				# Попробуем другой вариант: просто файл в textures_directory
-				texture_path = textures_directory + block_name + ".png"
-				if FileAccess.file_exists(texture_path):
-					texture = load(texture_path)
-				else:
-					print("Текстура не найдена для блока ", block_name, ", используется заглушка")
+		# var icon_path = icons_directory + normalized_name + ".png"
+		# if FileAccess.file_exists(icon_path):
+		# 	texture = load(icon_path)
+		# else:
+		# 	# Пробуем в папке textures/blocks
+		# 	var texture_path = textures_directory + block_name + "/" + block_name + ".png"
+		# 	if FileAccess.file_exists(texture_path):
+		# 		texture = load(texture_path)
+		# 	else:
+		# 		# Попробуем другой вариант: просто файл в textures_directory
+		# 		texture_path = textures_directory + block_name + ".png"
+		# 		if FileAccess.file_exists(texture_path):
+		# 			texture = load(texture_path)
+		# 		else:
+		# 			print("Текстура не найдена для блока ", block_name, ", используется заглушка")
 		
 		available_blocks.append({
 			"id": id,

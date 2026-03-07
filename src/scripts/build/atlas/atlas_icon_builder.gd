@@ -2,8 +2,8 @@
 extends Node
 # Создает PNG атлас из PNG текстур в папке src рядом с игрой
 
-@export var source_path: String = "src/assets/textures/blocks/" 
-@export var output_path_block: String = "src/assets/textures/atlas/block" 
+@export var source_path: String = "src/assets/textures/gui/icons/" 
+@export var output_path_block: String = "src/assets/textures/atlas/icon" 
 @export var allow_mixed_sizes: bool = true
 
 
@@ -57,21 +57,13 @@ func _run():
 	
 	print("СБОРКА ЗАВЕРШЕНА")
 
-func get_game_folder() -> String:
-	"""Возвращает путь к папке, где находится игра"""
-	if Engine.is_editor_hint():
-		# В редакторе используем user:// для тестов
-		return "user://"
-	else:
-		# В экспортированной игре - папка с exe
-		return OS.get_executable_path().get_base_dir().path_join("")
-
 func find_png_files(folder: String) -> Array:
 	"""Ищет все PNG файлы в папке и подпапках"""
 	var files = []
 	_find_png_files_recursive(folder, files)
 	files.sort_custom(func(a, b): return a.name < b.name)
 	return files
+
 
 func _find_png_files_recursive(folder: String, files: Array):
 	var dir = DirAccess.open(folder)

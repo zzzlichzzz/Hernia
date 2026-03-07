@@ -1,6 +1,7 @@
 @tool
 extends Node
 
+
 signal atlas_build_started
 signal atlas_build_completed(success: bool)
 signal atlas_build_failed(error: String)
@@ -26,13 +27,8 @@ func build_atlas() -> bool:
 	
 	# ШАГ 1: Сборка атласа из PNG
 	print("\n📸 ШАГ 1/3: Сборка атласа...")
-	var builder = load("res://src/scripts/tools/atlas_work/texture_atlas_builder.gd").new()
+	var builder = load("res://src/scripts/build/atlas/atlas_icon_builder.gd").new()
 	builder._run()
-	
-	# ШАГ 2: Создание материалов из атласа
-	print("\n🎨 ШАГ 2/3: Создание материалов...")
-	var material_creator = load("res://src/scripts/tools/atlas_work/atlas_material_generator.gd").new()
-	material_creator.create_all_materials()
 	
 	last_build_time = Time.get_datetime_dict_from_system()
 	is_building = false
@@ -43,15 +39,15 @@ func build_atlas() -> bool:
 
 func get_atlas_coords_path() -> String:
 	"""Возвращает путь к файлу координат атласа"""
-	return "res://src/assets/textures/atlas/block_coordinates.tres"
+	return "res://src/assets/textures/atlas/block/block_coordinates.tres"
 
 func get_atlas_png_path() -> String:
 	"""Возвращает путь к PNG атласа"""
-	return "res://src/assets/textures/atlas/block_atlas.png"
+	return "res://src/assets/textures/atlas/block/block_atlas.png"
 
 func get_material_path() -> String:
 	"""Возвращает путь к материалу"""
-	return "res://src/assets/textures/atlas/block_material.tres"
+	return "res://src/assets/textures/atlas/block/block_material.tres"
 
 func is_atlas_valid() -> bool:
 	"""Проверяет существование файлов атласа"""

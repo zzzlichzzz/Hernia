@@ -6,12 +6,12 @@ var LIBRARY_PATH = "res://src/data/blocks/voxel_blocky_library.tres"
 var BLOCKS_FOLDER = "res://src/data/blocks/block/"
 var MODELS_FOLDER = "res://src/assets/models/blocks/"
 
-const ATLAS_COORDS_PATH = "res://src/assets/textures/atlas/block_coordinates.tres"
+const ATLAS_COORDS_PATH = "res://src/assets/textures/atlas/block/block_coordinates.tres"
 const MATERIAL_PATHS = {
-	"opaque": "res://src/assets/textures/atlas/block_material_opaque.tres",
-	"transparent": "res://src/assets/textures/atlas/block_material_transparent.tres",
-	"foliage": "res://src/assets/textures/atlas/block_material_foliage.tres",
-	"multi_face": "res://src/assets/textures/atlas/block_material_multi_face.tres"
+	"opaque": "res://src/assets/textures/atlas/block/block_material_opaque.tres",
+	"transparent": "res://src/assets/textures/atlas/block/block_material_transparent.tres",
+	"foliage": "res://src/assets/textures/atlas/block/block_material_foliage.tres",
+	"multi_face": "res://src/assets/textures/atlas/block/block_material_multi_face.tres"
 }
 
 var ITEM_LIBRARY_PATH = "res://src/data/items/item_library.tres"
@@ -111,7 +111,6 @@ func _build_library(blocks: Array[ItemData]):
 	if not DirAccess.dir_exists_absolute(target_dir):
 		DirAccess.make_dir_recursive_absolute(target_dir)
 	
-	ResourceSaver.save(item_library, ITEM_LIBRARY_PATH)
 
 	var result = ResourceSaver.save(library, LIBRARY_PATH)
 	if result == OK:
@@ -314,7 +313,6 @@ func _process_block_definition(def_resource: ItemData):
 	
 	var id = library.add_model(model)
 
-	item_library.addItem(def)
 
 	if debug_mode:
 		print("   ✅ Блок добавлен с ID: ", id)
@@ -409,7 +407,7 @@ func _register_chameleon_blocks():
 	if _atlas_coords and _atlas_coords.atlas_texture:
 		atlas_texture = _atlas_coords.atlas_texture
 	else:
-		var atlas_path = "res://src/assets/textures/atlas/block_atlas.png"
+		var atlas_path = "res://src/assets/textures/atlas/block/block_atlas.png"
 		if ResourceLoader.exists(atlas_path):
 			atlas_texture = load(atlas_path)
 	
@@ -448,8 +446,6 @@ func _register_chameleon_blocks():
 			if debug_mode:
 				print("   ✅ Шейдер хамелеона применён")
 		
-
-		item_library.addItem(cham_def)
 
 		var id = library.add_model(model)
 		_chameleon_voxel_ids.append(id)       # ← добавляем в массив

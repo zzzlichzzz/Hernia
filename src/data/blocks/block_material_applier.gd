@@ -123,7 +123,7 @@ func run():
 
 # Загрузка координат атласа
 func _load_atlas_coords() -> Resource:
-	var coords_path = "res://src/assets/textures/atlas/block_coordinates.tres"
+	var coords_path = "res://src/assets/textures/atlas/block/block_coordinates.tres"
 	if FileAccess.file_exists(coords_path):
 		if debug_mode:
 			print("📁 Загрузка координат из: ", coords_path)

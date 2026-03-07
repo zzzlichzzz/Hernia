@@ -41,11 +41,7 @@ func _ready() -> void:
 
 	_nam.setup(_net)
 	_nam.set_kick_callback(_on_security_kick)
-
-	# ═══ АВТОНАСТРОЙКА СЕРВЕРА — ТРИ СТРОКИ ═══
-	# 1. Контекст для автовалидации (правила из .tres)
 	_nam.setup_server_context(_pm, _authenticated, _on_violation)
-	# 2. Автопривязка обработчиков _on_* и _validate_*
 	_nam.auto_bind_server(self)
 
 	var err := _net.create_server(PORT, MAX_CLIENTS)
@@ -56,6 +52,8 @@ func _ready() -> void:
 
 	print("[server] Запущен на порту %d" % PORT)
 
+	# ═══ HUD ═══
+	$ServerHUD.setup(_net, _pm, _nam)
 
 func _process(_delta: float) -> void:
 	_check_auth_timeout()
@@ -162,6 +160,8 @@ func _on_player_move(peer_id: int, data: Dictionary) -> void:
 	var rot := Vector3(data["head_pitch"], data["body_yaw"], 0.0)
 	_pm.update_player(peer_id, pos, rot)
 
+func get_security_log() -> Dictionary:
+	return _security_log
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:

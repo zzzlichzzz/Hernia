@@ -1,6 +1,76 @@
-[gd_scene format=3 uid="uid://dbmsg88n4u37f"]
+[gd_scene format=3 uid="uid://c8x7hqm2kv3rn"]
 
 [ext_resource type="Script" uid="uid://cpnchb266gv18" path="res://src/scripts/network/server_main.gd" id="1_mjvnb"]
+[ext_resource type="Script" uid="uid://bg78mpmxupfx" path="res://src/scripts/network/server_hud.gd" id="2_dryqh"]
 
-[node name="ServerMain" type="Node" unique_id=619508740]
+[node name="ServerRoot" type="Node" unique_id=1153199807]
 script = ExtResource("1_mjvnb")
+
+[node name="ServerHUD" type="Control" parent="." unique_id=787190832]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_dryqh")
+
+[node name="MarginContainer" type="MarginContainer" parent="ServerHUD" unique_id=1990961045]
+layout_mode = 1
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="ServerHUD/MarginContainer" unique_id=473586513]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="ServerHUD/MarginContainer/VBox" unique_id=373527514]
+unique_name_in_owner = true
+layout_mode = 2
+text = "══ СЕРВЕР ══"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="ServerHUD/MarginContainer/VBox" unique_id=815777490]
+layout_mode = 2
+
+[node name="OnlineLabel" type="Label" parent="ServerHUD/MarginContainer/VBox" unique_id=1123006195]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Онлайн: 0"
+
+[node name="UptimeLabel" type="Label" parent="ServerHUD/MarginContainer/VBox" unique_id=216188441]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Аптайм: 00:00:00"
+
+[node name="TickRateLabel" type="Label" parent="ServerHUD/MarginContainer/VBox" unique_id=604674035]
+unique_name_in_owner = true
+layout_mode = 2
+text = "TPS: 0 t/s"
+
+[node name="BandwidthLabel" type="Label" parent="ServerHUD/MarginContainer/VBox" unique_id=1308598565]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Трафик: 0 KB/s"
+
+[node name="PacketsLabel" type="Label" parent="ServerHUD/MarginContainer/VBox" unique_id=757668502]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Пакеты: 0 in / 0 out"
+
+[node name="ViolationsLabel" type="Label" parent="ServerHUD/MarginContainer/VBox" unique_id=2138060641]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Нарушения: 0"
+
+[node name="HSeparator2" type="HSeparator" parent="ServerHUD/MarginContainer/VBox" unique_id=1234716440]
+layout_mode = 2
+
+[node name="PlayerList" type="VBoxContainer" parent="ServerHUD/MarginContainer/VBox" unique_id=1667318978]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2

@@ -9,7 +9,7 @@ class_name ChameleonManager
 
 const CHAMELEON_JSON_PATH = "res://src/data/blocks/chameleon_data.json"
 const LIBRARY_PATH = "res://src/data/blocks/voxel_blocky_library.tres"
-const ATLAS_COORDS_PATH = "res://src/assets/textures/atlas/block_coordinates.tres"
+const ATLAS_COORDS_PATH = "res://src/assets/textures/atlas/block/block_coordinates.tres"
 
 @export var map_size: int = 4096
 @export var max_probe: int = 8

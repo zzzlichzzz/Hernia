@@ -1,7 +1,7 @@
 [gd_resource type="VoxelBlockyLibrary" format=3]
 
 [ext_resource type="Shader" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_vmbgv"]
-[ext_resource type="Texture2D" path="res://src/assets/textures/atlas/block_atlas.png" id="2_7m0mw"]
+[ext_resource type="Texture2D" path="res://src/assets/textures/atlas/block/block_atlas.png" id="2_7m0mw"]
 [ext_resource type="ArrayMesh" path="res://src/assets/models/blocks/cube.obj" id="3_bnw2r"]
 [ext_resource type="Shader" path="res://src/shaders/blocks/block_opaque.gdshader" id="4_36qk5"]
 [ext_resource type="ArrayMesh" path="res://src/assets/models/blocks/stair_block.obj" id="5_jjnj3"]
@@ -49,31 +49,31 @@ mesh = ExtResource("3_bnw2r")
 render_priority = 0
 shader = ExtResource("4_36qk5")
 shader_parameter/atlas_texture = ExtResource("2_7m0mw")
-shader_parameter/block_uv_offset = Vector2(0.5625, 0)
+shader_parameter/block_uv_offset = Vector2(0.4375, 0)
 shader_parameter/block_uv_size = Vector2(0.125, 0.25)
 
 [sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_7uru0"]
-resource_name = "dirt"
-collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
+resource_name = "cherry_stair"
+transparency_index = 1
+culls_neighbors = false
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 0.5, 1), AABB(0, 0.5, 0, 1, 0.5, 0.5)])
 material_override_0 = SubResource("ShaderMaterial_6eenp")
 collision_enabled_0 = true
-mesh = ExtResource("3_bnw2r")
+mesh = ExtResource("5_jjnj3")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_3ba4i"]
 render_priority = 0
 shader = ExtResource("4_36qk5")
 shader_parameter/atlas_texture = ExtResource("2_7m0mw")
-shader_parameter/block_uv_offset = Vector2(0.4375, 0)
+shader_parameter/block_uv_offset = Vector2(0.5625, 0)
 shader_parameter/block_uv_size = Vector2(0.125, 0.25)
 
 [sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_18bwr"]
-resource_name = "cherry stair"
-transparency_index = 1
-culls_neighbors = false
-collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 0.5, 1), AABB(0, 0.5, 0, 1, 0.5, 0.5)])
+resource_name = "dirt"
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
 material_override_0 = SubResource("ShaderMaterial_3ba4i")
 collision_enabled_0 = true
-mesh = ExtResource("5_jjnj3")
+mesh = ExtResource("3_bnw2r")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_63w2s"]
 render_priority = 0
@@ -98,7 +98,7 @@ data = {
 "width": 256
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_713d5"]
+[sub_resource type="ImageTexture" id="ImageTexture_wyowa"]
 image = SubResource("Image_mct0b")
 
 [sub_resource type="Image" id="Image_cvfp1"]
@@ -128,7 +128,7 @@ image = SubResource("Image_lsmej")
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_y0eh6"]
 render_priority = 0
 shader = ExtResource("6_s4m86")
-shader_parameter/atlas_texture = SubResource("ImageTexture_713d5")
+shader_parameter/atlas_texture = SubResource("ImageTexture_wyowa")
 shader_parameter/chameleon_keys = SubResource("ImageTexture_6wfgl")
 shader_parameter/chameleon_data = SubResource("ImageTexture_76ji4")
 shader_parameter/chameleon_map_size = 4096
@@ -143,7 +143,7 @@ collision_enabled_0 = true
 mesh = ExtResource("3_bnw2r")
 
 [sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_hk56t"]
-resource_name = "stair chameleon"
+resource_name = "stair_chameleon"
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
 material_override_0 = SubResource("ShaderMaterial_y0eh6")
 collision_enabled_0 = true

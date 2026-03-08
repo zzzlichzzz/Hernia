@@ -6,9 +6,10 @@ extends Node2D
 @onready var path_label = $CanvasLayer/Control/VBoxContainer/Label
 
 # Ссылка на координаты атласа
-var AtlasManager = "res://src/scripts/auto/atlas_manager.gd"
+var AtlasManager = "res://src/scripts/build/atlas/atlas_manager.gd"
 var atlas_coords: AtlasCoordinates = null
-var atlas_path = "src/assets/textures/atlas/block_coordinates.tres"
+var atlas_path = "src/assets/textures/atlas/block/block_coordinates.tres"
+
 
 func _ready():
 	# Показываем путь к атласу

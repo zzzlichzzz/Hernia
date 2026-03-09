@@ -44,6 +44,7 @@ source_key = "rotation.y"
 metadata/_custom_type_script = "uid://btch1jd2smm4m"
 
 [resource]
+resource_name = "player_move"
 script = ExtResource("1_script")
 packet_name = "player_move"
 send_rate_hz = 20

@@ -85,4 +85,3 @@ static func _h2f(h: int) -> float:
 	buf.resize(4)
 	buf.encode_u32(0, bits)
 	return buf.decode_float(0)
-

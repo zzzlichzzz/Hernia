@@ -2,8 +2,8 @@
 	"block_id_to_texture": {
 		"1": "dirt",
 		"2": "cherry_planks",
-		"3": "dirt",
-		"4": "cherry_planks",
+		"3": "cherry_planks",
+		"4": "dirt",
 		"5": "stone"
 	},
 	"chameleon_voxel_ids": [

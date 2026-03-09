@@ -27,7 +27,7 @@ func _init():
 	_load_atlas_coords()
 
 func _load_atlas_coords():
-	var coords_path = "res://src/assets/textures/atlas/block_coordinates.tres"
+	var coords_path = "res://src/assets/textures/atlas/block/block_coordinates.tres"
 	if ResourceLoader.exists(coords_path):
 		_atlas_coords = load(coords_path)
 		print("Координаты атласа загружены")
@@ -56,7 +56,7 @@ func create_all_materials() -> Dictionary:
 	return results
 
 func _load_atlas_texture() -> Texture2D:
-	var atlas_path = "res://src/assets/textures/atlas/block_atlas.png"
+	var atlas_path = "res://src/assets/textures/atlas/block/block_atlas.png"
 	if not ResourceLoader.exists(atlas_path):
 		print("Атлас не найден: " + atlas_path)
 		return null
@@ -77,7 +77,7 @@ func _create_shader_material(atlas_texture: Texture2D, shader: Shader, type_name
 	material.set_shader_parameter("block_uv_offset", Vector2(0, 0))
 	material.set_shader_parameter("block_uv_size", Vector2(1, 1))
 	
-	var path = "res://src/assets/textures/atlas/" + material_names[type_name]
+	var path = "res://src/assets/textures/atlas/block/" + material_names[type_name]
 	var result = ResourceSaver.save(material, path)
 	
 	if result == OK:
@@ -94,7 +94,7 @@ func _create_foliage_material(atlas_texture: Texture2D) -> ShaderMaterial:
 	material.set_shader_parameter("block_uv_size", Vector2(1, 1))
 	material.set_shader_parameter("alpha_scissor_threshold", 0.5)
 	
-	var path = "res://src/assets/textures/atlas/" + material_names[MATERIAL_FOLIAGE]
+	var path = "res://src/assets/textures/atlas/block/" + material_names[MATERIAL_FOLIAGE]
 	var result = ResourceSaver.save(material, path)
 	
 	if result == OK:
@@ -117,7 +117,7 @@ func _create_multi_face_material(atlas_texture: Texture2D) -> ShaderMaterial:
 	material.set_shader_parameter("overlay_uv_size", Vector2(0, 0))
 	material.set_shader_parameter("overlay_enabled", false)
 	
-	var path = "res://src/assets/textures/atlas/" + material_names[MATERIAL_MULTI_FACE]
+	var path = "res://src/assets/textures/atlas/block/" + material_names[MATERIAL_MULTI_FACE]
 	var result = ResourceSaver.save(material, path)
 	
 	if result == OK:
@@ -126,25 +126,25 @@ func _create_multi_face_material(atlas_texture: Texture2D) -> ShaderMaterial:
 	return null
 
 static func get_opaque() -> ShaderMaterial:
-	var path = "res://src/assets/textures/atlas/block_material_opaque.tres"
+	var path = "res://src/assets/textures/atlas/block/block_material_opaque.tres"
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null
 
 static func get_transparent() -> ShaderMaterial:
-	var path = "res://src/assets/textures/atlas/block_material_transparent.tres"
+	var path = "res://src/assets/textures/atlas/block/block_material_transparent.tres"
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null
 
 static func get_foliage() -> ShaderMaterial:
-	var path = "res://src/assets/textures/atlas/block_material_foliage.tres"
+	var path = "res://src/assets/textures/atlas/block/block_material_foliage.tres"
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null
 
 static func get_multi_face() -> ShaderMaterial:
-	var path = "res://src/assets/textures/atlas/block_material_multi_face.tres"
+	var path = "res://src/assets/textures/atlas/block/block_material_multi_face.tres"
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null

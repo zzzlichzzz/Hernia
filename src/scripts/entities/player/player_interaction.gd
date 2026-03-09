@@ -14,7 +14,7 @@ var _voxel_size: float = 1.0
 
 var _break_timer: float = 0.0
 var _place_timer: float = 0.0
-var _selected_block_id: int = 1
+var _selected_block_id: String = ""
 var _selected_texture: String = "stone"
 
 var _block_to_texture: Dictionary = {
@@ -37,6 +37,12 @@ signal block_placed(position: Vector3i, block_id: int)
 signal target_changed(position: Vector3i, has_target: bool)
 signal terrain_found(terrain: VoxelTerrain)
 signal terrain_lost()
+
+var items: ItemArrayRegistry
+var item_path = "res://src/data/items/items.tres"
+
+func _init() -> void:
+	items = load(item_path)
 
 
 func _ready():
@@ -79,11 +85,11 @@ func _on_selected_slot_changed(_index: int):
 func _update_selected_block_from_inventory():
 	if _inventory:
 		var info = _inventory.get_selected_block_info()
-		if not info.is_empty() and info.has("id") and info.id != -1:
+		if not info.is_empty() and info.has("id") and info.id != "":
 			_selected_block_id = info.id
 			print("PlayerInteraction: выбран блок ID ", _selected_block_id)
 		else:
-			_selected_block_id = 0
+			_selected_block_id = ""
 			print("PlayerInteraction: слот пуст, установка отключена")
 
 func _find_and_setup_terrain() -> bool:
@@ -246,10 +252,10 @@ func _try_paint_chameleon(hit_pos: Vector3i) -> bool:
 	if not cham.is_chameleon_block(voxel_id):
 		return false
 	
-	if _selected_block_id <= 0:
+	if _selected_block_id == "":
 		return false
 	
-	var success = cham.paint_chameleon_by_block_id(hit_pos, _selected_block_id)
+	var success = cham.paint_chameleon_by_block_id(hit_pos, items.getItemBlockID(_selected_block_id))
 	
 	if success:
 		print("🎨 Хамелеон покрашен: ", hit_pos, " блоком ID: ", _selected_block_id)
@@ -352,10 +358,14 @@ func _place_block(pos: Vector3i):
 	var current = _terrain_tool.get_voxel(pos)
 	if current != 0:
 		return
-	_terrain_tool.value = _selected_block_id
+		
+	if not items.isItemBlock(_selected_block_id):
+		return
+	
+	_terrain_tool.value = items.getItemBlockID(_selected_block_id)
 	_terrain_tool.do_point(pos)
 	var new_id = _terrain_tool.get_voxel(pos)
-	if new_id == _selected_block_id:
+	if new_id == items.getItemBlockID(_selected_block_id):
 		print("🧱 Блок установлен: ", pos)
 		block_placed.emit(pos, _selected_block_id)
 
@@ -383,12 +393,13 @@ func _can_place_at(pos: Vector3i) -> bool:
 
 # ═══ ПУБЛИЧНЫЙ API ═══
 
-func set_selected_block(block_id: int):
-	_selected_block_id = block_id
-	_selected_texture = _block_to_texture.get(block_id, "stone")
-	print("🧱 Блок выбран: ID=", block_id, " текстура=", _selected_texture)
+func set_selected_block(block_id: String):
+	#_selected_block_id = block_id
+	#_selected_texture = _block_to_texture.get(block_id, "stone")
+	print("🧱 Блок выбран: ID=", block_id, " текстура=")
+	pass
 
-func get_selected_block() -> int:
+func get_selected_block() -> String:
 	return _selected_block_id
 
 func set_selected_texture(texture_name: String):

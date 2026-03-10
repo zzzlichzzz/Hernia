@@ -37,6 +37,7 @@ func _ready() -> void:
 	_net.register_handler(PacketTypes.PLAYER_LEFT,    _on_player_left)
 	_net.register_handler(PacketTypes.PONG,           _on_pong)
 	_net.register_handler(PacketTypes.AUTH_RESPONSE,   _on_auth_response)
+	_net.register_handler(PacketTypes.CHAMELEON_SYNC, _on_chameleon_sync)
 
 	_nam.setup(_net)
 	_nam.auto_bind_receiver(_pm)
@@ -81,6 +82,14 @@ func _on_auth_response(_peer_id: int, body: StreamPeerBuffer) -> void:
 		print("[client] Аутентификация отклонена: %s" % data["message"])
 		_net.shutdown()
 
+func _on_chameleon_sync(_peer_id: int, body: StreamPeerBuffer) -> void:
+	var entries := PacketTypes.read_chameleon_sync(body)
+	if entries.is_empty():
+		return
+	var cham := ChameleonManager.get_instance()
+	if cham:
+		cham.batch_paint_by_block_ids(entries)
+		print("[client] Хамелеоны синхронизированы: %d блоков" % entries.size())
 
 func _on_disconnected(_id: int) -> void:
 	_cleanup()

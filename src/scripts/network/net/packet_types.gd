@@ -16,6 +16,7 @@ enum {
 const HEADER_SIZE       := 8
 const AUTH_REQUEST      := 9
 const AUTH_RESPONSE     := 10
+const CHAMELEON_SYNC    := 11
 const MAX_FRAGMENT_BODY := 1024
 
 
@@ -165,6 +166,36 @@ static func _read_state_body(b: StreamPeerBuffer) -> Dictionary:
 		"rotation": Vector3(b.get_float(), b.get_float(), b.get_float()),
 	}
 
+## Записать bulk-данные хамелеонов.
+## state: { Vector3i → int (source_block_id) }
+static func write_chameleon_sync_body(state: Dictionary) -> PackedByteArray:
+	var b := StreamPeerBuffer.new()
+	b.big_endian = false
+	b.put_u32(state.size())
+	for pos: Vector3i in state:
+		b.put_32(pos.x)
+		b.put_32(pos.y)
+		b.put_32(pos.z)
+		b.put_u16(state[pos])
+	return b.data_array
+
+
+## Прочитать bulk-данные хамелеонов.
+## Возвращает { Vector3i → int }
+static func read_chameleon_sync(buf: StreamPeerBuffer) -> Dictionary:
+	var count := buf.get_u32()
+	# Защита от бомбы
+	if count > 100000:
+		push_warning("chameleon_sync: слишком много записей: %d" % count)
+		return {}
+	var entries := {}
+	for i in count:
+		var x := buf.get_32()
+		var y := buf.get_32()
+		var z := buf.get_32()
+		var block_id := buf.get_u16()
+		entries[Vector3i(x, y, z)] = block_id
+	return entries
 
 # ══════════════════════════════════════════════════
 #  PING / PONG

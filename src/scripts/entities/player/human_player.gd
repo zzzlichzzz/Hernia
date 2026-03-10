@@ -11,7 +11,6 @@ const MOUSE_SENSITIVITY := 0.003
 
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
-
 func _setup_local() -> void:
 	super._setup_local()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

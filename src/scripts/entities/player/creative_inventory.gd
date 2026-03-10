@@ -5,6 +5,7 @@ extends Node
 # ═══════════════════════════════════════════════════════════
 # Добавьте как дочерний узел Player (CharacterBody3D).
 # Если есть — инвентарь работает. Нет — всё остальное не ломается.
+# Автоматически отключается для удалённых (is_local=false) игроков.
 # ═══════════════════════════════════════════════════════════
 
 # --- Настройки ---
@@ -37,6 +38,9 @@ var _inventory_grid: GridContainer = null
 var _items_library: ItemArrayRegistry = null
 var _block_id_to_info: Dictionary = {}  # id -> {name, model}
 
+# --- Мультиплеер ---
+var _is_local: bool = true
+
 # --- Сигналы ---
 signal selected_slot_changed(index: int)
 signal hotbar_updated(index: int)       # -1 = полное обновление
@@ -55,6 +59,15 @@ func _ready():
 	player = get_parent() as CharacterBody3D
 	if player == null:
 		push_error("CreativeInventory: родитель должен быть CharacterBody3D")
+		return
+
+	# ── Мультиплеер: определить роль ─────────
+	if player is BasePlayer:
+		_is_local = (player as BasePlayer).is_local
+
+	# Удалённые игроки: инвентарь не нужен
+	if not _is_local:
+		set_process_input(false)
 		return
 
 	# Инициализация слотов
@@ -132,11 +145,9 @@ func _input(event: InputEvent):
 		return
 
 	if inventory_open:
-		# В открытом инвентаре — положить наведённый блок в слот
 		if not hovered_block.is_empty():
 			_place_hovered_block_into_slot(slot_index)
 	else:
-		# В закрытом — выбрать слот
 		set_selected_slot(slot_index)
 
 
@@ -161,8 +172,6 @@ func toggle_inventory():
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 		hovered_block = {}
 
-	# Совместимость с PlayerInteraction:
-	# он проверяет player."inventory_open"
 	_sync_inventory_state_to_player()
 	inventory_toggled.emit(inventory_open)
 
@@ -196,7 +205,6 @@ func set_hotbar_slot(slot_index: int, block: Dictionary):
 		return
 	hotbar_items[slot_index] = block.duplicate()
 	hotbar_updated.emit(slot_index)
-	# Если это текущий выбранный слот — обновить selected_block
 	if slot_index == selected_slot:
 		selected_block = block.duplicate()
 		selected_slot_changed.emit(slot_index)
@@ -221,12 +229,10 @@ func _place_hovered_block_into_slot(slot_index: int):
 	set_selected_slot(slot_index)
 
 
-## Добавить блок в первый пустой слот хотбара по имени
 func place_item_in_hotbar(block_name: String) -> bool:
 	for block in available_blocks:
 		if block.name.to_lower() != block_name.to_lower():
 			continue
-		# Нашли блок — ищем пустой слот
 		for slot_idx in 9:
 			if hotbar_items[slot_idx] == null:
 				set_hotbar_slot(slot_idx, block)
@@ -239,7 +245,7 @@ func place_item_in_hotbar(block_name: String) -> bool:
 
 
 # ═══════════════════════════════════════════════════════════
-#  HOVER (наведение мыши в инвентаре)
+#  HOVER
 # ═══════════════════════════════════════════════════════════
 
 func _on_inventory_slot_mouse_entered(block: Dictionary):
@@ -270,7 +276,6 @@ func _create_inventory_ui():
 	_inventory_panel.hide()
 	_canvas_layer.add_child(_inventory_panel)
 
-	# Заголовок
 	var title := Label.new()
 	title.text = "Творческий инвентарь"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -280,7 +285,6 @@ func _create_inventory_ui():
 	title.position = Vector2(0, 5)
 	_inventory_panel.add_child(title)
 
-	# Контейнер со скроллом
 	var margin := MarginContainer.new()
 	margin.anchor_right = 1.0
 	margin.anchor_bottom = 1.0
@@ -300,12 +304,10 @@ func _create_inventory_ui():
 	_inventory_grid.add_theme_constant_override("v_separation", 6)
 	scroll.add_child(_inventory_grid)
 
-	# Заполняем сетку блоками
 	for block in available_blocks:
 		var slot := _create_inventory_slot(block)
 		_inventory_grid.add_child(slot)
 
-	# Кнопка закрытия
 	var close_btn := Button.new()
 	close_btn.text = "Закрыть"
 	close_btn.size = Vector2(80, 30)
@@ -315,7 +317,7 @@ func _create_inventory_ui():
 
 
 # ═══════════════════════════════════════════════════════════
-#  UI — СЛОТ ИНВЕНТАРЯ (с поддержкой drag)
+#  UI — СЛОТ ИНВЕНТАРЯ
 # ═══════════════════════════════════════════════════════════
 
 func _create_inventory_slot(block: Dictionary) -> Control:
@@ -325,7 +327,6 @@ func _create_inventory_slot(block: Dictionary) -> Control:
 	slot.mouse_entered.connect(_on_inventory_slot_mouse_entered.bind(block))
 	slot.mouse_exited.connect(_on_inventory_slot_mouse_exited)
 
-	# Иконка блока
 	if block.texture:
 		var tex_rect := TextureRect.new()
 		tex_rect.texture = block.texture
@@ -376,10 +377,8 @@ func _make_panel_style() -> StyleBoxFlat:
 # ═══════════════════════════════════════════════════════════
 
 class InventorySlotControl extends Control:
-	## Данные блока в этом слоте
 	var block_data: Dictionary = {}
 
-	# Визуальные настройки
 	var _bg_color: Color = Color(0.15, 0.15, 0.15, 0.9)
 	var _border_color: Color = Color(0.4, 0.4, 0.4)
 	var _hovered: bool = false
@@ -398,7 +397,6 @@ class InventorySlotControl extends Control:
 		if block_data.is_empty():
 			return null
 
-		# Превью для перетаскивания
 		var preview := PanelContainer.new()
 		preview.custom_minimum_size = Vector2(40, 40)
 		var style := StyleBoxFlat.new()

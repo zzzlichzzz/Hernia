@@ -1,12 +1,13 @@
 # ═══════════════════════════════════════════════════
 # AUTO-GENERATED — DO NOT EDIT
 # Source: res://src/scripts/network/actions/
-# Date:   2026-03-10T17:26:33
+# Date:   2026-03-10T20:42:53
 # ═══════════════════════════════════════════════════
 class_name GeneratedPackets
 
 const BLOCK_BREAK_ID := 53016
 const BLOCK_PLACE_ID := 51992
+const CHAMELEON_PAINT_ID := 61104
 const PLAYER_MOVE_ID := 37676
 
 ## Метаданные пакетов для NetworkActionManager
@@ -42,6 +43,26 @@ const PACKETS := {
 		"receive_method": "",
 		"auto_peer_id": true,
 		"source_keys": {"peer_id": "peer_id", "block_position": "block_position", "block_id": "block_id"},
+		"v_player_exists": true,
+		"v_authenticated": true,
+		"v_max_distance": 0.0,
+		"v_max_speed": 0.0,
+		"v_speed_tolerance": 1.5,
+		"v_cooldown": 0.1,
+		"v_position_field": "block_position",
+		"v_max_action_dist": 12.0,
+	},
+	61104: {
+		"name": "chameleon_paint",
+		"sync_mode": 3,
+		"channel": 0,
+		"server_validates": true,
+		"field_names": ["peer_id", "block_position", "source_block_id"],
+		"send_rate_hz": 0,
+		"source_method": "",
+		"receive_method": "",
+		"auto_peer_id": true,
+		"source_keys": {"peer_id": "peer_id", "block_position": "block_position", "source_block_id": "source_block_id"},
 		"v_player_exists": true,
 		"v_authenticated": true,
 		"v_max_distance": 0.0,
@@ -116,6 +137,30 @@ static func read_block_place(_b: StreamPeerBuffer) -> Dictionary:
 		"peer_id": _peer_id,
 		"block_position": _block_position,
 		"block_id": _block_id,
+	}
+
+
+# ─── chameleon_paint (id=61104, 18 bytes (fixed)) ───
+
+static func write_chameleon_paint(peer_id: int, block_position: Vector3, source_block_id: int) -> PackedByteArray:
+	var _b := StreamPeerBuffer.new()
+	_b.big_endian = false
+	_b.put_u32(peer_id)
+	_b.put_float(block_position.x)
+	_b.put_float(block_position.y)
+	_b.put_float(block_position.z)
+	_b.put_u16(source_block_id)
+	return PacketTypes.write_packet(61104, _b.data_array)
+
+
+static func read_chameleon_paint(_b: StreamPeerBuffer) -> Dictionary:
+	var _peer_id := _b.get_u32()
+	var _block_position := Vector3(_b.get_float(), _b.get_float(), _b.get_float())
+	var _source_block_id := _b.get_u16()
+	return {
+		"peer_id": _peer_id,
+		"block_position": _block_position,
+		"source_block_id": _source_block_id,
 	}
 
 

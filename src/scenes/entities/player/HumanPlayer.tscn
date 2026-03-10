@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://jbh5hqswmnca"]
+
+[ext_resource type="PackedScene" uid="uid://bquqq0ni2vmj4" path="res://src/scenes/entities/player/BasePlayer.tscn" id="1_5es4h"]
+[ext_resource type="Script" uid="uid://cul5psgkyxkpp" path="res://src/scripts/entities/player/human_player.gd" id="2_twyb4"]
+[ext_resource type="Script" uid="uid://b2s2cwk7hiohb" path="res://src/scripts/entities/player/player_interaction.gd" id="3_74onx"]
+
+[node name="HumanPlayer" unique_id=1161119951 instance=ExtResource("1_5es4h")]
+script = ExtResource("2_twyb4")
+
+[node name="Interaction" type="Node3D" parent="." index="3" unique_id=819439322]
+script = ExtResource("3_74onx")

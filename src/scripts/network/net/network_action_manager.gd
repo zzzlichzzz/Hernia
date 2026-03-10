@@ -91,12 +91,20 @@ func auto_bind_source(node: Node, peer_id: int) -> void:
 
 	print("[NAM] auto_bind_source: привязано %d, пропущено %d" % [bound, unbound])
 
+## Очистить все привязки источников.
+## Вызывать при отключении, смене сцены, удалении локального игрока.
+func clear_sources() -> void:
+	_sources.clear()
+	# Сбросить tick-данные чтобы не отправлять стухшие пакеты
+	for pid: int in _tick_data:
+		_tick_data[pid]["dirty"] = false
+		_tick_data[pid]["args"] = []
+
 
 func auto_bind_receiver(manager: Object) -> void:
 	_receiver_manager = manager
 
 	var count := 0
-	var warnings := 0
 
 	for pid: int in GeneratedPackets.PACKETS:
 		var meta: Dictionary = GeneratedPackets.PACKETS[pid]
@@ -107,17 +115,12 @@ func auto_bind_receiver(manager: Object) -> void:
 
 		count += 1
 
-		# Предупредить если метод точно не найдётся
-		# (на этом этапе ноды ещё не заспавнены,
-		# поэтому полную проверку нельзя сделать)
-
 	print("[NAM] auto_bind_receiver: %d пакетов с receive_method" % count)
 
 
 func auto_bind_server(server: Object) -> void:
 	var validators := 0
 	var handlers := 0
-	var missing_validators := 0
 
 	for pid: int in GeneratedPackets.PACKETS:
 		var meta: Dictionary = GeneratedPackets.PACKETS[pid]
@@ -127,10 +130,6 @@ func auto_bind_server(server: Object) -> void:
 		if server.has_method(validate_fn):
 			_validators[pid] = Callable(server, validate_fn)
 			validators += 1
-		elif meta.get("server_validates", false):
-			# server_validates включён но нет ручного валидатора
-			# Автовалидация из .tres всё равно работает
-			pass
 
 		var handler_fn := "_on_%s" % pname
 		if server.has_method(handler_fn):
@@ -139,12 +138,9 @@ func auto_bind_server(server: Object) -> void:
 
 	print("[NAM] auto_bind_server: %d валидаторов, %d обработчиков" % [validators, handlers])
 
-## Авто-обновление позиции в PlayerManager после валидации.
-## Вызывается ТОЛЬКО после прохождения всех проверок.
-## Работает только для пакетов движения (с антителепортом или антиспидхаком).
+## Авто-обновление PlayerManager после валидации.
+## Обновляет позицию И ротацию из полей пакета.
 func _auto_update_pm(peer_id: int, data: Dictionary, meta: Dictionary) -> void:
-	# Не обновляем если валидация выключена —
-	# без проверки нет гарантий что позиция легитимна
 	if not meta.get("server_validates", false):
 		return
 	if _player_manager == null or not _player_manager.has_player(peer_id):
@@ -154,9 +150,6 @@ func _auto_update_pm(peer_id: int, data: Dictionary, meta: Dictionary) -> void:
 	if pos_field == "" or pos_field not in data:
 		return
 
-	# Авто-обновляем ТОЛЬКО для пакетов движения.
-	# Пакеты действий (break_block и т.д.) используют position_field
-	# для проверки дистанции действия — это НЕ позиция игрока.
 	var max_dist: float = meta.get("v_max_distance", 0.0)
 	var max_speed: float = meta.get("v_max_speed", 0.0)
 	if max_dist <= 0.0 and max_speed <= 0.0:
@@ -165,12 +158,20 @@ func _auto_update_pm(peer_id: int, data: Dictionary, meta: Dictionary) -> void:
 	var new_pos: Vector3 = data[pos_field]
 	var old_data := _player_manager.get_player_data(peer_id)
 	var old_rot: Vector3 = old_data.get("rotation", Vector3.ZERO)
-	_player_manager.update_player(peer_id, new_pos, old_rot)
+
+	# Попытка собрать ротацию из известных полей
+	var new_rot := old_rot
+	var field_names: Array = meta.get("field_names", [])
+	if "head_pitch" in data and "body_yaw" in data:
+		new_rot = Vector3(data["head_pitch"], data["body_yaw"], 0.0)
+	elif "rotation" in data and data["rotation"] is Vector3:
+		new_rot = data["rotation"]
+
+	_player_manager.update_player(peer_id, new_pos, new_rot)
 
 func update_peer_id(peer_id: int) -> void:
 	for pid: int in _sources:
 		_sources[pid]["peer_id"] = peer_id
-
 
 # ══════════════════════════════════════════════════
 #  РУЧНАЯ ПРИВЯЗКА (обратная совместимость)
@@ -245,7 +246,7 @@ func _send_immediate(pid: int, action_name: String, args: Array) -> void:
 
 
 # ══════════════════════════════════════════════════
-#  ТИКОВАЯ СИСТЕМА + AUTO COLLECT
+# ТИКОВАЯ СИСТЕМА + AUTO COLLECT
 # ══════════════════════════════════════════════════
 
 func _physics_process(delta: float) -> void:
@@ -263,22 +264,38 @@ func _physics_process(delta: float) -> void:
 
 
 func _collect_from_sources() -> void:
+	var stale: Array[int] = []
+
 	for pid: int in _sources:
 		var source: Dictionary = _sources[pid]
-		var node: Node = source["node"]
-		if node == null or not is_instance_valid(node):
+
+		# Безтиповое чтение — не крашит на freed instance
+		var node_ref: Variant = source.get("node", null)
+		if node_ref == null or not is_instance_valid(node_ref):
+			stale.append(pid)
 			continue
+
+		var node: Node = node_ref as Node
 		var meta: Dictionary = GeneratedPackets.PACKETS[pid]
 		var method: String = meta.get("source_method", "")
 		if method == "" or not node.has_method(method):
 			continue
+
 		var state: Dictionary = node.call(method)
 		var args := _build_args(pid, meta, state, source["peer_id"])
+
 		if pid in _tick_data:
 			_tick_data[pid]["args"] = args
 			_tick_data[pid]["dirty"] = true
 		else:
 			_send_immediate(pid, meta["name"], args)
+
+	# Убрать мёртвые источники
+	for pid in stale:
+		_sources.erase(pid)
+		if pid in _tick_data:
+			_tick_data[pid]["dirty"] = false
+			_tick_data[pid]["args"] = []
 
 
 func _build_args(pid: int, meta: Dictionary, state: Dictionary, peer_id: int) -> Array:
@@ -355,11 +372,9 @@ func _on_packet(peer_id: int, body: StreamPeerBuffer, pid: int) -> void:
 
 func _handle_server(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) -> void:
 	var sync_mode: int = meta["sync_mode"]
-	# Серверные пакеты (1,2,4) клиент не может слать
 	if sync_mode == 1 or sync_mode == 2 or sync_mode == 4:
 		return
 
-	# Перезапись peer_id — клиент не может притвориться другим
 	if "peer_id" in data:
 		data["peer_id"] = peer_id
 
@@ -367,13 +382,11 @@ func _handle_server(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 	if meta["server_validates"]:
 		if not _auto_validate(pid, peer_id, data, meta):
 			return
-		# Ручной валидатор (дополнительно к авто)
 		if pid in _validators:
 			if not (_validators[pid] as Callable).call(peer_id, data):
 				return
 
 	# ── Авто-обновление PlayerManager ─────────────
-	# Только после ВСЕХ проверок, только для движения
 	_auto_update_pm(peer_id, data, meta)
 
 	# ── Обработчик ────────────────────────────────
@@ -433,23 +446,17 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 	var max_speed: float = meta.get("v_max_speed", 0.0)
 
 	# ═══════════════════════════════════════════════
-	# ФАЗА 1: Все проверки (БЕЗ изменения состояния)
-	# Ни один таймер не обновляется до прохождения
-	# всех проверок — иначе отклонённый пакет
-	# портит таймеры для следующего легитимного.
+	# ФАЗА 1: Все проверки БЕЗ изменения состояния
 	# ═══════════════════════════════════════════════
 
-	# ── Проверка аутентификации ───────────────────
 	if meta.get("v_authenticated", true):
 		if not _auth_data.get(peer_id, false):
 			return false
 
-	# ── Проверка существования игрока ─────────────
 	if meta.get("v_player_exists", true):
 		if _player_manager == null or not _player_manager.has_player(peer_id):
 			return false
 
-	# ── Cooldown (только чтение) ──────────────────
 	if cooldown > 0.0:
 		if peer_id in _cooldown_times:
 			var peer_cd: Dictionary = _cooldown_times[peer_id]
@@ -457,7 +464,6 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 				if now - peer_cd[action_name] < cooldown:
 					return false
 
-	# ── Проверки позиции ──────────────────────────
 	var pos_field: String = meta.get("v_position_field", "position")
 	if pos_field != "" and pos_field in data and _player_manager != null:
 		var new_pos: Vector3 = data[pos_field]
@@ -465,13 +471,11 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 		var old_pos: Vector3 = old_data.get("position", Vector3.ZERO)
 		var distance := old_pos.distance_to(new_pos)
 
-		# ── Антителепорт ──────────────────────────
 		var max_dist: float = meta.get("v_max_distance", 0.0)
 		if max_dist > 0.0 and distance > max_dist:
 			_report_violation(peer_id, "teleport_%s" % action_name)
 			return false
 
-		# ── Антиспидхак (только чтение) ───────────
 		if max_speed > 0.0:
 			var dt := 0.05
 			var peer_times: Dictionary = _last_move_times.get(peer_id, {})
@@ -483,7 +487,6 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 				_report_violation(peer_id, "speed_%s" % action_name)
 				return false
 
-		# ── Дистанция действия ────────────────────
 		var max_action: float = meta.get("v_max_action_dist", 0.0)
 		if max_action > 0.0 and distance > max_action:
 			_report_violation(peer_id, "range_%s" % action_name)
@@ -541,7 +544,7 @@ func _check_rate_limit(peer_id: int, pid: int) -> bool:
 
 func clear_peer_data(peer_id: int) -> void:
 	_rate_limits.erase(peer_id)
-	_last_move_times.erase(peer_id) # erase удаляет вложенный dict целиком
+	_last_move_times.erase(peer_id)
 	_cooldown_times.erase(peer_id)
 
 

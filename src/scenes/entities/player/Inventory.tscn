@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cuwen1askdtab"]
 
-[ext_resource type="PackedScene" uid="uid://gk05pbux7spw" path="res://src/scenes/entities/player/InventorySlot.tscn" id="2_at5t7"]
+[ext_resource type="PackedScene" uid="uid://gk05pbux7spw" path="res://src/scenes/ui/InventorySlot.tscn" id="2_at5t7"]
 
 [node name="Inventory" type="ColorRect" unique_id=565793990]
 anchors_preset = 15

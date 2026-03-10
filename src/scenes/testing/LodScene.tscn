@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://b74jlqgmtglti"]
 
-[ext_resource type="PackedScene" uid="uid://dxf5dr4bn0yc7" path="res://src/scenes/entities/player/Player.tscn" id="1_8bujj"]
-[ext_resource type="VoxelMesherBlocky" uid="uid://dcprqlo7ta2tm" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
+[ext_resource type="VoxelMesherBlocky" uid="uid://busgfd4c80d3r" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="1_76ycs"]
 [ext_resource type="Script" uid="uid://bqaues5e71sqq" path="res://src/scripts/ui/debug_overlay.gd" id="2_debug"]
 [ext_resource type="Script" uid="uid://woicsrbbn2an" path="res://src/scripts/ui/chat_system.gd" id="3_chat"]
 [ext_resource type="Script" uid="uid://pxmgosijcx0u" path="res://src/scripts/ui/menus/voxel_terrain.gd" id="4_terrain"]
@@ -20,7 +19,7 @@ sky = SubResource("Sky_q7qfn")
 [sub_resource type="VoxelGeneratorFlat" id="VoxelGeneratorFlat_53uy5"]
 channel = 0
 
-[node name="LodScene" type="WorldEnvironment" unique_id=327434639]
+[node name="World" type="WorldEnvironment" unique_id=327434639]
 environment = SubResource("Environment_gbe0j")
 
 [node name="VoxelTerrain" type="VoxelTerrain" parent="." unique_id=2120458056]
@@ -28,9 +27,6 @@ generator = SubResource("VoxelGeneratorFlat_53uy5")
 mesher = ExtResource("1_76ycs")
 max_view_distance = 64
 script = ExtResource("4_terrain")
-
-[node name="Player" parent="." unique_id=1646330281 instance=ExtResource("1_8bujj")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.9517821494866165, 0)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1768579647]
 transform = Transform3D(1, 0, 0, 0, 0.7461038605535667, 0.665829579747749, 0, -0.665829579747749, 0.7461038605535667, 0, 75.22983780076964, 0)
@@ -40,3 +36,6 @@ script = ExtResource("2_debug")
 
 [node name="ChatSystem" type="CanvasLayer" parent="." unique_id=888888888]
 script = ExtResource("3_chat")
+
+[node name="Players" type="Node3D" parent="." unique_id=197564807]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.496000745500794, 0)

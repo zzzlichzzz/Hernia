@@ -1,12 +1,12 @@
-[gd_resource type="Resource" script_class="ItemArrayRegistry" format=3]
+[gd_resource type="Resource" script_class="ItemArrayRegistry" format=3 uid="uid://ckkfiq38qt7c0"]
 
-[ext_resource type="Script" path="res://src/data/items/type/item_data.gd" id="1_yhgsq"]
-[ext_resource type="Script" path="res://src/data/items/type/item_consumable.gd" id="2_qyf07"]
-[ext_resource type="ArrayMesh" path="res://src/assets/models/blocks/cube.obj" id="3_bcoyp"]
-[ext_resource type="Script" path="res://src/data/blocks/block_definition.gd" id="4_t05th"]
-[ext_resource type="Script" path="res://src/data/items/type/item_block.gd" id="5_kafhe"]
-[ext_resource type="ArrayMesh" path="res://src/assets/models/blocks/stair_block.obj" id="6_tdd0q"]
-[ext_resource type="Script" path="res://src/data/items/item_array_registry.gd" id="7_g32uw"]
+[ext_resource type="Script" uid="uid://dknjrr6s5fwlj" path="res://src/data/items/type/item_data.gd" id="1_yhgsq"]
+[ext_resource type="Script" uid="uid://dkfwwcqcapdoq" path="res://src/data/items/type/item_consumable.gd" id="2_qyf07"]
+[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/models/blocks/cube.obj" id="3_bcoyp"]
+[ext_resource type="Script" uid="uid://c4qx5vqwkdro2" path="res://src/data/blocks/block_definition.gd" id="4_t05th"]
+[ext_resource type="Script" uid="uid://bhox1u5qj13c3" path="res://src/data/items/type/item_block.gd" id="5_kafhe"]
+[ext_resource type="ArrayMesh" uid="uid://cdrw07cs74bqw" path="res://src/assets/models/blocks/stair_block.obj" id="6_tdd0q"]
+[ext_resource type="Script" uid="uid://cf4nqob3pfxot" path="res://src/data/items/item_array_registry.gd" id="7_g32uw"]
 
 [sub_resource type="Resource" id="Resource_xvaua"]
 resource_name = "apple_item"
@@ -33,6 +33,23 @@ script = ExtResource("5_kafhe")
 block_definition = SubResource("Resource_0g1uf")
 id_block = 1
 id = &"block_grass"
+metadata/_custom_type_script = "uid://bhox1u5qj13c3"
+
+[sub_resource type="Resource" id="Resource_n3j2i"]
+script = ExtResource("4_t05th")
+block_name = "chameleon"
+texture_name = "framed_block"
+model = ExtResource("3_bcoyp")
+material_type_enum = 4
+is_chameleon = true
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_x613m"]
+resource_name = "chameleon"
+script = ExtResource("5_kafhe")
+block_definition = SubResource("Resource_n3j2i")
+id_block = 6
+id = &"chameleon"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
 [sub_resource type="Resource" id="Resource_kpjdi"]
@@ -83,6 +100,24 @@ id_block = 4
 id = &"dirt"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
+[sub_resource type="Resource" id="Resource_a666k"]
+script = ExtResource("4_t05th")
+block_name = "stair_chameleon"
+texture_name = "framed_block"
+model = ExtResource("6_tdd0q")
+material_type_enum = 4
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 0.5, 1), AABB(0, 0.5, 0, 1, 0.5, 0.5)])
+is_chameleon = true
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_k2w68"]
+resource_name = "stair_chameleon"
+script = ExtResource("5_kafhe")
+block_definition = SubResource("Resource_a666k")
+id_block = 7
+id = &"stair_chameleon"
+metadata/_custom_type_script = "uid://bhox1u5qj13c3"
+
 [sub_resource type="Resource" id="Resource_s6v2o"]
 script = ExtResource("4_t05th")
 block_name = "stone"
@@ -96,40 +131,6 @@ script = ExtResource("5_kafhe")
 block_definition = SubResource("Resource_s6v2o")
 id_block = 5
 id = &"stone"
-metadata/_custom_type_script = "uid://bhox1u5qj13c3"
-
-[sub_resource type="Resource" id="Resource_n3j2i"]
-script = ExtResource("4_t05th")
-block_name = "chameleon"
-texture_name = "framed_block"
-model = ExtResource("3_bcoyp")
-material_type_enum = 4
-is_chameleon = true
-metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
-
-[sub_resource type="Resource" id="Resource_x613m"]
-resource_name = "chameleon"
-script = ExtResource("5_kafhe")
-block_definition = SubResource("Resource_n3j2i")
-id_block = 6
-id = &"chameleon"
-metadata/_custom_type_script = "uid://bhox1u5qj13c3"
-
-[sub_resource type="Resource" id="Resource_a666k"]
-script = ExtResource("4_t05th")
-block_name = "stair_chameleon"
-texture_name = "framed_block"
-model = ExtResource("6_tdd0q")
-material_type_enum = 4
-is_chameleon = true
-metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
-
-[sub_resource type="Resource" id="Resource_k2w68"]
-resource_name = "stair_chameleon"
-script = ExtResource("5_kafhe")
-block_definition = SubResource("Resource_a666k")
-id_block = 7
-id = &"stair_chameleon"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
 [resource]

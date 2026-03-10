@@ -1,6 +1,6 @@
-[gd_resource type="VoxelMesherBlocky" format=3 uid="uid://dcprqlo7ta2tm"]
+[gd_resource type="VoxelMesherBlocky" format=3 uid="uid://busgfd4c80d3r"]
 
-[ext_resource type="VoxelBlockyLibrary" uid="uid://wur0v6jqe8vk" path="res://src/data/blocks/voxel_blocky_library.tres" id="1_61eru"]
+[ext_resource type="VoxelBlockyLibrary" uid="uid://bhubhwoen2ken" path="res://src/data/blocks/voxel_blocky_library.tres" id="1_61eru"]
 
 [resource]
 library = ExtResource("1_61eru")

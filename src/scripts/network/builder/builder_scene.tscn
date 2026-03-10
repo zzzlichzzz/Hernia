@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://g1fekriuid0k"]
+
+[ext_resource type="Script" uid="uid://uk4444458k4k" path="res://src/scripts/network/builder/packet_builder.gd" id="1_wplv0"]
+
+[node name="BuilderScene" type="Node" unique_id=891356932]
+script = ExtResource("1_wplv0")

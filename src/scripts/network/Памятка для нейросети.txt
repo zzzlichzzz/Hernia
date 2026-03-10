@@ -1,0 +1,182 @@
+╔══════════════════════════════════════════════════════════════════╗
+║  ПАМЯТКА: Сетевой код вокселного проекта на Godot 4.6           ║
+║  Для использования в будущих запросах к нейросети                ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+═══ ОБЩЕЕ ОПИСАНИЕ ═══
+
+Data-driven сетевая система для воксельной игры.
+Пакеты описываются через .tres файлы (NetworkPacketDef),
+генератор (packet_builder.gd) создаёт GDScript с функциями
+сериализации/десериализации. Runtime маршрутизация через
+NetworkActionManager (NAM).
+
+Транспорт: ENet через ENetConnection (не MultiplayerPeer).
+Заголовок пакета: 8 байт [u16 type][u16 body_len][u16 frag_id][u16 total_frags].
+Поддержка фрагментации для пакетов > 1024 байт.
+
+
+═══ КЛЮЧЕВЫЕ КЛАССЫ ═══
+
+NetworkPacketDef (Resource .tres)
+  - packet_name: String (snake_case, уникальный)
+  - sync_mode: enum (0-4)
+  - channel: enum (RELIABLE=0, UNRELIABLE=1)
+  - server_validates: bool
+  - fields: Array[NetworkFieldDef]
+  - get_packet_id() → 100 + (name.hash() & 0xFFFF)
+
+NetworkFieldDef (Resource, вложен в NetworkPacketDef)
+  - field_name: String
+  - field_type: enum (BOOL, INT, FLOAT, VECTOR2, VECTOR3, STRING, PACKED_BYTES)
+  - byte_size: enum (AUTO, BITS_8, BITS_16, BITS_32)
+  - is_signed: bool (только для INT)
+  - use_quantization: bool + quantize_min/max (для FLOAT/вектор)
+
+PacketTypes (static)
+  - write_packet(type, body, frag_id, total) → PackedByteArray
+  - read_packet(raw) → Dictionary {type, body:StreamPeerBuffer, frag_id, total}
+  - fragment_packet(type, body) → Array[PackedByteArray]
+  - Служебные пакеты: PING=3, PONG=4, PLAYER_JOINED=6, PLAYER_LEFT=7, WELCOME=8
+  - FragmentAssembler (внутренний класс)
+
+GeneratedPackets (автогенерация, class_name)
+  - const PACKETS: Dictionary {id → {name, sync_mode, channel, server_validates, field_names}}
+  - static func write_<name>(args...) → PackedByteArray
+  - static func read_<name>(StreamPeerBuffer) → Dictionary
+  - Хелперы: _f2h(), _h2f() для half-float
+
+NetworkManager (Node)
+  - ENet обёртка
+  - create_server(port, max_clients) / create_client(addr, port)
+  - send_to_server / send_to_peer / broadcast / broadcast_except
+  - register_handler(type_id, Callable)
+  - signal peer_connected / peer_disconnected
+  - Heartbeat таймаут: 10 сек
+  - Фрагментация: send_fragmented_*
+
+NetworkActionManager (Node)
+  - setup(net: NetworkManager)
+  - send_action(name, args_array) — клиент→сервер или сервер→broadcast
+  - send_action_to(peer_id, name, args) — сервер→конкретному пиру
+  - on_action(name, Callable) — подписка на приём
+  - on_validate(name, Callable) — серверная валидация (→ bool)
+  - БЕЗОПАСНОСТЬ: поле "peer_id" перезаписывается на реальный ID
+  - Маршрутизация: ресериализация через field_names для порядка
+
+PlayerManager (Node)
+  - setup_client(scene, container) — для спавна 3D моделей
+  - add/remove/update_player(id, pos, rot)
+  - get_player_data(id) → {position, rotation, node}
+
+
+═══ SYNC_MODE (маршрутизация) ═══
+
+0 = CLIENT_TO_SERVER        Только серверу, не пересылается
+1 = SERVER_TO_ALL           Сервер → всем
+2 = SERVER_TO_OTHERS        Сервер → всем кроме отправителя
+3 = CLIENT_TO_ALL_VIA_SERVER  Клиент→сервер→остальным (САМЫЙ ЧАСТЫЙ)
+4 = SERVER_TO_OWNER         Сервер → только отправителю
+
+
+═══ ПОТОК ДАННЫХ (sync_mode=3) ═══
+
+Клиент A:
+  send_action("name", [arg0, arg1, arg2])
+  → GeneratedPackets.write_name(arg0, arg1, arg2)
+  → PacketTypes.write_packet(id, body)
+  → ENet send_to_server()
+
+Сервер:
+  → PacketTypes.read_packet(raw) → {type, body}
+  → register_handler[type] → NAM._on_packet()
+  → GeneratedPackets.read_name(body) → Dictionary
+  → data["peer_id"] = real_peer_id (ПЕРЕЗАПИСЬ)
+  → validator(peer_id, data) → true/false
+  → handler(peer_id, data)
+  → field_names → values → write_name(values)
+  → broadcast_except(peer_id)
+
+Клиент B:
+  → NAM._on_packet() → read_name() → data
+  → handler(peer_id, data)
+
+
+═══ ГЕНЕРАЦИЯ КОДА ═══
+
+Билдер (packet_builder.gd) запускается через builder_scene.tscn (F6):
+1. Сканирует res://src/scripts/network/actions/*.tres
+2. Валидирует (дубли имён, коллизии ID, пустые поля)
+3. Сортирует по packet_name (стабильный порядок)
+4. Генерирует generated_packets.gd:
+   - const PACKETS (метаданные + field_names)
+   - static func write_<name>(typed_params) → PackedByteArray
+   - static func read_<name>(StreamPeerBuffer) → Dictionary
+   - _f2h / _h2f хелперы
+
+Размеры полей:
+  BOOL → 1B (put_u8 0/1)
+  INT BITS_8 → put_u8/put_8
+  INT BITS_16 → put_u16/put_16
+  INT BITS_32 → put_u32/put_32
+  FLOAT BITS_32 → put_float
+  FLOAT BITS_16 → put_u16(_f2h(v))  (half-float)
+  FLOAT BITS_16 + quantize → put_u16(int(clamp(normalized) * 65535))
+  VECTOR3 → 3 × component (того же размера)
+  STRING → put_u16(len) + put_data(utf8)
+  PACKED_BYTES → put_u32(len) + put_data(bytes)
+
+
+═══ СЛУЖЕБНЫЕ ПАКЕТЫ (хардкод, не через .tres) ═══
+
+WELCOME (8)        сервер→клиент при подключении: {id, position, rotation}
+PLAYER_JOINED (6)  сервер→клиенты: новый игрок {id, position, rotation}
+PLAYER_LEFT (7)    сервер→клиенты: игрок ушёл {id}
+PING (3) / PONG (4)  heartbeat
+
+
+═══ ВАЖНЫЕ ОГРАНИЧЕНИЯ ═══
+
+1. Packet ID = 100 + (name.hash() & 0xFFFF) — возможны коллизии,
+   билдер проверяет при сборке
+2. Заголовок: type = u16, максимум 65535 типов пакетов
+3. body_len = u16, максимум 65535 байт тела (фрагментация для больших)
+4. Half-float теряет точность при значениях > 1000,
+   позицию ВСЕГДА через BITS_32
+5. Квантизация: значения за [min,max] обрезаются
+6. Dictionary.values() порядок = порядок вставки (Godot 4.x),
+   NAM использует field_names для гарантии порядка при ресериализации
+7. Один обработчик на пакет (перезаписывается, не массив)
+
+
+═══ БЕЗОПАСНОСТЬ ═══
+
+1. NAM автоматически перезаписывает data["peer_id"]
+   на реальный ENet peer_id
+2. on_validate() вызывается ДО обработчика и ДО маршрутизации
+3. Рекомендуемые проверки в валидаторе:
+   - _pm.has_player(peer_id)
+   - distance_to() < max_distance
+   - cooldown (время между действиями)
+
+
+═══ ТЕКУЩЕЕ СОСТОЯНИЕ ПРОЕКТА ═══
+
+Реализовано:
+  - player_move (позиция + поворот, 20 Гц, unreliable)
+  - Подключение/отключение с WELCOME
+  - Спавн/удаление удалённых игроков
+  - Серверная валидация player_move
+  - Фрагментация больших пакетов
+  - Heartbeat + таймауты
+
+Клиент:
+  - FPS контроллер (WASD + мышь)
+  - Tick rate 20 Гц через _tick_accumulator в _physics_process
+  - Ping каждые 3 сек
+
+Сервер:
+  - Случайный спавн в [-5,5] x SPAWN_Y x [-5,5]
+  - Рассылка PLAYER_JOINED существующим при подключении нового
+  - Graceful shutdown (PLAYER_LEFT всем при закрытии)

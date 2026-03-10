@@ -1,0 +1,528 @@
+╔══════════════════════════════════════════════════════════════════╗
+║           СЕТЕВАЯ СИСТЕМА — СПРАВОЧНИК / ШПАРГАЛКА               ║
+║                     Godot 4.x + ENet                             ║
+║                                                                  ║
+║  Путь: res://src/scripts/network/                                ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+════════════════════════════════════════════════════════════════════
+ 1. СТРУКТУРА ФАЙЛОВ
+════════════════════════════════════════════════════════════════════
+
+res://src/scripts/network/
+├── net/
+│   ├── packet_types.gd       Типы пакетов, сериализация, фрагментация
+│   ├── network_manager.gd    ENet-обёртка, диспетчер, таймауты
+│   ├── player_manager.gd     Хранение/спавн/удаление игроков
+│   └── cmd_args.gd           Парсер аргументов командной строки
+├── scenes/
+│   ├── player.tscn           Локальный FPS-игрок
+│   ├── player.gd             Контроллер WASD + мышь
+│   ├── remote_player.tscn    Удалённый игрок (красная капсула)
+│   ├── remote_player.gd      Обновление позиции/поворота
+│   └── world.tscn            Мир (VoxelTerrain + Players контейнер)
+├── server_main.tscn          Сцена сервера (корень: Node)
+├── server_main.gd            Логика сервера
+├── client_main.tscn          Сцена клиента (корень: Node3D + World)
+├── client_main.gd            Логика клиента
+└── entry_point.gd            Авто-роутинг (headless → сервер)
+
+
+════════════════════════════════════════════════════════════════════
+ 2. ФОРМАТ ПАКЕТА
+════════════════════════════════════════════════════════════════════
+
+Заголовок: 7 байт, little-endian
+
+┌──────────┬────────────┬───────────────┬──────────────────┬──────────┐
+│ 1B type  │ 2B body_len│ 2B fragment_id│ 2B total_fragments│ body... │
+└──────────┴────────────┴───────────────┴──────────────────┴──────────┘
+
+• total_fragments == 0  →  обычный пакет (не фрагментирован)
+• total_fragments >  0  →  фрагмент, fragment_id от 0 до total-1
+• body_len — длина тела ЭТОГО пакета/фрагмента
+• MAX_FRAGMENT_BODY = 1024 байт
+
+
+════════════════════════════════════════════════════════════════════
+ 3. ТИПЫ СООБЩЕНИЙ
+════════════════════════════════════════════════════════════════════
+
+┌────┬─────────────────┬───────────┬──────────────────────────────┐
+│ ID │ Имя             │ Канал     │ Описание                     │
+├────┼─────────────────┼───────────┼──────────────────────────────┤
+│  1 │ CONNECT         │ —         │ (зарезервировано, ENet event)│
+│  2 │ DISCONNECT      │ —         │ (зарезервировано, ENet event)│
+│  3 │ PING            │ reliable  │ Клиент → Сервер (heartbeat)  │
+│  4 │ PONG            │ reliable  │ Сервер → Клиент (ответ)      │
+│  5 │ PLAYER_UPDATE   │ unreliable│ Позиция + поворот (20 Гц)    │
+│  6 │ PLAYER_JOINED   │ reliable  │ Сервер → Все: новый игрок    │
+│  7 │ PLAYER_LEFT     │ reliable  │ Сервер → Все: игрок ушёл     │
+│  8 │ WELCOME         │ reliable  │ Сервер → Клиент: твой id     │
+└────┴─────────────────┴───────────┴──────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════
+ 4. ТЕЛО СООБЩЕНИЙ
+════════════════════════════════════════════════════════════════════
+
+PING / PONG:
+  (пустое тело)
+
+WELCOME / PLAYER_JOINED / PLAYER_UPDATE:
+  ┌────────┬────────────┬────────────┬────────────┬──────────┬──────────┬──────────┐
+  │ 4B id  │ 4B pos.x   │ 4B pos.y   │ 4B pos.z   │ 4B rot.x │ 4B rot.y │ 4B rot.z │
+  └────────┴────────────┴────────────┴────────────┴──────────┴──────────┴──────────┘
+  Итого: 28 байт
+
+  rotation = Vector3(head_pitch, body_yaw, 0)
+
+PLAYER_LEFT:
+  ┌────────┐
+  │ 4B id  │
+  └────────┘
+  Итого: 4 байта
+
+
+════════════════════════════════════════════════════════════════════
+ 5. КЛАССЫ — КРАТКИЙ API
+════════════════════════════════════════════════════════════════════
+
+─── PacketTypes (static) ──────────────────────────────────────────
+
+  # Общие
+  write_packet(type, body, frag_id=0, total=0) → PackedByteArray
+  read_packet(raw)                             → Dictionary {type, body, fragment_id, total_fragments}
+
+  # Конкретные сообщения
+  write_ping()                          → PackedByteArray
+  write_pong()                          → PackedByteArray
+  write_welcome(id, pos, rot)           → PackedByteArray
+  write_player_joined(id, pos, rot)     → PackedByteArray
+  write_player_left(id)                 → PackedByteArray
+  write_player_update(id, pos, rot)     → PackedByteArray
+
+  read_ping(buf)                        → Dictionary {}
+  read_pong(buf)                        → Dictionary {}
+  read_welcome(buf)                     → Dictionary {id, position, rotation}
+  read_player_joined(buf)               → Dictionary {id, position, rotation}
+  read_player_left(buf)                 → Dictionary {id}
+  read_player_update(buf)               → Dictionary {id, position, rotation}
+
+  # Фрагментация
+  needs_fragmentation(body_size)        → bool
+  fragment_packet(type, body)           → Array[PackedByteArray]
+  is_fragment(parsed)                   → bool
+
+
+─── NetworkManager (extends Node) ─────────────────────────────────
+
+  Сигналы:
+	peer_connected(peer_id: int)
+	peer_disconnected(peer_id: int)
+
+  Создание:
+	create_server(port, max_clients=32) → Error
+	create_client(address, port)        → Error
+	shutdown()
+	disconnect_from_server()
+	kick_peer(peer_id)
+
+  Обработчики:
+	register_handler(msg_type, callable)
+	unregister_handler(msg_type)
+	# callable signature: func(peer_id: int, body: StreamPeerBuffer) -> void
+
+  Отправка (обычная):
+	send_to_peer(peer_id, packet, channel=0, flags=RELIABLE)    → Error
+	send_to_server(packet, channel=0, flags=RELIABLE)           → Error
+	broadcast(packet, channel=0, flags=RELIABLE)
+	broadcast_except(exclude_id, packet, channel=0, flags=RELIABLE)
+
+  Отправка (с автофрагментацией):
+	send_fragmented_to_peer(peer_id, type, body, ch=0, flags=RELIABLE)
+	send_fragmented_to_server(type, body, ch=0, flags=RELIABLE)
+	broadcast_fragmented(type, body, ch=0, flags=RELIABLE)
+	broadcast_fragmented_except(exclude_id, type, body, ch=0, flags=RELIABLE)
+
+  Геттеры:
+	is_server()                  → bool
+	get_my_id()                  → int
+	set_my_id(id)
+	get_peer_ids()               → Array
+	get_peer_idle_time(peer_id)  → float   (секунды с последнего пакета)
+	get_server_idle_time()       → float
+
+  Константы:
+	SERVER_ID          = 1
+	TIMEOUT_LIMIT      = 5        (попытки ENet)
+	TIMEOUT_MIN_MS     = 1000
+	TIMEOUT_MAX_MS     = 5000
+	HEARTBEAT_TIMEOUT  = 10.0     (сек, серверный кик)
+
+
+─── PlayerManager (extends Node) ──────────────────────────────────
+
+  setup_client(scene: PackedScene, container: Node)
+  add_player(id, pos, rot)
+  remove_player(id)
+  update_player(id, pos, rot)
+  get_player_data(id)            → Dictionary {position, rotation, node}
+  get_all_ids()                  → Array
+  has_player(id)                 → bool
+  clear()
+
+
+─── CmdArgs ───────────────────────────────────────────────────────
+
+  # Создание (автоматически парсит OS.get_cmdline_user_args())
+  var args = CmdArgs.new()
+
+  get_string(key, default="")    → String
+  get_int(key, default=0)        → int
+  get_float(key, default=0.0)    → float
+  has_flag(key)                  → bool     (--verbose, без значения)
+  has(key)                       → bool     (любой: с или без значения)
+  print_all()                                (отладочный вывод)
+
+  # Статический метод
+  CmdArgs.is_headless()          → bool     (DisplayServer == "headless")
+
+
+─── Player (extends CharacterBody3D) ──────────────────────────────
+
+  get_network_state()            → Dictionary {position: Vector3, rotation: Vector3}
+
+  Управление:
+	WASD          — движение
+	Мышь          — поворот камеры
+	Пробел        — прыжок
+	ЛКМ           — захват курсора
+	Escape        — отпустить / захватить курсор
+
+  Константы:
+	SPEED               = 5.0
+	JUMP_VELOCITY        = 4.5
+	MOUSE_SENSITIVITY    = 0.003
+
+
+─── RemotePlayer (extends Node3D) ─────────────────────────────────
+
+  update_state(pos: Vector3, rot: Vector3)
+
+
+════════════════════════════════════════════════════════════════════
+ 6. ПОРЯДОК СОБЫТИЙ ПРИ ПОДКЛЮЧЕНИИ
+════════════════════════════════════════════════════════════════════
+
+Клиент                         Сервер
+  │                              │
+  ├── create_client() ──────────►│ ENet CONNECT
+  │                              ├── peer_connected(id=2)
+  │                              ├── send WELCOME(id=2, pos, rot)
+  │                              ├── send PLAYER_JOINED(id=X) × N (существующие)
+  │                              ├── pm.add_player(2)
+  │                              └── broadcast PLAYER_JOINED(id=2)
+  │◄──── WELCOME ────────────────┤
+  ├── set_my_id(2)               │
+  ├── spawn LocalPlayer          │
+  ├── start tick_timer           │
+  ├── start ping_timer           │
+  │◄──── PLAYER_JOINED(X) ───────┤
+  ├── pm.add_player(X)           │
+  │                              │
+  ║ ═══ ИГРОВОЙ ЦИКЛ ═══         ║
+  │                              │
+  ├── PLAYER_UPDATE (20Hz) ────► │
+  │                              ├── pm.update(2)
+  │                              └── broadcast_except(2) PLAYER_UPDATE
+  │◄──── PLAYER_UPDATE(X) ───────┤
+  ├── pm.update(X)               │
+  │                              │
+  ├── PING (3 сек) ─────────────►│
+  │◄──── PONG ───────────────────┤
+
+
+════════════════════════════════════════════════════════════════════
+ 7. ПОРЯДОК СОБЫТИЙ ПРИ ОТКЛЮЧЕНИИ
+════════════════════════════════════════════════════════════════════
+
+Штатный выход:
+  Клиент → disconnect_from_server()
+  ENet отправляет DISCONNECT
+  Сервер → peer_disconnected(id)
+		 → pm.remove_player(id)
+		 → broadcast PLAYER_LEFT(id)
+  Остальные клиенты → pm.remove_player(id) → queue_free() нода
+
+Таймаут (крэш клиента / kill процесса):
+  ENet не получает ACK ~5 сек → EVENT_DISCONNECT
+  Дальше как штатный
+
+Heartbeat (клиент не шлёт ничего >10 сек):
+  Сервер → _check_heartbeats() → kick_peer(id)
+  ENet генерирует DISCONNECT → дальше как штатный
+
+
+════════════════════════════════════════════════════════════════════
+ 8. ЗАПУСК
+════════════════════════════════════════════════════════════════════
+
+─── Из редактора ──────────────────────────────────────────────────
+
+  Сервер:  запустить server_main.tscn
+  Клиент:  запустить client_main.tscn (второй экземпляр Godot)
+
+─── Из командной строки ───────────────────────────────────────────
+
+  # Сервер (headless)
+  godot --headless --path . \
+	--main-scene res://src/scripts/network/server_main.tscn \
+	-- --port 8080 --max-clients 16 --verbose
+
+  # Клиент
+  godot --path . \
+	--main-scene res://src/scripts/network/client_main.tscn \
+	-- --address 192.168.1.100 --port 8080
+
+  # Экспортированный билд
+  ./game --headless -- --port 8080 --verbose
+  ./game -- --address 192.168.1.100 --port 8080
+
+─── Аргументы сервера ─────────────────────────────────────────────
+
+  --port <число>          Порт (по умолчанию 9999)
+  --max-clients <число>   Макс. клиентов (по умолчанию 32)
+  --spawn-y <число>       Высота спавна (по умолчанию 2.0)
+  --verbose               Подробный лог
+
+─── Аргументы клиента ─────────────────────────────────────────────
+
+  --address <ip>          Адрес сервера (по умолчанию 127.0.0.1)
+  --port <число>          Порт сервера (по умолчанию 9999)
+
+
+════════════════════════════════════════════════════════════════════
+ 9. КАК ДОБАВИТЬ НОВЫЙ ТИП СООБЩЕНИЯ
+════════════════════════════════════════════════════════════════════
+
+Пример: добавляем CHAT_MESSAGE (id=20)
+
+Шаг 1: packet_types.gd
+────────────────────────
+  # В enum:
+  CHAT_MESSAGE = 20,
+
+  # Сериализация:
+  static func write_chat(sender_id: int, text: String) -> PackedByteArray:
+	  var b := StreamPeerBuffer.new()
+	  b.big_endian = false
+	  b.put_32(sender_id)
+	  var utf := text.to_utf8_buffer()
+	  b.put_32(utf.size())
+	  b.put_data(utf)
+	  return write_packet(CHAT_MESSAGE, b.data_array)
+
+  static func read_chat(buf: StreamPeerBuffer) -> Dictionary:
+	  var sender := buf.get_32()
+	  var len    := buf.get_32()
+	  var utf    := buf.get_data(len)[1]
+	  return { "sender": sender, "text": utf.get_string_from_utf8() }
+
+Шаг 2: Регистрация обработчика
+───────────────────────────────
+  # На сервере (server_main.gd → _ready):
+  _net.register_handler(PacketTypes.CHAT_MESSAGE, _on_chat)
+
+  func _on_chat(peer_id: int, body: StreamPeerBuffer) -> void:
+	  var data := PacketTypes.read_chat(body)
+	  # Пересылаем всем
+	  var pkt := PacketTypes.write_chat(peer_id, data["text"])
+	  _net.broadcast(pkt)
+
+  # На клиенте (client_main.gd → _ready):
+  _net.register_handler(PacketTypes.CHAT_MESSAGE, _on_chat)
+
+  func _on_chat(_peer_id: int, body: StreamPeerBuffer) -> void:
+	  var data := PacketTypes.read_chat(body)
+	  print("[чат] Игрок %d: %s" % [data["sender"], data["text"]])
+
+Шаг 3: Отправка
+────────────────
+  var pkt := PacketTypes.write_chat(_my_id, "Привет!")
+  _net.send_to_server(pkt)
+
+
+════════════════════════════════════════════════════════════════════
+ 10. КАК ОТПРАВИТЬ БОЛЬШИЕ ДАННЫЕ (ФРАГМЕНТАЦИЯ)
+════════════════════════════════════════════════════════════════════
+
+  # Подготовить тело (без заголовка):
+  var body := serialize_my_big_data()   # PackedByteArray, любого размера
+
+  # Проверка:
+  PacketTypes.needs_fragmentation(body.size())   # true если > 1024
+
+  # Отправка (автофрагментация):
+  _net.send_fragmented_to_peer(peer_id, PacketTypes.MY_TYPE, body)
+  _net.send_fragmented_to_server(PacketTypes.MY_TYPE, body)
+  _net.broadcast_fragmented(PacketTypes.MY_TYPE, body)
+
+  # На приёмной стороне — handler получает собранный body как обычно:
+  func _on_my_type(peer_id: int, body: StreamPeerBuffer) -> void:
+	  # body уже полный, фрагментация прозрачна
+	  var data := deserialize_my_big_data(body)
+
+
+════════════════════════════════════════════════════════════════════
+ 11. ТАЙМАУТЫ И КОНСТАНТЫ
+════════════════════════════════════════════════════════════════════
+
+  ┌──────────────────────────┬────────┬──────────────────────────┐
+  │ Константа                │Значение│ Где                      │
+  ├──────────────────────────┼────────┼──────────────────────────┤
+  │ TIMEOUT_LIMIT            │ 5      │ NetworkManager           │
+  │ TIMEOUT_MIN_MS           │ 1000   │ NetworkManager           │
+  │ TIMEOUT_MAX_MS           │ 5000   │ NetworkManager           │
+  │ HEARTBEAT_TIMEOUT        │ 10.0 с │ NetworkManager           │
+  │ FRAGMENT_CLEANUP_INTERVAL│ 5.0 с  │ NetworkManager           │
+  │ FragmentAssembler.timeout│ 10.0 с │ PacketTypes              │
+  │ MAX_FRAGMENT_BODY        │ 1024 B │ PacketTypes              │
+  │ TICK_INTERVAL            │ 0.05 с │ client_main (20 Гц)      │
+  │ PING_INTERVAL            │ 3.0 с  │ client_main              │
+  │ SPEED                    │ 5.0    │ player.gd                │
+  │ JUMP_VELOCITY            │ 4.5    │ player.gd                │
+  │ MOUSE_SENSITIVITY        │ 0.003  │ player.gd                │
+  │ SERVER_ID                │ 1      │ NetworkManager           │
+  │ Клиенты получают id      │ ≥ 2    │ NetworkManager._next_id  │
+  └──────────────────────────┴────────┴──────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════
+ 12. СИГНАЛЫ И ПОТОКИ ДАННЫХ (ДИАГРАММА)
+════════════════════════════════════════════════════════════════════
+
+  ┌─────────────────────────────────────────────────────┐
+  │                    СЕРВЕР                           │
+  │                                                     │
+  │  ENet ──poll()──► _on_enet_receive()                │
+  │                       │                             │
+  │                   read_packet()                     │
+  │                       │                             │
+  │              ┌── is_fragment? ──┐                   │
+  │              │ да               │ нет               │
+  │         assembler.add()         │                   │
+  │              │                  │                   │
+  │         собран? ───────────────►│                   │
+  │                                 │                   │
+  │                   _handlers[type].call(id, body)    │
+  │                       │                             │
+  │              ┌────────┼────────┐                    │
+  │              ▼        ▼        ▼                    │
+  │          _on_ping  _on_update  _on_chat ...         │
+  │              │        │        │                    │
+  │           PONG   broadcast  broadcast               │
+  └─────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────┐
+  │                    КЛИЕНТ                           │
+  │                                                     │
+  │  ENet ──poll()──► _on_enet_receive()                │
+  │                       │                             │
+  │              (та же цепочка)                        │
+  │                       │                             │
+  │              ┌────────┼────────┬─────────┐          │
+  │              ▼        ▼        ▼         ▼          │
+  │         _on_welcome  _on_joined _on_left _on_update │
+  │              │        │         │        │          │
+  │         spawn_self  pm.add   pm.remove  pm.update   │
+  └─────────────────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════
+ 13. СТРУКТУРА СЦЕН
+════════════════════════════════════════════════════════════════════
+
+─── player.tscn ───────────────────────────────────────────────────
+
+  CharacterBody3D (player.gd)
+   ├── CollisionShape3D → CapsuleShape3D (r=0.4, h=1.8)
+   ├── Head (Node3D, Y=0.7)
+   │    └── Camera3D
+   └── MeshInstance3D → CapsuleMesh (r=0.4, h=1.8)
+		(скрыт в _ready: _mesh.visible = false)
+
+─── remote_player.tscn ────────────────────────────────────────────
+
+  Node3D (remote_player.gd)
+   └── MeshInstance3D → CapsuleMesh (r=0.4, h=1.8)
+		└── Material: StandardMaterial3D (красный, для отладки)
+
+─── world.tscn ────────────────────────────────────────────────────
+
+  Node3D (name: "World")
+   ├── DirectionalLight3D (rotation X = −45°)
+   ├── WorldEnvironment → Sky
+   ├── VoxelTerrain
+   │    ├── generator: VoxelGeneratorFlat
+   │    ├── mesher:    VoxelMesherBlocky (+ VoxelBlockyLibrary)
+   │    └── collision: enabled
+   └── Players (Node3D) ← контейнер для спавна
+
+─── server_main.tscn ──────────────────────────────────────────────
+
+  Node (server_main.gd)
+   (без дочерних — всё создаётся из кода)
+
+─── client_main.tscn ──────────────────────────────────────────────
+
+  Node3D (client_main.gd)
+   └── World (instance of world.tscn)
+
+
+════════════════════════════════════════════════════════════════════
+ 14. ЧАСТЫЕ ОШИБКИ И РЕШЕНИЯ
+════════════════════════════════════════════════════════════════════
+
+Проблема: "Static function not found in PacketTypes"
+Причина:  Забыты хелперы в packet_types.gd после обновления
+Решение:  Убедиться что все write_*/read_* функции на месте
+
+Проблема: Клиент видит свою капсулу красной
+Причина:  MeshInstance3D не скрыт в player.gd
+Решение:  _mesh.visible = false в _ready()
+
+Проблема: Игрок проваливается сквозь VoxelTerrain
+Причина:  Коллизии не включены в VoxelTerrain
+Решение:  Инспектор → VoxelTerrain → collision_enabled = true
+
+Проблема: Heartbeat timeout кикает при нормальной игре
+Причина:  PING_INTERVAL > HEARTBEAT_TIMEOUT
+Решение:  PING_INTERVAL (3с) должен быть << HEARTBEAT_TIMEOUT (10с)
+
+Проблема: Фрагменты не собираются
+Причина:  Разные type или sender_id
+Решение:  Ключ сборки = (sender_id, type). Один тип за раз от одного пира.
+
+Проблема: Порт занят при запуске сервера
+Решение:  godot --headless -- --port 8081
+
+
+════════════════════════════════════════════════════════════════════
+ 15. ПЛАН РАЗВИТИЯ (СЛЕДУЮЩИЕ ЭТАПЫ)
+════════════════════════════════════════════════════════════════════
+
+ □ Интерполяция позиции удалённых игроков (сглаживание)
+ □ Чат (CHAT_MESSAGE)
+ □ Синхронизация воксельных изменений (блоки)
+ □ Аутентификация / проверка на сервере
+ □ Лимит скорости пакетов (rate limiting)
+ □ Сжатие пакетов (LZ4 / zstd)
+ □ Метрики (ping, packet loss)
+ □ Серверная авторитарность (валидация позиции)
+
+
+════════════════════════════════════════════════════════════════════
+ Последнее обновление: Этап 6
+════════════════════════════════════════════════════════════════════

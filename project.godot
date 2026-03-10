@@ -8,10 +8,14 @@
 
 config_version=5
 
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
 [application]
 
 config/name="VoxelPrototype"
-run/main_scene="uid://dihny7k8illyy"
+run/main_scene="uid://ofqqrweoqbuv"
 config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 
 [editor_plugins]
@@ -22,7 +26,8 @@ enabled=PackedStringArray()
 
 folder_colors={
 "res://common/": "red",
-"res://src/": "green"
+"res://src/": "green",
+"res://src/scripts/network/": "red"
 }
 
 [input]

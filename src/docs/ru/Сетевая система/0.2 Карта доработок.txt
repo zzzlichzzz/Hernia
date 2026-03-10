@@ -1,0 +1,242 @@
+Архитектура системы
+text
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                         DESIGN TIME                                 │
+│                                                                     │
+│   actions/*.tres (NetworkPacketDef)                                  │
+│        │                                                            │
+│        ▼                                                            │
+│   builder_scene.tscn (F6) → packet_builder.gd                      │
+│        │                                                            │
+│        ▼                                                            │
+│   generated/generated_packets.gd                                    │
+│   ├── const PACKETS { id → метаданные + field_names + send_rate }   │
+│   ├── static func write_<name>(типизированные args) → bytes         │
+│   ├── static func read_<name>(StreamPeerBuffer) → Dictionary        │
+│   └── _f2h() / _h2f() хелперы                                      │
+│                                                                     │
+└─────────────────────────┬───────────────────────────────────────────┘
+						  │
+						  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                          RUNTIME                                    │
+│                                                                     │
+│   NetworkManager           ENet обёртка, отправка/приём              │
+│   ├── IP лимит (макс 3 с одного адреса)                             │
+│   ├── Heartbeat таймаут (10 сек)                                    │
+│   ├── Фрагментация (> 1024 байт)                                   │
+│   └── FragmentAssembler (защита от бомбы)                           │
+│        │                                                            │
+│   PacketTypes              Заголовок 8 байт [u16×4]                 │
+│   ├── Служебные: PING/PONG, WELCOME, JOINED/LEFT                   │
+│   └── AUTH_REQUEST/AUTH_RESPONSE                                    │
+│        │                                                            │
+│   NetworkActionManager     Маршрутизация генерируемых пакетов       │
+│   ├── Подмена peer_id (перезапись)                                  │
+│   ├── Rate limiting + автокик                                       │
+│   ├── Тиковая система (send_rate_hz)                                │
+│   ├── Валидация (on_validate → bool)                                │
+│   └── Маршрутизация (sync_mode 0-4)                                │
+│        │                                                            │
+│   PlayerManager            Данные игроков + спавн нод               │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+Полная карта файлов
+text
+
+network/
+├── actions/
+│   └── player_move.tres              ✅ Работает
+│
+├── builder/
+│   ├── builder_scene.tscn            ✅ Запуск F6
+│   └── packet_builder.gd            ✅ Генерация кода
+│       ├── field_names в метаданных  ✅ Добавлено
+│       ├── send_rate_hz в метаданных ✅ Добавлено
+│       └── лимит STRING/BYTES       ✅ Генерируется
+│
+├── generated/
+│   └── generated_packets.gd         ✅ Автогенерация
+│
+├── net/
+│   ├── network_field_def.gd          ✅ Без изменений
+│   │
+│   ├── network_packet_def.gd         ✅ Обновлён
+│   │   ├── send_rate_hz              ✅ Добавлено
+│   │   └── get_packet_id()           ✅ 100 + hash & 0xFFFF
+│   │
+│   ├── network_manager.gd            ✅ Обновлён
+│   │   ├── Заголовок u16             ✅ put_u16/get_u16
+│   │   ├── HEADER_SIZE = 8           ✅ Исправлено
+│   │   ├── IP лимит                  ✅ Добавлено
+│   │   ├── _ip_count / _peer_ip      ✅ Добавлено
+│   │   ├── Heartbeat таймаут         ✅ Работает
+│   │   └── Фрагментация             ✅ Работает
+│   │
+│   ├── network_action_manager.gd     ✅ Обновлён
+│   │   ├── Подмена peer_id           ✅ Перезапись в _handle_server
+│   │   ├── field_names порядок       ✅ Гарантирован
+│   │   ├── Rate limiting             ✅ Скользящее окно
+│   │   ├── Rate limit + автокик      ✅ ×5 превышение → callback
+│   │   ├── _violations счётчик       ✅ Добавлено
+│   │   ├── Тиковая система           ✅ _tick_data + _physics_process
+│   │   ├── set_send_rate()           ✅ Изменение Гц в рантайме
+│   │   ├── send_action_to()          ✅ Сервер → конкретному пиру
+│   │   ├── send_action_now()         ✅ Принудительная отправка
+│   │   └── clear_peer_data()         ✅ Очистка при отключении
+│   │
+│   ├── packet_types.gd               ✅ Обновлён
+│   │   ├── Заголовок u16             ✅ type = u16
+│   │   ├── AUTH_REQUEST/RESPONSE     ✅ Добавлено
+│   │   └── FragmentAssembler         ✅ Защита от бомбы
+│   │       ├── MAX_FRAGMENTS = 64    ✅
+│   │       ├── MAX_PER_PEER = 4      ✅
+│   │       └── MAX_TOTAL = 256       ✅
+│   │
+│   └── player_manager.gd             ✅ Без изменений
+│
+├── scenes/
+│   ├── player.tscn + player.gd       ✅ Без изменений
+│   └── remote_player.tscn + .gd      ✅ Без изменений
+│
+├── tests/
+│   ├── test_packets.gd               ✅ 33/33 тестов
+│   │   ├── Метаданные всех пакетов   ✅ Универсальный
+│   │   ├── write/read player_move    ✅
+│   │   ├── Half-float                ✅
+│   │   ├── Квантизация               ✅
+│   │   ├── Фрагментация              ✅
+│   │   ├── Фрагмент-бомба            ✅
+│   │   └── Аутентификация            ✅
+│   │
+│   └── test_evil_client.gd           ✅ Тесты безопасности
+│       ├── Неверный токен             ✅
+│       ├── Подмена peer_id            ✅
+│       ├── Телепортация               ✅
+│       ├── Спидхак                    ✅
+│       └── Спам пакетами              ✅
+│
+├── entry.gd                           ✅ Обновлён (без CmdArgs)
+│
+├── client_main.tscn + .gd            ✅ Обновлён
+│   ├── Аутентификация                ✅ Отправка токена
+│   ├── Тиковая система (через NAM)   ✅ send_action каждый кадр
+│   └── Ping каждые 3 сек             ✅
+│
+└── server_main.tscn + .gd            ✅ Обновлён
+	├── Аутентификация                 ✅ Проверка токена
+	├── Таймаут аутентификации         ✅ 5 сек → кик
+	├── Валидация player_move          ✅ Телепорт + спидхак
+	├── Система предупреждений         ✅ _add_violation → автокик
+	├── Cooldown (заготовка)           ✅ _check_cooldown()
+	├── Статистика безопасности        ✅ _security_log
+	├── Вывод статистики               ✅ Каждые 10 сек
+	├── Очистка при отключении         ✅ Все словари
+	└── Graceful shutdown              ✅ PLAYER_LEFT всем
+Карта безопасности
+text
+
+┌───┬──────────────────────────┬───────────┬──────────────────────────────────┐
+│ # │ Защита                   │ Статус    │ Где                              │
+├───┼──────────────────────────┼───────────┼──────────────────────────────────┤
+│ 1 │ Подмена peer_id          │ ✅ ГОТОВО  │ NAM._handle_server               │
+│ 2 │ Rate limiting            │ ✅ ГОТОВО  │ NAM._check_rate_limit            │
+│ 3 │ Rate limit + автокик     │ ✅ ГОТОВО  │ NAM → callback → server_main     │
+│ 4 │ Лимит строк/байтов       │ ✅ ГОТОВО  │ generated_packets (генерация)    │
+│ 5 │ Аутентификация токеном   │ ✅ ГОТОВО  │ packet_types + server + client   │
+│ 6 │ Таймаут аутентификации   │ ✅ ГОТОВО  │ server_main._check_auth_timeout  │
+│ 7 │ Антителепорт             │ ✅ ГОТОВО  │ server_main._validate_*          │
+│ 8 │ Антиспидхак              │ ✅ ГОТОВО  │ server_main._validate_*          │
+│ 9 │ Автокик за нарушения     │ ✅ ГОТОВО  │ server_main._add_violation       │
+│10 │ Cooldown действий        │ ✅ ГОТОВО  │ server_main._check_cooldown      │
+│11 │ Фрагмент-бомба           │ ✅ ГОТОВО  │ packet_types.FragmentAssembler   │
+│12 │ Heartbeat таймаут        │ ✅ ГОТОВО  │ network_manager                  │
+│13 │ Лимит IP                 │ ✅ ГОТОВО  │ network_manager (макс 3)         │
+│14 │ Очистка при отключении   │ ✅ ГОТОВО  │ server_main + NAM                │
+│15 │ Статистика безопасности  │ ✅ ГОТОВО  │ server_main._security_log        │
+│16 │ Порядок полей            │ ✅ ГОТОВО  │ NAM (field_names)                │
+├───┼──────────────────────────┼───────────┼──────────────────────────────────┤
+│ A │ Replay-атака             │ ❌ НА ПОТ. │ Расширение заголовка (seq num)   │
+│ B │ Шифрование DTLS          │ ❌ НА ПОТ. │ ENet + сертификаты               │
+│ C │ IP бан (чёрный список)   │ ❌ НА ПОТ. │ network_manager                  │
+│ D │ Challenge-response       │ ❌ НА ПОТ. │ Замена токена на хеш             │
+│ E │ Авторитарный сервер      │ ❌ НА ПОТ. │ Серверная физика                 │
+│ F │ Валидация размера body   │ ❌ НА ПОТ. │ NAM (ожидаемый vs полученный)    │
+└───┴──────────────────────────┴───────────┴──────────────────────────────────┘
+Формат пакета на проводе
+text
+
+┌──────────────────── ЗАГОЛОВОК (8 байт) ─────────────────────┐
+│ [ 2B type ][ 2B body_len ][ 2B frag_id ][ 2B total_frags ]  │
+├──────────────────────────────────────────────────────────────┤
+│ [ ... body_len байт тела ... ]                               │
+└──────────────────────────────────────────────────────────────┘
+
+type = 1-10       → служебные (PING, WELCOME, AUTH_* ...)
+type = 100-65635  → генерируемые (100 + hash(name) & 0xFFFF)
+API справочник
+text
+
+NetworkActionManager:
+  setup(net)                          Инициализация
+  on_action(name, handler)            Подписка: (peer_id, data) → void
+  on_validate(name, validator)        Валидация: (peer_id, data) → bool
+  send_action(name, args)             Отправка (событийная или тиковая)
+  send_action_now(name, args)         Принудительная немедленная отправка
+  send_action_to(peer_id, name, args) Сервер → конкретному пиру
+  set_send_rate(name, hz)             Изменить герцовку в рантайме
+  set_kick_callback(callback)         Callback для автокика
+  clear_peer_data(peer_id)            Очистка при отключении
+
+NetworkManager:
+  create_server(port, max_clients)    Создать сервер
+  create_client(address, port)        Подключиться
+  send_to_server(pkt, ch, flags)      Клиент → сервер
+  send_to_peer(id, pkt, ch, flags)    Сервер → конкретному
+  broadcast(pkt, ch, flags)           Сервер → всем
+  broadcast_except(id, pkt, ch, f)    Сервер → всем кроме
+  kick_peer(id)                       Кикнуть
+  shutdown()                          Закрыть всё
+  is_server() → bool
+  get_my_id() → int
+  get_peer_ids() → Array
+  signal peer_connected(id)
+  signal peer_disconnected(id)
+
+PlayerManager:
+  setup_client(scene, container)      Клиент: для спавна нод
+  add_player(id, pos, rot)            Добавить
+  remove_player(id)                   Удалить
+  update_player(id, pos, rot)         Обновить
+  get_player_data(id) → Dictionary    {position, rotation, node}
+  has_player(id) → bool
+  get_all_ids() → Array
+  clear()                             Удалить всех
+Текущие настройки
+text
+
+Сервер:
+  PORT               = 9999
+  MAX_CLIENTS        = 32
+  MAX_CONN_PER_IP    = 3
+  SPAWN_Y            = 2.0
+  SERVER_TOKEN       = "my_game_v1"
+  AUTH_TIMEOUT        = 5.0 сек
+  MAX_PLAYER_SPEED   = 10.0 ед/сек
+  SPEED_TOLERANCE    = 1.5×
+  MAX_TELEPORT_DIST  = 50.0 ед
+  MAX_VIOLATIONS     = 10 за 30 сек
+  HEARTBEAT_TIMEOUT  = 10.0 сек
+
+NAM:
+  RATE_LIMIT_WINDOW  = 1.0 сек
+  RATE_KICK_MULTI    = ×5 → автокик
+  Тиковые пакеты     = hz×3 макс/сек
+  Событийные         = 30 макс/сек
+
+FragmentAssembler:
+  MAX_FRAGMENTS      = 64
+  MAX_PER_PEER       = 4 одновременных сборок
+  MAX_TOTAL          = 256
+  TIMEOUT            = 10.0 сек

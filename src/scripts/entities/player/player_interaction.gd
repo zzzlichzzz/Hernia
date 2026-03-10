@@ -14,12 +14,8 @@ var _voxel_size: float = 1.0
 
 var _break_timer: float = 0.0
 var _place_timer: float = 0.0
-var _selected_block_id: int = 1
+var _selected_block_id: String = ""
 var _selected_texture: String = "stone"
-
-# Frame blocks
-var _frame_manager: FrameBlockManager = null
-var _edit_mode: bool = false
 
 var _block_to_texture: Dictionary = {
 	1: "grass_block_top",
@@ -28,15 +24,9 @@ var _block_to_texture: Dictionary = {
 	4: "dirt",
 	5: "stone"
 }
-
-const FRAME_COLLISION_LAYER = 2
 var _inventory: Node = null
 
-# ══════════════════════════════════════════
-#  ХАМЕЛЕОН — ссылка на менеджер
-# ══════════════════════════════════════════
 var _chameleon_mgr: Node = null
-# ══════════════════════════════════════════
 
 signal block_broken(position: Vector3i, block_id: int)
 signal block_placed(position: Vector3i, block_id: int)
@@ -44,37 +34,152 @@ signal target_changed(position: Vector3i, has_target: bool)
 signal terrain_found(terrain: VoxelTerrain)
 signal terrain_lost()
 
+var items: ItemArrayRegistry
+var item_path = "res://src/data/items/items.tres"
+
+# ══════════════════════════════════════════
+#  МУЛЬТИПЛЕЕР
+# ══════════════════════════════════════════
+var _is_local: bool = true
+var _network_id: int = 0
+var _nam: NetworkActionManager = null
+# ══════════════════════════════════════════
+
+
+func _init() -> void:
+	items = load(item_path)
 
 func _ready():
+	# ── Мультиплеер: определить роль ─────────
+	_setup_network()
+
 	await get_tree().process_frame
 	_find_inventory()
 	if search_terrain_on_ready:
 		_find_and_setup_terrain()
 	get_tree().node_added.connect(_on_node_added)
-	
-	_frame_manager = FrameBlockManager.new()
-	_frame_manager.name = "FrameBlockManager"
-	add_child(_frame_manager)
-	
-	if _terrain:
-		_frame_manager.set_terrain(_terrain)
-	
+
 	if _raycast:
 		_raycast.target_position = Vector3(0, 0, -reach_distance)
-		_raycast.collision_mask = 1 | FRAME_COLLISION_LAYER
-	
-	# ══════════════════════════════════════════
-	#  ХАМЕЛЕОН — получаем менеджер
-	# ══════════════════════════════════════════
+
 	_chameleon_mgr = ChameleonManager.get_instance()
 	if _chameleon_mgr:
 		print("✅ ChameleonManager подключён к PlayerInteraction")
 	else:
 		push_warning("⚠️ ChameleonManager autoload не найден")
-	# ══════════════════════════════════════════
-	
-	print("✅ FrameBlockManager создан")
 
+
+# ══════════════════════════════════════════════════
+#  МУЛЬТИПЛЕЕР: ИНИЦИАЛИЗАЦИЯ
+# ══════════════════════════════════════════════════
+
+func _setup_network() -> void:
+	var parent = get_parent()
+
+	if parent is BasePlayer:
+		_is_local = (parent as BasePlayer).is_local
+		_network_id = (parent as BasePlayer).network_id
+	else:
+		_is_local = true
+		_network_id = 0
+
+	if not _is_local:
+		set_process(false)
+		set_physics_process(false)
+		return
+
+	_nam = _find_nam()
+	if _nam:
+		_nam.on_action("block_break", _on_remote_block_break)
+		_nam.on_action("block_place", _on_remote_block_place)
+		_nam.on_action("chameleon_paint", _on_remote_chameleon_paint)
+		print("✅ PlayerInteraction: мультиплеер подключён")
+	else:
+		print("ℹ️ PlayerInteraction: NAM не найден, одиночный режим")
+
+
+func _find_nam() -> NetworkActionManager:
+	# NAM создаётся в client.gd как дочерний узел корня сцены
+	var root := get_tree().current_scene
+	if root == null:
+		return null
+
+	# Поиск по имени (быстрый путь)
+	var node := root.get_node_or_null("NetworkActionManager")
+	if node is NetworkActionManager:
+		return node as NetworkActionManager
+
+	# Поиск по типу (если имя другое)
+	for child in root.get_children():
+		if child is NetworkActionManager:
+			return child as NetworkActionManager
+
+	return null
+
+
+# ══════════════════════════════════════════════════
+#  МУЛЬТИПЛЕЕР: ОТПРАВКА
+# ══════════════════════════════════════════════════
+
+func _send_block_break(pos: Vector3i) -> void:
+	if _nam == null:
+		return
+	_nam.send_action("block_break", [_network_id, Vector3(pos)])
+
+func _send_block_place(pos: Vector3i, voxel_id: int) -> void:
+	if _nam == null:
+		return
+	_nam.send_action("block_place", [_network_id, Vector3(pos), voxel_id])
+
+func _send_chameleon_paint(pos: Vector3i, source_block_id: int) -> void:
+	if _nam == null:
+		return
+	_nam.send_action("chameleon_paint", [_network_id, Vector3(pos), source_block_id])
+
+# ══════════════════════════════════════════════════
+#  МУЛЬТИПЛЕЕР: ПРИЁМ ОТ ДРУГИХ ИГРОКОВ
+# ══════════════════════════════════════════════════
+
+func _on_remote_block_break(peer_id: int, data: Dictionary) -> void:
+	if _terrain_tool == null:
+		return
+
+	var pos := Vector3i(data["block_position"])
+
+	# Хамелеон: очистка при разрушении
+	var cham = ChameleonManager.get_instance()
+	if cham:
+		var old_id = _terrain_tool.get_voxel(pos)
+		if cham.is_chameleon_block(old_id):
+			cham.remove_chameleon(pos)
+
+	_terrain_tool.value = 0
+	_terrain_tool.do_point(pos)
+	block_broken.emit(pos, 0)
+
+
+func _on_remote_block_place(peer_id: int, data: Dictionary) -> void:
+	if _terrain_tool == null:
+		return
+
+	var pos := Vector3i(data["block_position"])
+	var voxel_id: int = data["block_id"]
+
+	_terrain_tool.value = voxel_id
+	_terrain_tool.do_point(pos)
+	block_placed.emit(pos, voxel_id)
+
+func _on_remote_chameleon_paint(peer_id: int, data: Dictionary) -> void:
+	var cham = ChameleonManager.get_instance()
+	if cham == null:
+		return
+	var pos := Vector3i(data["block_position"])
+	var block_id: int = data["source_block_id"]
+	cham.paint_chameleon_by_block_id(pos, block_id)
+
+# ══════════════════════════════════════════════════
+#  СУЩЕСТВУЮЩИЙ КОД (без изменений кроме отмеченных)
+# ══════════════════════════════════════════════════
 
 func _find_inventory():
 	var parent = get_parent()
@@ -89,18 +194,21 @@ func _find_inventory():
 	if not _inventory:
 		push_warning("PlayerInteraction: CreativeInventory не найден")
 
+
 func _on_selected_slot_changed(_index: int):
 	_update_selected_block_from_inventory()
+
 
 func _update_selected_block_from_inventory():
 	if _inventory:
 		var info = _inventory.get_selected_block_info()
-		if not info.is_empty() and info.has("id") and info.id != -1:
+		if not info.is_empty() and info.has("id") and info.id != "":
 			_selected_block_id = info.id
 			print("PlayerInteraction: выбран блок ID ", _selected_block_id)
 		else:
-			_selected_block_id = 0
+			_selected_block_id = ""
 			print("PlayerInteraction: слот пуст, установка отключена")
+
 
 func _find_and_setup_terrain() -> bool:
 	var current_scene = get_tree().current_scene
@@ -109,12 +217,12 @@ func _find_and_setup_terrain() -> bool:
 		if _terrain:
 			_setup_terrain_tool()
 			return true
-	
+
 	_terrain = _find_terrain_in_tree()
 	if _terrain:
 		_setup_terrain_tool()
 		return true
-	
+
 	var parent = get_parent()
 	while parent:
 		if parent is VoxelTerrain:
@@ -122,7 +230,7 @@ func _find_and_setup_terrain() -> bool:
 			_setup_terrain_tool()
 			return true
 		parent = parent.get_parent()
-	
+
 	push_warning("❌ VoxelTerrain не найден!")
 	return false
 
@@ -151,26 +259,18 @@ func _find_terrain_in_tree() -> VoxelTerrain:
 func _setup_terrain_tool():
 	if _terrain == null:
 		return
-	
+
 	_terrain_tool = _terrain.get_voxel_tool()
 	_terrain_tool.channel = VoxelBuffer.CHANNEL_TYPE
 	_terrain_tool.mode = VoxelTool.MODE_SET
 	_voxel_size = 1.0
 	if _raycast:
 		_raycast.target_position = Vector3(0, 0, -reach_distance)
-		_raycast.collision_mask = 1 | FRAME_COLLISION_LAYER
-	
-	if _frame_manager:
-		_frame_manager.set_terrain(_terrain)
-	
-	# ══════════════════════════════════════════
-	#  ХАМЕЛЕОН — подключаем материал через terrain
-	# ══════════════════════════════════════════
+
 	var cham = ChameleonManager.get_instance()
 	if cham:
 		cham.connect_to_terrain(_terrain)
-	# ══════════════════════════════════════════
-	
+
 	print("✅ Terrain найден: ", _terrain.name)
 	terrain_found.emit(_terrain)
 
@@ -185,28 +285,29 @@ func _on_node_added(node: Node):
 func _process(delta):
 	if _terrain == null or _terrain_tool == null:
 		return
-	
+
 	if _is_chat_or_inventory_open():
 		return
-	
+
 	if _break_timer > 0:
 		_break_timer -= delta
 	if _place_timer > 0:
 		_place_timer -= delta
-	
+
 	_handle_input()
+
 
 func _is_chat_or_inventory_open() -> bool:
 	var chat = get_tree().get_first_node_in_group("chat")
 	if chat and chat.has_method("is_chat_open"):
 		if chat.is_chat_open():
 			return true
-	
-	var player = get_tree().get_first_node_in_group("player")
+
+	var player = get_parent()
 	if player and "inventory_open" in player:
 		if player.inventory_open:
 			return true
-	
+
 	return false
 
 
@@ -215,135 +316,94 @@ func _handle_input():
 	var inventory_is_open = false
 	if player and "inventory_open" in player:
 		inventory_is_open = player.inventory_open
-	
+
 	if inventory_is_open:
 		return
-	
-	if Input.is_action_just_pressed("toggle_edit_mode"):
-		_edit_mode = not _edit_mode
-		print("🔧 Режим редактирования: ", "ВКЛ" if _edit_mode else "ВЫКЛ")
-	
+
 	var target = _get_combined_target()
-	
+
 	if not target["has_target"]:
 		return
-	
+
 	target_changed.emit(target["position"], true)
-	
+
 	# ЛКМ — сломать
 	if Input.is_action_pressed("break_block") and _break_timer <= 0:
-		if target["is_frame"]:
-			_frame_manager.remove_frame_block(target["position"])
-		else:
-			_break_block(target["position"])
+		_break_block(target["position"])
 		_break_timer = break_cooldown
-	
-	# ПКМ — поставить / редактировать / покрасить хамелеон
+
+	# ПКМ — поставить / покрасить хамелеон
 	if Input.is_action_pressed("place_block") and _place_timer <= 0:
-		if _edit_mode and _frame_manager:
-			if target["is_frame"]:
-				var face = target["face"]
-				_frame_manager.set_face_texture(target["position"], face, _selected_texture)
-			else:
-				var place_pos = target["place_position"]
-				if _can_place_at(place_pos):
-					_frame_manager.create_frame_block(place_pos)
-		# ══════════════════════════════════════════
-		#  ХАМЕЛЕОН — проверяем перед обычным размещением
-		# ══════════════════════════════════════════
-		elif _try_paint_chameleon(target["position"]):
-			pass  # Хамелеон покрашен, ничего больше не делаем
-		# ══════════════════════════════════════════
+		if _try_paint_chameleon(target["position"]):
+			pass
 		else:
 			var place_pos = target["place_position"]
 			if _can_place_at(place_pos):
 				_place_block(place_pos)
 		_place_timer = place_cooldown
-	
+
 	# Средняя кнопка — выбрать
 	if Input.is_action_just_pressed("pick_block"):
-		if target["is_frame"]:
-			var face = target["face"]
-			_selected_texture = _frame_manager.get_face_texture(target["position"], face)
-			print("👆 Скопирована текстура: ", _selected_texture)
-		else:
-			_pick_block(target["position"])
+		_pick_block(target["position"])
 
-
-# ══════════════════════════════════════════════════════════
-#  ХАМЕЛЕОН — основной метод покраски
-# ══════════════════════════════════════════════════════════
 
 func _try_paint_chameleon(hit_pos: Vector3i) -> bool:
 	var cham = ChameleonManager.get_instance()
 	if cham == null:
 		return false
-	
+
 	if _terrain_tool == null:
 		return false
-	
+
 	var voxel_id = _terrain_tool.get_voxel(hit_pos)
 	if not cham.is_chameleon_block(voxel_id):
 		return false
-	
-	if _selected_block_id <= 0:
+
+	if _selected_block_id == "":
 		return false
-	
-	var success = cham.paint_chameleon_by_block_id(hit_pos, _selected_block_id)
-	
+
+	var numeric_block_id: int = items.getItemBlockID(_selected_block_id)
+	var success = cham.paint_chameleon_by_block_id(hit_pos, numeric_block_id)
+
 	if success:
 		print("🎨 Хамелеон покрашен: ", hit_pos, " блоком ID: ", _selected_block_id)
+		# ── Мультиплеер: отправить другим ────
+		_send_chameleon_paint(hit_pos, numeric_block_id)
 	else:
 		var tex = _block_to_texture.get(_selected_block_id, "")
 		if tex != "":
 			success = cham.paint_chameleon(hit_pos, tex)
 			if success:
 				print("🎨 Хамелеон покрашен: ", hit_pos, " текстурой: ", tex)
-	
-	return success
+				# Для текстурной покраски отправляем block_id=0
+				# Сервер сохранит, клиенты откатятся к block_id_to_texture
+				_send_chameleon_paint(hit_pos, numeric_block_id)
 
-# ══════════════════════════════════════════════════════════
+	return success
 
 
 func _get_combined_target() -> Dictionary:
 	var result = {
 		"has_target": false,
-		"is_frame": false,
 		"position": Vector3i.ZERO,
 		"place_position": Vector3i.ZERO,
 		"face": "top",
 		"normal": Vector3.ZERO
 	}
-	
+
 	var origin = _camera.global_position
 	var forward = -_camera.global_transform.basis.z.normalized()
-	
-	if _raycast and _raycast.is_colliding():
-		var collider = _raycast.get_collider()
-		
-		if _frame_manager.is_frame_collider(collider):
-			var frame_pos = _frame_manager.get_block_pos_from_collider(collider)
-			var hit_normal = _raycast.get_collision_normal()
-			
-			result["has_target"] = true
-			result["is_frame"] = true
-			result["position"] = frame_pos
-			result["place_position"] = frame_pos + _normal_to_vec3i(hit_normal)
-			result["face"] = _normal_to_face(hit_normal)
-			result["normal"] = hit_normal
-			return result
-	
+
 	var hit = _terrain_tool.raycast(origin, forward, reach_distance)
 	if hit:
 		result["has_target"] = true
-		result["is_frame"] = false
 		result["position"] = hit.position
 		result["place_position"] = hit.previous_position
-		
+
 		var normal = Vector3(hit.previous_position - hit.position)
 		result["face"] = _normal_to_face(normal)
 		result["normal"] = normal.normalized()
-	
+
 	return result
 
 
@@ -379,29 +439,37 @@ func _normal_to_vec3i(normal: Vector3) -> Vector3i:
 	return Vector3i.ZERO
 
 
+# ══════════════════════════════════════════════════
+#  ЛОМАНИЕ БЛОКА (+ сеть)
+# ══════════════════════════════════════════════════
+
 func _break_block(pos: Vector3i):
 	if _terrain_tool == null:
 		return
 	var old_id = _terrain_tool.get_voxel(pos)
 	if old_id == 0:
 		return
-	
-	# ══════════════════════════════════════════
-	#  ХАМЕЛЕОН — очистка при разрушении
-	# ══════════════════════════════════════════
+
+	# Хамелеон: очистка при разрушении
 	var cham = ChameleonManager.get_instance()
 	if cham and cham.is_chameleon_block(old_id):
 		cham.remove_chameleon(pos)
-	# ══════════════════════════════════════════
-	
+
 	_terrain_tool.value = 0
 	_terrain_tool.do_point(pos)
 	var new_id = _terrain_tool.get_voxel(pos)
 	if new_id == 0:
 		print("⛏️ Блок сломан: ", pos)
 		block_broken.emit(pos, old_id)
+		# ── Мультиплеер: отправить другим ────
+		_send_block_break(pos)
 	else:
 		print("❌ Не удалось сломать блок: ", pos)
+
+
+# ══════════════════════════════════════════════════
+#  УСТАНОВКА БЛОКА (+ сеть)
+# ══════════════════════════════════════════════════
 
 func _place_block(pos: Vector3i):
 	if _terrain_tool == null:
@@ -409,12 +477,19 @@ func _place_block(pos: Vector3i):
 	var current = _terrain_tool.get_voxel(pos)
 	if current != 0:
 		return
-	_terrain_tool.value = _selected_block_id
+
+	if not items.isItemBlock(_selected_block_id):
+		return
+
+	var voxel_id: int = items.getItemBlockID(_selected_block_id)
+	_terrain_tool.value = voxel_id
 	_terrain_tool.do_point(pos)
 	var new_id = _terrain_tool.get_voxel(pos)
-	if new_id == _selected_block_id:
+	if new_id == voxel_id:
 		print("🧱 Блок установлен: ", pos)
 		block_placed.emit(pos, _selected_block_id)
+		# ── Мультиплеер: отправить другим ────
+		_send_block_place(pos, voxel_id)
 
 
 func _pick_block(pos: Vector3i):
@@ -440,12 +515,11 @@ func _can_place_at(pos: Vector3i) -> bool:
 
 # ═══ ПУБЛИЧНЫЙ API ═══
 
-func set_selected_block(block_id: int):
-	_selected_block_id = block_id
-	_selected_texture = _block_to_texture.get(block_id, "stone")
-	print("🧱 Блок выбран: ID=", block_id, " текстура=", _selected_texture)
+func set_selected_block(block_id: String):
+	print("🧱 Блок выбран: ID=", block_id)
+	pass
 
-func get_selected_block() -> int:
+func get_selected_block() -> String:
 	return _selected_block_id
 
 func set_selected_texture(texture_name: String):

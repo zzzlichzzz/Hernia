@@ -7,9 +7,10 @@ extends Node
 @export var debug_mode: bool = true
 
 # Пути к скриптам
-const ATLAS_MANAGER_PATH = "res://src/scripts/auto/atlas_manager.gd"
-const BLOCKS_REGISTRY_PATH = "res://src/data/blocks/blocks_registry.gd"
-const BLOCK_3D_ICON_GENERATOR_PATH = "res://src/scripts/blocks/block_3d_icon_generator.gd"
+const ATLAS_MANAGER_PATH = "res://src/scripts/build/atlas/atlas_manager.gd"
+const ATLAS_ICON_MANAGER_PATH = "res://src/scripts/build/atlas/atlas_icon_manager.gd"
+const ITEMS_REGISTRY_PATH = "res://src/data/items/items_registry.gd"
+const BLOCK_3D_ICON_GENERATOR_PATH = "res://src/scripts/build/icon/block_3d_icon_generator.gd"
 
 func _ready():
 	if auto_start:
@@ -28,8 +29,9 @@ func start():
 	# Небольшая пауза между шагами для надежности
 	await get_tree().create_timer(0.3).timeout
 	
+	
 	# ШАГ 2: Запускаем BlockRegistry
-	if not _run_blocks_registry():
+	if not _run_items_registry():
 		print("❌ АВТОГЕНЕРАТОР: Остановлено из-за ошибки в BlockRegistry")
 		return
 	
@@ -40,6 +42,10 @@ func start():
 	if not await _run_block_3d_icon_generator():
 		print("⚠️ АВТОГЕНЕРАТОР: Ошибка генерации 3D иконок (не критично)")
 	
+	if not _run_atlas_icon_manager():
+		print("❌ АВТОГЕНЕРАТОР: Остановлено из-за ошибки в AtlasManagerIcon")
+		return
+
 	var end_time = Time.get_ticks_msec()
 	var elapsed = (end_time - start_time) / 1000.0
 	
@@ -48,6 +54,31 @@ func start():
 	# Опционально: закрыть сцену после завершения
 	# await get_tree().create_timer(2.0).timeout
 	# queue_free()
+
+func _run_atlas_icon_manager() -> bool:
+	print("\n📦 ШАГ 1/3: Запуск AtlasManagerIcon...")
+	
+	if not ResourceLoader.exists(ATLAS_ICON_MANAGER_PATH):
+		print("❌ AtlasManagerIcon не найден по пути: ", ATLAS_ICON_MANAGER_PATH)
+		return false
+	
+	var atlas_script = load(ATLAS_ICON_MANAGER_PATH)
+	if not atlas_script:
+		print("❌ Не удалось загрузить AtlasManagerIcon")
+		return false
+	
+	var atlas_manager = atlas_script.new()
+	if not atlas_manager.has_method("build_atlas"):
+		print("❌ AtlasManagerIcon: метод build_atlas() не найден")
+		return false
+	
+	var result = atlas_manager.build_atlas()
+	if result:
+		print("✅ AtlasManagerIcon успешно выполнен")
+		return true
+	else:
+		print("❌ AtlasManagerIcon вернул ошибку")
+		return false
 
 func _run_atlas_manager() -> bool:
 	print("\n📦 ШАГ 1/3: Запуск AtlasManager...")
@@ -74,19 +105,10 @@ func _run_atlas_manager() -> bool:
 		print("❌ AtlasManager вернул ошибку")
 		return false
 
-func _run_blocks_registry() -> bool:
-	print("\n📦 ШАГ 2/3: Запуск BlockRegistry...")
-	
-	if not ResourceLoader.exists(BLOCKS_REGISTRY_PATH):
-		print("❌ BlockRegistry не найден по пути: ", BLOCKS_REGISTRY_PATH)
-		return false
-	
-	var registry_script = load(BLOCKS_REGISTRY_PATH)
-	if not registry_script:
-		print("❌ Не удалось загрузить BlockRegistry")
-		return false
-	
-	# Создаем экземпляр
+func _run_items_registry() -> bool:
+	print("\n📦 ШАГ 2/3: Запуск ItemRegistry")
+
+	var registry_script = load(ITEMS_REGISTRY_PATH)
 	var registry = registry_script.new()
 	
 	# Проверяем наличие метода _build_library (как в вашем скрипте)
@@ -97,6 +119,10 @@ func _run_blocks_registry() -> bool:
 	else:
 		print("❌ BlockRegistry: метод _build_library не найден")
 		return false
+
+	print("✅ BlockRegistry._build_library() выполнен")
+	return true
+
 
 func _run_block_3d_icon_generator() -> bool:
 	print("\n📦 ШАГ 3/3: Генерация 3D иконок блоков...")

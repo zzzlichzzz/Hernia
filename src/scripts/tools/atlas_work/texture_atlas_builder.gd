@@ -2,9 +2,10 @@
 extends Node
 # Создает PNG атлас из PNG текстур в папке src рядом с игрой
 
-@export var source_path: String = "src/assets/textures/blocks/"  # Относительно папки игры
-@export var output_path: String = "src/assets/textures/atlas/"    # Относительно папки игры
+@export var source_path: String = "src/assets/textures/blocks/" 
+@export var output_path_block: String = "src/assets/textures/atlas/block" 
 @export var allow_mixed_sizes: bool = true
+
 
 # Глобальные переменные
 var block_coordinates: Dictionary = {}
@@ -16,20 +17,15 @@ func _run():
 	
 	print("ЗАПУСК СБОРЩИКА АТЛАСА")
 	print("📁 Исходная папка с блоками: " + source_path)
-	print("📁 Папка для атласа: " + output_path)
+	print("📁 Папка для атласа: " + output_path_block)
 	
 	# Создаем выходную папку
-	if not DirAccess.dir_exists_absolute(output_path):
-		DirAccess.make_dir_recursive_absolute(output_path)
-		print("Создана папка для атласа")
+
 	
 	# ШАГ 1: Поиск PNG файлов в папке рядом с игрой
 	print("ШАГ 1: Поиск PNG в папке игры")
 	var png_files = find_png_files(source_path)
-	if png_files.is_empty():
-		print("НЕТ PNG ФАЙЛОВ! Путь: " + source_path)
-		return
-	
+
 	print("Найдено PNG: " + str(png_files.size()))
 	for f in png_files:
 		print("   - " + f.name + " (" + f.path + ")")
@@ -257,7 +253,7 @@ func create_atlas(block_infos: Array):
 		
 		print("    ✓ " + block.name + " @ (" + str(block.x) + ", " + str(block.y) + ")")
 	
-	var atlas_png_path = output_path.path_join("block_atlas.png")
+	var atlas_png_path = output_path_block.path_join("block_atlas.png")
 	var save_result = atlas_image.save_png(atlas_png_path)
 	
 	if save_result == OK:
@@ -283,10 +279,10 @@ func save_coordinates():
 		}
 	
 	coords.png_filename = "block_atlas.png"
-	coords.png_path = output_path.path_join("block_atlas.png")
+	coords.png_path = output_path_block.path_join("block_atlas.png")
 	
 	# Загружаем PNG как текстуру
-	var png_path = output_path.path_join("block_atlas.png")
+	var png_path = output_path_block.path_join("block_atlas.png")
 	if FileAccess.file_exists(png_path):
 		var img = Image.load_from_file(png_path)
 		coords.atlas_texture = ImageTexture.create_from_image(img)
@@ -296,7 +292,7 @@ func save_coordinates():
 		var empty_img = Image.create(1, 1, false, Image.FORMAT_RGBA8)
 		coords.atlas_texture = ImageTexture.create_from_image(empty_img)
 	
-	var coords_path = output_path.path_join("block_coordinates.tres")
+	var coords_path = output_path_block.path_join("block_coordinates.tres")
 	var save_result = ResourceSaver.save(coords, coords_path)
 	
 	if save_result == OK:
@@ -305,8 +301,8 @@ func save_coordinates():
 		print("Ошибка сохранения координат! Код: " + str(save_result))
 
 func check_result():
-	var png_path = output_path.path_join("block_atlas.png")
-	var coords_path = output_path.path_join("block_coordinates.tres")
+	var png_path = output_path_block.path_join("block_atlas.png")
+	var coords_path = output_path_block.path_join("block_coordinates.tres")
 	
 	if FileAccess.file_exists(png_path):
 		var file = FileAccess.open(png_path, FileAccess.READ)

@@ -2,10 +2,10 @@
 
 [ext_resource type="Script" uid="uid://cd5b1lg14gm2g" path="res://src/scripts/entities/player/player.gd" id="1_pkpq8"]
 [ext_resource type="Script" uid="uid://p8sivc45cvof" path="res://src/scripts/entities/player/block_selector.gd" id="3_ate8u"]
-[ext_resource type="PackedScene" uid="uid://cuwen1askdtab" path="res://src/scenes/entities/player/Inventory.tscn" id="3_eqmfk"]
-[ext_resource type="Script" uid="uid://l0o5asdph27x" path="res://src/scripts/entities/player/create_inventory.gd" id="4_8k4yg"]
-[ext_resource type="PackedScene" uid="uid://cuemsvwvyjat5" path="res://src/scenes/entities/player/CrossHair.tscn" id="4_c2xi3"]
-[ext_resource type="PackedScene" uid="uid://cnwqn0s8f7ml3" path="res://src/scenes/entities/player/Hotbar.tscn" id="4_e5tct"]
+[ext_resource type="PackedScene" uid="uid://cuwen1askdtab" path="res://src/scenes/entities/player/modules/Creative_Inventory.tscn" id="3_eqmfk"]
+[ext_resource type="Script" uid="uid://l0o5asdph27x" path="res://src/scripts/entities/player/creative_inventory.gd" id="4_8k4yg"]
+[ext_resource type="PackedScene" uid="uid://cuemsvwvyjat5" path="res://src/scenes/entities/player/modules/CrossHair.tscn" id="4_c2xi3"]
+[ext_resource type="PackedScene" uid="uid://cnwqn0s8f7ml3" path="res://src/scenes/entities/player/modules/Hotbar.tscn" id="4_e5tct"]
 [ext_resource type="Script" uid="uid://b2s2cwk7hiohb" path="res://src/scripts/entities/player/player_interaction.gd" id="5_e5tct"]
 [ext_resource type="Script" uid="uid://d1e8kpbvo4jth" path="res://src/scripts/entities/player/hand.gd" id="6_hand"]
 [ext_resource type="Script" uid="uid://bqaues5e71sqq" path="res://src/scripts/ui/debug_overlay.gd" id="7_debug"]
@@ -44,6 +44,10 @@ mesh = SubResource("BoxMesh_hand")
 
 [node name="Interaction" type="Node3D" parent="." unique_id=1313213708]
 script = ExtResource("5_e5tct")
+reach_distance = null
+break_cooldown = null
+place_cooldown = null
+search_terrain_on_ready = null
 
 [node name="BlockSelector" type="Node3D" parent="." unique_id=1638476033]
 script = ExtResource("3_ate8u")

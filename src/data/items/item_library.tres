@@ -1,0 +1,132 @@
+[gd_resource type="Resource" script_class="ItemLibrary" format=3 uid="uid://ddy8y8htp5ccq"]
+
+[ext_resource type="Script" uid="uid://dknjrr6s5fwlj" path="res://src/data/items/type/item_data.gd" id="1_lwnk8"]
+[ext_resource type="Script" uid="uid://c4qx5vqwkdro2" path="res://src/data/blocks/block_definition.gd" id="2_n3j2i"]
+[ext_resource type="Script" uid="uid://bhox1u5qj13c3" path="res://src/data/items/type/item_block.gd" id="2_s5eag"]
+[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/models/blocks/cube.obj" id="2_x613m"]
+[ext_resource type="Script" uid="uid://dkfwwcqcapdoq" path="res://src/data/items/type/item_consumable.gd" id="3_n3j2i"]
+[ext_resource type="ArrayMesh" uid="uid://cdrw07cs74bqw" path="res://src/assets/models/blocks/stair_block.obj" id="5_x613m"]
+[ext_resource type="Script" uid="uid://ci7ob21y7q5ce" path="res://src/data/items/item_library.gd" id="9_a666k"]
+
+[sub_resource type="Resource" id="Resource_0g1uf"]
+script = ExtResource("2_n3j2i")
+block_name = "block_grass"
+texture_name = "dirt"
+texture_top = "grass_block_top"
+texture_bottom = "dirt"
+texture_side = "dirt"
+texture_side_overlay = "grass_block_side_overlay"
+model = ExtResource("2_x613m")
+material_type_enum = 3
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_s5eag"]
+resource_name = "block_grass"
+script = ExtResource("2_s5eag")
+block_definition = SubResource("Resource_0g1uf")
+id = &"block_grass"
+metadata/_custom_type_script = "uid://bhox1u5qj13c3"
+
+[sub_resource type="Resource" id="Resource_kpjdi"]
+script = ExtResource("2_n3j2i")
+block_name = "cherry_planks"
+texture_name = "cherry_planks"
+model = ExtResource("2_x613m")
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_j5g3c"]
+resource_name = "cherry_planks"
+script = ExtResource("2_s5eag")
+block_definition = SubResource("Resource_kpjdi")
+id = &"cherry_planks"
+metadata/_custom_type_script = "uid://bhox1u5qj13c3"
+
+[sub_resource type="Resource" id="Resource_vfjgj"]
+script = ExtResource("2_n3j2i")
+block_name = "cherry_stair"
+texture_name = "cherry_planks"
+model = ExtResource("5_x613m")
+culls_neighbors = false
+transparency_index = 1
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 0.5, 1), AABB(0, 0.5, 0, 1, 0.5, 0.5)])
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_60gwa"]
+resource_name = "cherry_stair"
+script = ExtResource("2_s5eag")
+block_definition = SubResource("Resource_vfjgj")
+id = &"cherry_stair"
+metadata/_custom_type_script = "uid://bhox1u5qj13c3"
+
+[sub_resource type="Resource" id="Resource_wy1tp"]
+script = ExtResource("2_n3j2i")
+block_name = "dirt"
+texture_name = "dirt"
+model = ExtResource("2_x613m")
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_6xypv"]
+resource_name = "dirt"
+script = ExtResource("2_s5eag")
+block_definition = SubResource("Resource_wy1tp")
+id = &"dirt"
+metadata/_custom_type_script = "uid://bhox1u5qj13c3"
+
+[sub_resource type="Resource" id="Resource_s6v2o"]
+script = ExtResource("2_n3j2i")
+block_name = "stone"
+texture_name = "stone"
+model = ExtResource("2_x613m")
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_dok7y"]
+resource_name = "stone"
+script = ExtResource("2_s5eag")
+block_definition = SubResource("Resource_s6v2o")
+id = &"stone"
+metadata/_custom_type_script = "uid://bhox1u5qj13c3"
+
+[sub_resource type="Resource" id="Resource_n3j2i"]
+script = ExtResource("2_n3j2i")
+block_name = "chameleon"
+texture_name = "framed_block"
+model = ExtResource("2_x613m")
+material_type_enum = 4
+is_chameleon = true
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_x613m"]
+resource_name = "chameleon"
+script = ExtResource("2_s5eag")
+block_definition = SubResource("Resource_n3j2i")
+id = &"chameleon"
+metadata/_custom_type_script = "uid://bhox1u5qj13c3"
+
+[sub_resource type="Resource" id="Resource_a666k"]
+script = ExtResource("2_n3j2i")
+block_name = "stair_chameleon"
+texture_name = "framed_block"
+model = ExtResource("5_x613m")
+material_type_enum = 4
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 0.5, 1), AABB(0, 0.5, 0, 1, 0.5, 0.5)])
+is_chameleon = true
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_k2w68"]
+resource_name = "stair_chameleon"
+script = ExtResource("2_s5eag")
+block_definition = SubResource("Resource_a666k")
+id = &"stair_chameleon"
+metadata/_custom_type_script = "uid://bhox1u5qj13c3"
+
+[sub_resource type="Resource" id="Resource_xvaua"]
+script = ExtResource("3_n3j2i")
+id = &"apple_item"
+icon_path = "test"
+metadata/_custom_type_script = "uid://dkfwwcqcapdoq"
+
+[resource]
+script = ExtResource("9_a666k")
+block_item = Array[ExtResource("1_lwnk8")]([SubResource("Resource_s5eag"), SubResource("Resource_j5g3c"), SubResource("Resource_60gwa"), SubResource("Resource_6xypv"), SubResource("Resource_dok7y"), SubResource("Resource_x613m"), SubResource("Resource_k2w68")])
+consumble_item = Array[ExtResource("1_lwnk8")]([SubResource("Resource_xvaua")])
+metadata/_custom_type_script = "uid://ci7ob21y7q5ce"

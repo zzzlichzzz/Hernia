@@ -1,211 +1,60 @@
 extends Node
 
-@export var player_path: NodePath = ""
-var _player: Node = null
+# ═══════════════════════════════════════════════════════════
+# BLOCK SELECTOR — автономный модуль прокрутки слотов
+# ═══════════════════════════════════════════════════════════
+# Добавьте как дочерний узел Player рядом с CreativeInventory.
+# Обрабатывает колёсико мыши для переключения слотов.
+# Если CreativeInventory нет — ничего не делает.
+# ═══════════════════════════════════════════════════════════
 
-# Переменные для работы с блоками
-var _current_block_id: String = ""
-var _min_block_id: int = 1
-var _max_block_id: int = 5
-var _block_count: int = 5
-var _block_names: Dictionary = {}
-var loop_selection: bool = true
+var _inventory: Node = null
 
-# Ссылка на PlayerInteraction
-var _player_interaction: Node = null
-
-# Библиотека блоков
-var _library: VoxelBlockyLibrary = null
-
-signal block_selected(block_id: int, block_name: String)
 
 func _ready():
-	_find_player()
-	_load_library()
-	_find_player_interaction()
-	
-	# Подключаемся к сигналу изменения слота от create_inventory
-	var inventory = _find_inventory()
-	if inventory and inventory.has_signal("selected_slot_changed"):
-		inventory.selected_slot_changed.connect(_on_player_selected_slot_changed)
-		_on_player_selected_slot_changed(0)
+	# Ждём один кадр, чтобы все sibling-узлы успели инициализироваться
+	await get_tree().process_frame
+	_find_inventory()
 
-func _find_player():
-	if player_path:
-		_player = get_node(player_path)
-		if _player: return
-	_player = _find_player_recursive(get_tree().current_scene)
 
-func _find_player_recursive(node: Node) -> Node:
-	if node is CharacterBody3D:
-		return node
-	for child in node.get_children():
-		var found = _find_player_recursive(child)
-		if found:
-			return found
-	return null
-
-func _input(event: InputEvent):
-	if not _player: return
-	
-	# Колёсико мыши работает только когда инвентарь закрыт
-	if not _player.inventory_open and event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			if _player.has_method("select_next_slot"):
-				_player.select_next_slot()
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			if _player.has_method("select_previous_slot"):
-				_player.select_previous_slot()
-
-func _select_next_block():
-	var new_id = _current_block_id + ""
-	
-	if new_id > _max_block_id:
-		new_id = _min_block_id if loop_selection else _max_block_id
-	
-	_set_block(new_id)
-
-func _select_previous_block():
-	var new_id = _current_block_id + ""
-	
-	if new_id < _min_block_id:
-		new_id = _max_block_id if loop_selection else _min_block_id
-	
-	_set_block(new_id)
-
-func _set_block(block_id: String):
-	#block_id = clampi(block_id, _min_block_id, _max_block_id)
-	
-	_current_block_id += ""
-	
-	if _player_interaction:
-		if _player_interaction.has_method("set_selected_block"):
-			_player_interaction.set_selected_block(block_id)
-		var texture_name = _get_texture_for_block(block_id)
-		if _player_interaction.has_method("set_selected_texture") and texture_name:
-			_player_interaction.set_selected_texture(texture_name)
-	
-	block_selected.emit(_current_block_id, get_block_name(_current_block_id))
-
-# ============ ПУБЛИЧНЫЙ API ============
-
-func get_block_name(block_id: String) -> String:
-	if _block_names.has(block_id):
-		return _block_names[block_id]
-	return "Unknown_%d" % block_id
-
-func get_current_block_id() -> String:
-	return _current_block_id
-
-func get_current_block_name() -> String:
-	return get_block_name(_current_block_id)
-
-func get_block_count() -> int:
-	return _block_count
-
-func get_min_block_id() -> int:
-	return _min_block_id
-
-func get_max_block_id() -> int:
-	return _max_block_id
-
-func select_block(block_id: String):
-	_set_block(block_id)
-
-func select_block_by_name(resource_name: String):
-	if _library == null:
+func _find_inventory():
+	var parent := get_parent()
+	if parent == null:
 		return
-	
-	var index = _library.get_model_index_from_resource_name(resource_name)
-	
-	if index != null and index >= 0:
-		_set_block(index)
 
-func get_all_blocks() -> Dictionary:
-	return _block_names.duplicate()
+	# Ищем среди соседей узел с методом get_selected_block_info
+	for child in parent.get_children():
+		if child == self:
+			continue
+		if child.has_method("get_selected_block_info") \
+		   and child.has_method("select_next_slot") \
+		   and child.has_method("select_previous_slot"):
+			_inventory = child
+			return
 
-func get_library() -> VoxelBlockyLibrary:
-	return _library
+	push_warning("BlockSelector: CreativeInventory не найден среди соседей")
 
-func _find_player_interaction():
-	if _player:
-		for child in _player.get_children():
-			if child.has_method("set_selected_block"):
-				_player_interaction = child
-				break
 
-func _load_library():
-	var library_path = "res://src/data/blocks/voxel_blocky_library.tres"
-	var lib = load(library_path)
-	if lib and lib is VoxelBlockyLibrary:
-		_library = lib
-		var models: Array = _library.models
-		_block_count = models.size()
-		_max_block_id = _block_count - 1
-		_block_names = {}
-		for i in range(models.size()):
-			var model = models[i]
-			if model:
-				_block_names[i] = model.resource_name if model.resource_name else "block_%d" % i
-	else:
-		_block_names = {
-			0: "air",
-			1: "grass",
-			2: "cherry_planks",
-			3: "cherry_stair",
-			4: "dirt",
-			5: "stone"
-		}
-		_block_count = 6
-		_max_block_id = 5
+func _is_inventory_open() -> bool:
+	if _inventory and "inventory_open" in _inventory:
+		return _inventory.inventory_open
+	return false
 
-func reload_library():
-	_load_library()
 
-func get_block_model(block_id: int) -> VoxelBlockyModel:
-	if _library and block_id >= 0 and block_id < _block_count:
-		return _library.get_model(block_id)
-	return null
+func _unhandled_input(event: InputEvent):
+	if _inventory == null:
+		return
 
-func has_block(block_id: int) -> bool:
-	return _block_names.has(block_id)
+	if _is_inventory_open():
+		return
 
-func get_block_id_by_name(resource_name: String) -> int:
-	if _library == null:
-		return -1
-	
-	var index = _library.get_model_index_from_resource_name(resource_name)
-	return index if index != null else -1
+	if not event is InputEventMouseButton or not event.pressed:
+		return
 
-func _get_texture_for_block(block_id: String) -> String:
-	var texture_map = {
-		"block_grass": "grass_block_top",
-		"cherry_planks": "cherry_planks",
-		"d": "cherry_planks",
-		"dirt": "dirt",
-		"stone": "stone"
-	}
-	return texture_map.get(block_id, "")
-
-func _on_player_selected_slot_changed(_index: int):
-	var inventory = _find_inventory()
-	if inventory:
-		var info = inventory.get_selected_block_info()
-		var block_id = info.get("id", "") if not info.is_empty() else ""
-		var block_name = info.get("name", "empty") if not info.is_empty() else "empty"
-		
-		if _player_interaction and _player_interaction.has_method("set_selected_block"):
-			_player_interaction.set_selected_block(block_id)
-			var texture_name = _get_texture_for_block(block_id)
-			if texture_name and _player_interaction.has_method("set_selected_texture"):
-				_player_interaction.set_selected_texture(texture_name)
-		
-		_current_block_id = block_id
-		block_selected.emit(block_id, block_name)
-
-func _find_inventory() -> Node:
-	if _player:
-		for child in _player.get_children():
-			if child.has_method("get_selected_block_info"):
-				return child
-	return null
+	match event.button_index:
+		MOUSE_BUTTON_WHEEL_UP:
+			_inventory.select_previous_slot()
+			get_viewport().set_input_as_handled()
+		MOUSE_BUTTON_WHEEL_DOWN:
+			_inventory.select_next_slot()
+			get_viewport().set_input_as_handled()

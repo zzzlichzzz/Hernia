@@ -2,10 +2,22 @@
 
 [ext_resource type="PackedScene" uid="uid://bquqq0ni2vmj4" path="res://src/scenes/entities/player/BasePlayer.tscn" id="1_5es4h"]
 [ext_resource type="Script" uid="uid://cul5psgkyxkpp" path="res://src/scripts/entities/player/human_player.gd" id="2_twyb4"]
-[ext_resource type="Script" uid="uid://b2s2cwk7hiohb" path="res://src/scripts/entities/player/player_interaction.gd" id="3_74onx"]
+[ext_resource type="PackedScene" uid="uid://bb1srelhjc6b7" path="res://src/scenes/entities/player/modules/World_Interaction.tscn" id="3_u1arh"]
+[ext_resource type="PackedScene" uid="uid://cuwen1askdtab" path="res://src/scenes/entities/player/modules/Creative_Inventory.tscn" id="4_rl2wk"]
+[ext_resource type="Script" uid="uid://l0o5asdph27x" path="res://src/scripts/entities/player/creative_inventory.gd" id="5_exr5t"]
+[ext_resource type="Script" uid="uid://p8sivc45cvof" path="res://src/scripts/entities/player/block_selector.gd" id="6_kn11x"]
+[ext_resource type="PackedScene" uid="uid://cnwqn0s8f7ml3" path="res://src/scenes/entities/player/modules/Hotbar.tscn" id="7_u1arh"]
 
 [node name="HumanPlayer" unique_id=1161119951 instance=ExtResource("1_5es4h")]
 script = ExtResource("2_twyb4")
 
-[node name="Interaction" type="Node3D" parent="." index="3" unique_id=819439322]
-script = ExtResource("3_74onx")
+[node name="Interaction" parent="." index="3" unique_id=1451133203 instance=ExtResource("3_u1arh")]
+
+[node name="Inventory" parent="." index="5" unique_id=565793990 instance=ExtResource("4_rl2wk")]
+visible = false
+script = ExtResource("5_exr5t")
+
+[node name="Selector" type="Node" parent="." index="6" unique_id=20294178]
+script = ExtResource("6_kn11x")
+
+[node name="HotBar" parent="." index="7" unique_id=17073395 instance=ExtResource("7_u1arh")]

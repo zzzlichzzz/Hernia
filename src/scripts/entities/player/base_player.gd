@@ -12,8 +12,9 @@ extends CharacterBody3D
 # СВОЙСТВА
 # ══════════════════════════════════════════════════
 
-## Локальный ли это игрок. Устанавливать ДО add_child().
-var is_local: bool = false
+
+var is_local: bool = false ## Локальный ли это игрок. Устанавливать ДО add_child().
+var inventory_open: bool = false ## Открыт/закрыт инвентарь
 
 ## Сетевой ID (peer_id). Устанавливать ДО add_child().
 var network_id: int = 0

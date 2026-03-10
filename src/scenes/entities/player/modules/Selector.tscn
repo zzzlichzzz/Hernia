@@ -1,6 +1,67 @@
 [gd_scene format=3 uid="uid://c2fw77ho0ep87"]
 
-[ext_resource type="Script" uid="uid://p8sivc45cvof" path="res://src/scripts/entities/player/block_selector.gd" id="1_3sphm"]
+[sub_resource type="GDScript" id="GDScript_vv7py"]
+script/source = "extends Node
+
+# ═══════════════════════════════════════════════════════════
+# BLOCK SELECTOR — автономный модуль прокрутки слотов
+# ═══════════════════════════════════════════════════════════
+# Добавьте как дочерний узел Player рядом с CreativeInventory.
+# Обрабатывает колёсико мыши для переключения слотов.
+# Если CreativeInventory нет — ничего не делает.
+# ═══════════════════════════════════════════════════════════
+
+var _inventory: Node = null
+
+
+func _ready():
+	# Ждём один кадр, чтобы все sibling-узлы успели инициализироваться
+	await get_tree().process_frame
+	_find_inventory()
+
+
+func _find_inventory():
+	var parent := get_parent()
+	if parent == null:
+		return
+
+	# Ищем среди соседей узел с методом get_selected_block_info
+	for child in parent.get_children():
+		if child == self:
+			continue
+		if child.has_method(\"get_selected_block_info\") \\
+		   and child.has_method(\"select_next_slot\") \\
+		   and child.has_method(\"select_previous_slot\"):
+			_inventory = child
+			return
+
+	push_warning(\"BlockSelector: CreativeInventory не найден среди соседей\")
+
+
+func _is_inventory_open() -> bool:
+	if _inventory and \"inventory_open\" in _inventory:
+		return _inventory.inventory_open
+	return false
+
+
+func _unhandled_input(event: InputEvent):
+	if _inventory == null:
+		return
+
+	if _is_inventory_open():
+		return
+
+	if not event is InputEventMouseButton or not event.pressed:
+		return
+
+	match event.button_index:
+		MOUSE_BUTTON_WHEEL_UP:
+			_inventory.select_previous_slot()
+			get_viewport().set_input_as_handled()
+		MOUSE_BUTTON_WHEEL_DOWN:
+			_inventory.select_next_slot()
+			get_viewport().set_input_as_handled()
+"
 
 [node name="Selector" type="Node" unique_id=377968243]
-script = ExtResource("1_3sphm")
+script = SubResource("GDScript_vv7py")

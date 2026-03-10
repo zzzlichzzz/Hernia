@@ -4,7 +4,6 @@
 [ext_resource type="Script" uid="uid://cul5psgkyxkpp" path="res://src/scripts/entities/player/human_player.gd" id="2_twyb4"]
 [ext_resource type="PackedScene" uid="uid://bb1srelhjc6b7" path="res://src/scenes/entities/player/modules/World_Interaction.tscn" id="3_u1arh"]
 [ext_resource type="PackedScene" uid="uid://cuwen1askdtab" path="res://src/scenes/entities/player/modules/Creative_Inventory.tscn" id="4_rl2wk"]
-[ext_resource type="PackedScene" uid="uid://c2fw77ho0ep87" path="res://src/scenes/entities/player/modules/Selector.tscn" id="5_kn11x"]
 [ext_resource type="PackedScene" uid="uid://cnwqn0s8f7ml3" path="res://src/scenes/entities/player/modules/Hotbar.tscn" id="7_u1arh"]
 
 [node name="HumanPlayer" unique_id=1161119951 instance=ExtResource("1_5es4h")]
@@ -15,6 +14,4 @@ script = ExtResource("2_twyb4")
 [node name="Inventory" parent="." index="5" unique_id=565793990 instance=ExtResource("4_rl2wk")]
 visible = false
 
-[node name="Selector" parent="." index="6" unique_id=377968243 instance=ExtResource("5_kn11x")]
-
-[node name="HotBar" parent="." index="7" unique_id=17073395 instance=ExtResource("7_u1arh")]
+[node name="HotBar" parent="." index="6" unique_id=17073395 instance=ExtResource("7_u1arh")]

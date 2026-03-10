@@ -1,5 +1,13 @@
 extends Control
 
+# ═══════════════════════════════════════════════════════════
+# HOTBAR — отображение слотов + переключение колёсиком мыши
+# ═══════════════════════════════════════════════════════════
+# Автономный UI-модуль.
+# Находит CreativeInventory самостоятельно.
+# Если нет — ничего не ломается.
+# ═══════════════════════════════════════════════════════════
+
 @export var inventory_path: NodePath = ""
 @onready var slots_container = $HBoxContainer
 
@@ -9,15 +17,23 @@ var _slot_controls: Array[Control] = []
 # --- Настройки визуала ---
 const SLOT_SIZE := Vector2(48, 48)
 const ICON_SIZE := Vector2(36, 36)
-
-const COLOR_BG := Color(0.1, 0.1, 0.1, 0.85)
-const COLOR_BG_SELECTED := Color(0.2, 0.4, 0.2, 1.0)      # Заметный зелёный фон
-const COLOR_BORDER := Color(0.3, 0.3, 0.3)                # Тусклая серая
-const COLOR_BORDER_SELECTED := Color(0.0, 1.0, 0.0)       # ЯРКО-ЗЕЛЁНАЯ
-const BORDER_WIDTH := 2
-const BORDER_WIDTH_SELECTED := 6                           # Толстая рамка
 const CORNER_RADIUS := 4
 
+const COLOR_BG := Color(0.1, 0.1, 0.1, 0.85)
+const COLOR_BG_SELECTED := Color(0.15, 0.35, 0.15, 1.0)
+const COLOR_BORDER := Color(0.3, 0.3, 0.3)
+const COLOR_BORDER_SELECTED := Color(0.2, 1.0, 0.2)
+const BORDER_WIDTH := 2
+const BORDER_WIDTH_SELECTED := 5
+
+# Свечение выбранного слота
+const GLOW_COLOR := Color(0.0, 1.0, 0.0, 0.6)
+const GLOW_SIZE := 8
+
+
+# ═══════════════════════════════════════════════════════════
+#  ЖИЗНЕННЫЙ ЦИКЛ
+# ═══════════════════════════════════════════════════════════
 
 func _ready():
 	await get_tree().process_frame
@@ -34,13 +50,49 @@ func _ready():
 	_initialize_slots()
 
 
+# ═══════════════════════════════════════════════════════════
+#  КОЛЁСИКО МЫШИ — переключение слотов
+# ═══════════════════════════════════════════════════════════
+
+func _unhandled_input(event: InputEvent):
+	if _inventory == null:
+		return
+
+	# Не переключаем слоты пока инвентарь открыт
+	if _is_inventory_open():
+		return
+
+	if not event is InputEventMouseButton or not event.pressed:
+		return
+
+	match event.button_index:
+		MOUSE_BUTTON_WHEEL_UP:
+			_inventory.select_previous_slot()
+			get_viewport().set_input_as_handled()
+		MOUSE_BUTTON_WHEEL_DOWN:
+			_inventory.select_next_slot()
+			get_viewport().set_input_as_handled()
+
+
+func _is_inventory_open() -> bool:
+	if _inventory and "inventory_open" in _inventory:
+		return _inventory.inventory_open
+	return false
+
+
+# ═══════════════════════════════════════════════════════════
+#  ПОИСК ИНВЕНТАРЯ
+# ═══════════════════════════════════════════════════════════
+
 func _find_inventory():
+	# 1. Явный путь
 	if not inventory_path.is_empty():
 		var node = get_node_or_null(inventory_path)
 		if node and node.has_method("get_selected_block_info"):
 			_inventory = node
 			return
 
+	# 2. Ищем у игрока (группа "player")
 	var player_node = get_tree().get_first_node_in_group("player")
 	if player_node:
 		for child in player_node.get_children():
@@ -48,6 +100,7 @@ func _find_inventory():
 				_inventory = child
 				return
 
+	# 3. Рекурсивный поиск
 	_inventory = _find_recursive(get_tree().current_scene)
 
 
@@ -60,6 +113,10 @@ func _find_recursive(node: Node) -> Node:
 			return found
 	return null
 
+
+# ═══════════════════════════════════════════════════════════
+#  СОЗДАНИЕ СЛОТОВ
+# ═══════════════════════════════════════════════════════════
 
 func _initialize_slots():
 	for child in slots_container.get_children():
@@ -77,15 +134,12 @@ func _initialize_slots():
 
 
 func _create_slot(index: int) -> Control:
-	# ═══ Panel вместо Control — теперь stylebox отрисовывается ═══
 	var panel := Panel.new()
 	panel.custom_minimum_size = SLOT_SIZE
 	panel.set_meta("slot_index", index)
-
-	# Начальный стиль (не выбран)
 	panel.add_theme_stylebox_override("panel", _make_slot_style(false))
 
-	# Подключаем скрипт для drag & drop
+	# Скрипт для drag & drop
 	var slot_script = load("res://src/scripts/ui/inventory_ui/hotbar_slot.gd")
 	if slot_script:
 		panel.set_script(slot_script)
@@ -126,27 +180,24 @@ func _create_slot(index: int) -> Control:
 
 
 # ═══════════════════════════════════════════════════════════
-#  СТИЛИ СЛОТОВ
+#  СТИЛИ
 # ═══════════════════════════════════════════════════════════
 
 func _make_slot_style(is_selected: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 
 	if is_selected:
-		# ═══ ВЫБРАННЫЙ СЛОТ — МАКСИМАЛЬНО ЗАМЕТНО ═══
-		style.bg_color = Color(0.15, 0.35, 0.15, 1.0)     # Зелёный фон
-		style.border_color = Color(0.2, 1.0, 0.2)         # Ярко-зелёная рамка
-		style.set_border_width_all(5)
-		
-		# Эффект свечения (тень наружу со светлым цветом)
-		style.shadow_color = Color(0.0, 1.0, 0.0, 0.6)    # Зелёное свечение
-		style.shadow_size = 8                              # Размер свечения
-		style.shadow_offset = Vector2(0, 0)                # По центру
+		style.bg_color = COLOR_BG_SELECTED
+		style.border_color = COLOR_BORDER_SELECTED
+		style.set_border_width_all(BORDER_WIDTH_SELECTED)
+		# Свечение
+		style.shadow_color = GLOW_COLOR
+		style.shadow_size = GLOW_SIZE
+		style.shadow_offset = Vector2.ZERO
 	else:
-		# ═══ ОБЫЧНЫЙ СЛОТ — ТУСКЛЫЙ ═══
-		style.bg_color = Color(0.1, 0.1, 0.1, 0.85)
-		style.border_color = Color(0.3, 0.3, 0.3)
-		style.set_border_width_all(2)
+		style.bg_color = COLOR_BG
+		style.border_color = COLOR_BORDER
+		style.set_border_width_all(BORDER_WIDTH)
 
 	style.set_corner_radius_all(CORNER_RADIUS)
 	return style

@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="NetworkPacketDef" format=3 uid="uid://dn7roaracrmcl"]
+
+[ext_resource type="Script" uid="uid://btch1jd2smm4m" path="res://src/scripts/network/net/network_field_def.gd" id="1_y32cj"]
+[ext_resource type="Script" uid="uid://3kiamyek5h1n" path="res://src/scripts/network/net/network_packet_def.gd" id="2_sg8nu"]
+
+[sub_resource type="Resource" id="Resource_sg8nu"]
+resource_name = "peer_id (int, 32bit)"
+script = ExtResource("1_y32cj")
+field_name = "peer_id"
+byte_size = 3
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_3blvs"]
+resource_name = "block_position (vec3, 32bit)"
+script = ExtResource("1_y32cj")
+field_name = "block_position"
+field_type = 4
+byte_size = 3
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_4e5oi"]
+resource_name = "block_id (int, 16bit)"
+script = ExtResource("1_y32cj")
+field_name = "block_id"
+byte_size = 2
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[resource]
+resource_name = "block_place"
+script = ExtResource("2_sg8nu")
+packet_name = "block_place"
+server_validates = true
+fields = Array[ExtResource("1_y32cj")]([SubResource("Resource_sg8nu"), SubResource("Resource_3blvs"), SubResource("Resource_4e5oi")])
+validate_cooldown = 0.1
+validate_position_field = "block_position"
+validate_max_action_distance = 12.0

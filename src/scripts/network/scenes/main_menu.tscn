@@ -1,0 +1,75 @@
+[gd_scene format=3 uid="uid://ofqqrweoqbuv"]
+
+[ext_resource type="Script" uid="uid://cp4qwd0gbacjy" path="res://src/scripts/network/scenes/main_menu.gd" id="1_cvx6n"]
+
+[node name="MainMenu" type="Control" unique_id=136655577]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_cvx6n")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1584557150]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.1, 0.15, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=2069948160]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=1085934001]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Title" type="Label" parent="CenterContainer/VBoxContainer" unique_id=1506109711]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "МЕНЮ СЕРВЕРА"
+horizontal_alignment = 1
+
+[node name="Spacer1" type="Control" parent="CenterContainer/VBoxContainer" unique_id=1429633051]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="BtnServer" type="Button" parent="CenterContainer/VBoxContainer" unique_id=2036077736]
+custom_minimum_size = Vector2(250, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 18
+text = "Запустить сервер"
+
+[node name="BtnClient" type="Button" parent="CenterContainer/VBoxContainer" unique_id=652808075]
+custom_minimum_size = Vector2(250, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 18
+text = "Присоединиться к серверу"
+
+[node name="BtnEvilClient" type="Button" parent="CenterContainer/VBoxContainer" unique_id=789123456]
+custom_minimum_size = Vector2(250, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 18
+text = "Test Evil Client"
+
+[node name="Spacer2" type="Control" parent="CenterContainer/VBoxContainer" unique_id=3009192]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="ExitBtn" type="Button" parent="CenterContainer/VBoxContainer" unique_id=255058894]
+custom_minimum_size = Vector2(250, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 18
+text = "Выход"

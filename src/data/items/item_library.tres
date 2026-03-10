@@ -24,7 +24,6 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 resource_name = "block_grass"
 script = ExtResource("2_s5eag")
 block_definition = SubResource("Resource_0g1uf")
-id_block = null
 id = &"block_grass"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
@@ -39,7 +38,6 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 resource_name = "cherry_planks"
 script = ExtResource("2_s5eag")
 block_definition = SubResource("Resource_kpjdi")
-id_block = null
 id = &"cherry_planks"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
@@ -57,7 +55,6 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 resource_name = "cherry_stair"
 script = ExtResource("2_s5eag")
 block_definition = SubResource("Resource_vfjgj")
-id_block = null
 id = &"cherry_stair"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
@@ -72,7 +69,6 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 resource_name = "dirt"
 script = ExtResource("2_s5eag")
 block_definition = SubResource("Resource_wy1tp")
-id_block = null
 id = &"dirt"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
@@ -87,7 +83,6 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 resource_name = "stone"
 script = ExtResource("2_s5eag")
 block_definition = SubResource("Resource_s6v2o")
-id_block = null
 id = &"stone"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
@@ -104,7 +99,6 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 resource_name = "chameleon"
 script = ExtResource("2_s5eag")
 block_definition = SubResource("Resource_n3j2i")
-id_block = null
 id = &"chameleon"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
@@ -114,6 +108,7 @@ block_name = "stair_chameleon"
 texture_name = "framed_block"
 model = ExtResource("5_x613m")
 material_type_enum = 4
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 0.5, 1), AABB(0, 0.5, 0, 1, 0.5, 0.5)])
 is_chameleon = true
 metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 
@@ -121,7 +116,6 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 resource_name = "stair_chameleon"
 script = ExtResource("2_s5eag")
 block_definition = SubResource("Resource_a666k")
-id_block = null
 id = &"stair_chameleon"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 

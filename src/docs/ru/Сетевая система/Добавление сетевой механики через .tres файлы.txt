@@ -1,0 +1,440 @@
+Полный гайд для разработчика
+Архитектура системы
+text
+
+┌─────────────────────────────────────────────────────────┐
+│                    DESIGN TIME                          │
+│                                                         │
+│   .tres файлы (NetworkPacketDef)                        │
+│        │                                                │
+│        ▼                                                │
+│   builder_scene.tscn (F6)                               │
+│        │                                                │
+│        ▼                                                │
+│   generated_packets.gd (автогенерация)                  │
+│                                                         │
+└─────────────────────────┬───────────────────────────────┘
+						  │
+						  ▼
+┌─────────────────────────────────────────────────────────┐
+│                      RUNTIME                            │
+│                                                         │
+│   NetworkManager        ← ENet, отправка/приём байтов   │
+│        │                                                │
+│   PacketTypes           ← заголовок 8 байт, фрагменты  │
+│        │                                                │
+│   NetworkActionManager  ← маршрутизация, валидация      │
+│        │                                                │
+│   GeneratedPackets      ← write_*/read_* для каждого    │
+│                           пакета из .tres               │
+│                                                         │
+│   PlayerManager         ← хранение данных игроков       │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+Структура файлов
+text
+
+network/
+├── actions/                    ← .tres файлы пакетов
+│   ├── player_move.tres
+│   ├── shoot.tres
+│   ├── chat_message.tres
+│   └── place_block.tres
+│
+├── builder/
+│   ├── builder_scene.tscn      ← запуск F6 для сборки
+│   └── packet_builder.gd       ← генератор кода
+│
+├── generated/
+│   └── generated_packets.gd    ← АВТОГЕНЕРАЦИЯ, НЕ РЕДАКТИРОВАТЬ
+│
+├── net/
+│   ├── network_field_def.gd    ← ресурс: одно поле пакета
+│   ├── network_packet_def.gd   ← ресурс: описание пакета
+│   ├── network_manager.gd      ← ENet обёртка
+│   ├── network_action_manager.gd ← маршрутизация
+│   ├── packet_types.gd         ← заголовок + служебные пакеты
+│   └── player_manager.gd       ← данные игроков
+│
+├── scenes/
+│   ├── player.tscn             ← локальный игрок
+│   ├── player.gd
+│   ├── remote_player.tscn      ← удалённый игрок
+│   └── remote_player.gd
+│
+├── client_main.tscn
+├── client_main.gd
+├── server_main.tscn
+└── server_main.gd
+Формат пакета на проводе
+text
+
+┌──────────────────── ЗАГОЛОВОК (8 байт) ────────────────────┐
+│ [ 2B type ][ 2B body_len ][ 2B fragment_id ][ 2B total ]   │
+├────────────────────────────────────────────────────────────-─┤
+│ [ ... body_len байт тела ... ]                              │
+└─────────────────────────────────────────────────────────────┘
+
+type = 1-8        → служебные (PING, WELCOME, PLAYER_JOINED...)
+type = 100-65635  → генерируемые из .tres (100 + hash(name) & 0xFFFF)
+Создание нового сетевого действия: пошагово
+Шаг 1: Создать .tres файл
+text
+
+FileSystem → ПКМ на actions/ → New Resource
+→ NetworkPacketDef → Create → Сохранить как shoot.tres
+Шаг 2: Настроить в инспекторе
+text
+
+┌─────────────────────────────────────────────────────────┐
+│ Packet Name:       shoot                                │
+│ Sync Mode:         CLIENT_TO_ALL_VIA_SERVER             │
+│ Channel:           RELIABLE                             │
+│ Server Validates:  ✓                                    │
+│ Description:       Игрок стреляет из оружия             │
+└─────────────────────────────────────────────────────────┘
+Шаг 3: Добавить поля
+text
+
+Fields → Add Element:
+
+[0] field_name:  origin
+	field_type:  VECTOR3
+	byte_size:   BITS_32
+
+[1] field_name:  direction
+	field_type:  VECTOR3
+	byte_size:   BITS_16       ← half-float, экономия
+
+[2] field_name:  weapon_id
+	field_type:  INT
+	byte_size:   BITS_8
+	is_signed:   ☐
+Шаг 4: Собрать
+text
+
+Открыть builder/builder_scene.tscn → F6
+Дождаться "Сборка завершена!"
+Шаг 5: Использовать в коде
+gdscript
+
+# ═══ Отправка (в скрипте механики) ═══
+
+func shoot() -> void:
+	# Локальная логика
+	_create_bullet(origin, direction)
+
+	# Сеть — одна строка
+	_nam.send_action("shoot", [origin, direction, weapon_id])
+	#                          ↑ порядок = порядок полей в .tres
+
+
+# ═══ Приём (подписка в _ready) ═══
+
+func _ready() -> void:
+	_nam.on_action("shoot", _on_remote_shoot)
+
+func _on_remote_shoot(peer_id: int, data: Dictionary) -> void:
+	_create_bullet(data["origin"], data["direction"])
+	#              ↑ ключи = field_name из .tres
+
+
+# ═══ Валидация на сервере ═══
+
+func _ready() -> void:   # server_main.gd
+	_nam.on_validate("shoot", _validate_shoot)
+
+func _validate_shoot(peer_id: int, data: Dictionary) -> bool:
+	if not _pm.has_player(peer_id):
+		return false
+	var player_pos: Vector3 = _pm.get_player_data(peer_id)["position"]
+	if player_pos.distance_to(data["origin"]) > 5.0:
+		return false
+	return true
+Справочник настроек
+Sync Mode
+text
+
+CLIENT_TO_SERVER          Клиент → сервер. Не пересылается.
+						  Пример: запрос инвентаря
+
+SERVER_TO_ALL             Сервер → всем клиентам.
+						  Пример: смена времени суток
+
+SERVER_TO_OTHERS          Сервер → всем кроме отправителя.
+						  Пример: редко используется
+
+CLIENT_TO_ALL_VIA_SERVER  Клиент → сервер → остальным.
+						  САМЫЙ ЧАСТЫЙ. Стрельба, чат, движение.
+						  Отправитель применяет локально сам.
+
+SERVER_TO_OWNER           Сервер → только отправителю.
+						  Пример: результат крафта, ответ на запрос
+Channel
+text
+
+RELIABLE      Гарантированная доставка, порядок сохраняется.
+			  Стрельба, размещение блока, чат.
+
+UNRELIABLE    Без гарантий, самый быстрый.
+			  Позиция игрока (отправляется 20 раз/сек).
+Типы полей (FieldType)
+text
+
+BOOL            true / false                      1 байт
+INT             целое число                       1/2/4 байта
+FLOAT           дробное число                     2/4 байта
+VECTOR2         два компонента (x, y)             2×(2/4) байта
+VECTOR3         три компонента (x, y, z)          3×(2/4) байта
+STRING          UTF-8 строка                      2 + N байт
+PACKED_BYTES    произвольные данные                4 + N байт
+Размер (ByteSize)
+text
+
+AUTO      По умолчанию: BOOL→1, INT→4, FLOAT→4
+BITS_8    1 байт.  INT: 0-255.  Пример: weapon_id, slot_index
+BITS_16   2 байта. INT: 0-65535. FLOAT: half-float. Пример: peer_id
+BITS_32   4 байта. INT: полный. FLOAT: float32. Пример: позиция
+Квантизация
+text
+
+Вместо float → целое число в диапазоне [min, max].
+
+use_quantization: ✓
+quantize_min:     -3.15
+quantize_max:      3.15
+byte_size:        BITS_16      ← 65535 градаций
+
+Пример: угол поворота [-π, +π] → 2 байта, точность ~0.0001 рад
+
+ВАЖНО: значения за пределами [min, max] обрезаются (clamp)!
+ВАЖНО: quantize_max ДОЛЖЕН быть > quantize_min!
+Таблица размеров (шпаргалка)
+text
+
+┌────────────────────┬────────┬──────────┬────────────────────────┐
+│ Что передаём       │ Тип    │ Байт     │ Настройка              │
+├────────────────────┼────────┼──────────┼────────────────────────┤
+│ peer_id            │ INT    │ 2        │ BITS_16, unsigned      │
+│ позиция (точная)   │ VEC3   │ 12       │ BITS_32                │
+│ позиция (экономная)│ VEC3   │ 6        │ BITS_16 (half-float)   │
+│ угол поворота      │ FLOAT  │ 2        │ BITS_16 + quantize     │
+│ weapon_id          │ INT    │ 1        │ BITS_8                 │
+│ здоровье (0-100)   │ INT    │ 1        │ BITS_8                 │
+│ направление        │ VEC3   │ 6        │ BITS_16 (half-float)   │
+│ имя игрока         │ STRING │ 2+N      │ AUTO                   │
+│ флаг вкл/выкл     │ BOOL   │ 1        │ AUTO                   │
+│ блок (id)          │ INT    │ 2        │ BITS_16                │
+│ координата блока   │ VEC3   │ 6        │ BITS_16, signed        │
+└────────────────────┴────────┴──────────┴────────────────────────┘
+Предупреждение по half-float (BITS_16 для FLOAT/VECTOR без квантизации):
+
+text
+
+┌──────────────┬──────────────┐
+│ Значение     │ Погрешность  │
+├──────────────┼──────────────┤
+│ 10.0         │ ~0.01        │
+│ 100.0        │ ~0.1         │
+│ 500.0        │ ~0.5         │
+│ 1000.0       │ ~1.0         │
+│ 2048+        │ ~2.0+        │
+└──────────────┴──────────────┘
+
+ВЫВОД: позицию в мире ВСЕГДА через BITS_32!
+	   Half-float только для направлений и нормализованных значений.
+Примеры готовых .tres
+Перемещение игрока (player_move.tres)
+text
+
+packet_name:      player_move
+sync_mode:        CLIENT_TO_ALL_VIA_SERVER
+channel:          UNRELIABLE
+server_validates: ✓
+
+[0] peer_id      INT      BITS_16  unsigned
+[1] position     VECTOR3  BITS_32
+[2] head_pitch   FLOAT    BITS_16  quantize [-1.5, 1.5]
+[3] body_yaw     FLOAT    BITS_16  quantize [-3.15, 3.15]
+
+Размер тела: 2 + 12 + 2 + 2 = 18 байт
+Чат (chat_message.tres)
+text
+
+packet_name:      chat_message
+sync_mode:        CLIENT_TO_ALL_VIA_SERVER
+channel:          RELIABLE
+server_validates: ✓
+
+[0] text         STRING   AUTO
+
+Размер тела: переменный (2 + длина текста)
+Размещение блока (place_block.tres)
+text
+
+packet_name:      place_block
+sync_mode:        CLIENT_TO_ALL_VIA_SERVER
+channel:          RELIABLE
+server_validates: ✓
+
+[0] block_pos    VECTOR3  BITS_16  signed
+[1] block_id     INT      BITS_16  unsigned
+[2] face         INT      BITS_8   unsigned
+
+Размер тела: 6 + 2 + 1 = 9 байт
+Удаление блока (break_block.tres)
+text
+
+packet_name:      break_block
+sync_mode:        CLIENT_TO_ALL_VIA_SERVER
+channel:          RELIABLE
+server_validates: ✓
+
+[0] block_pos    VECTOR3  BITS_16  signed
+
+Размер тела: 6 байт
+Стрельба (shoot.tres)
+text
+
+packet_name:      shoot
+sync_mode:        CLIENT_TO_ALL_VIA_SERVER
+channel:          RELIABLE
+server_validates: ✓
+
+[0] origin       VECTOR3  BITS_32
+[1] direction    VECTOR3  BITS_16
+[2] weapon_id    INT      BITS_8   unsigned
+
+Размер тела: 12 + 6 + 1 = 19 байт
+Частые ошибки
+text
+
+❌ Забыл пересобрать после изменения .tres
+✅ Запусти builder_scene.tscn (F6) после КАЖДОГО изменения
+
+❌ Порядок аргументов в send_action не совпадает с полями
+✅ Аргументы в ТОЧНО ТОМ ЖЕ ПОРЯДКЕ что поля в .tres
+
+❌ Позиция через BITS_16 (half-float)
+✅ Позиция ВСЕГДА через BITS_32 (float32)
+
+❌ Два .tres с одинаковым Packet Name
+✅ Сборщик выдаст ошибку — переименуй
+
+❌ Квантизация с min == max
+✅ Диапазон должен быть > 0
+
+❌ Клиент доверяет peer_id из тела пакета
+✅ Сервер АВТОМАТИЧЕСКИ перезаписывает peer_id на реальный ID
+
+❌ Packet Name с пробелами
+✅ Только латиница, цифры, подчёркивание: snake_case
+Потоки данных
+Клиент → Сервер → Другие клиенты (CLIENT_TO_ALL_VIA_SERVER)
+text
+
+Клиент A                      Сервер                     Клиент B
+────────                      ──────                     ────────
+
+send_action("shoot",
+  [origin, dir, wpn_id])
+		│
+		│ write_shoot() → байты
+		▼
+   ────ENet────▶  _on_packet()
+				  read_shoot() → data
+				  │
+				  │ data["peer_id"] = peer_id  ← ПЕРЕЗАПИСЬ
+				  │
+				  │ _validate_shoot()
+				  │   └─ return true/false
+				  │
+				  │ _on_shoot()  ← локальный обработчик
+				  │
+				  │ field_names → values
+				  │ write_shoot(values) → байты
+				  │
+				  │ broadcast_except(peer_id_A)
+				  ▼
+			 ────ENet────▶  _on_packet()
+							read_shoot() → data
+							│
+							│ _on_remote_shoot(peer_id, data)
+							▼
+						 Пуля появляется на экране B
+API справочник
+NetworkActionManager
+gdscript
+
+# Инициализация
+_nam.setup(net: NetworkManager) -> void
+
+# Подписка на действие
+_nam.on_action(name: String, handler: Callable) -> void
+# handler = func(peer_id: int, data: Dictionary) -> void
+
+# Валидация на сервере
+_nam.on_validate(name: String, validator: Callable) -> void
+# validator = func(peer_id: int, data: Dictionary) -> bool
+
+# Отправка (клиент → серверу, сервер → по sync_mode)
+_nam.send_action(name: String, args: Array) -> void
+
+# Отправка конкретному пиру (только сервер)
+_nam.send_action_to(peer_id: int, name: String, args: Array) -> void
+NetworkManager
+gdscript
+
+# Создание
+create_server(port: int, max_clients: int = 32) -> Error
+create_client(address: String, port: int) -> Error
+
+# Отправка (низкоуровневая)
+send_to_server(packet: PackedByteArray, ch: int = 0, flags: int) -> Error
+send_to_peer(peer_id: int, packet: PackedByteArray, ch: int = 0, flags: int) -> Error
+broadcast(packet: PackedByteArray, ch: int = 0, flags: int) -> void
+broadcast_except(exclude_id: int, packet: PackedByteArray, ch: int = 0, flags: int) -> void
+
+# Фрагментация (для больших пакетов)
+send_fragmented_to_peer(peer_id, type, body, ch, flags) -> Error
+broadcast_fragmented(type, body, ch, flags) -> void
+
+# Состояние
+is_server() -> bool
+get_my_id() -> int
+get_peer_ids() -> Array
+
+# Сигналы
+signal peer_connected(peer_id: int)
+signal peer_disconnected(peer_id: int)
+PlayerManager
+gdscript
+
+setup_client(scene: PackedScene, container: Node) -> void
+add_player(id: int, pos: Vector3, rot: Vector3) -> void
+remove_player(id: int) -> void
+update_player(id: int, pos: Vector3, rot: Vector3) -> void
+get_player_data(id: int) -> Dictionary   # {"position", "rotation", "node"}
+has_player(id: int) -> bool
+get_all_ids() -> Array
+clear() -> void
+Безопасность
+text
+
+┌──────────────────────────────────────────────────────────────┐
+│ ПРАВИЛО: Сервер НИКОГДА не доверяет данным от клиента.       │
+│                                                              │
+│ 1. Поле "peer_id" в теле пакета АВТОМАТИЧЕСКИ               │
+│    перезаписывается на реальный ENet peer_id.                │
+│    Клиент НЕ МОЖЕТ подделать свой ID.                        │
+│                                                              │
+│ 2. Валидатор (on_validate) проверяет данные ДО обработки     │
+│    и ДО маршрутизации. Если вернёт false — пакет             │
+│    отбрасывается, другие клиенты его НЕ получат.             │
+│                                                              │
+│ 3. Проверяйте:                                               │
+│    - Существует ли игрок (_pm.has_player)                     │
+│    - Дистанцию (антителепорт)                                │
+│    - Cooldown (антиспам)                                     │
+│    - Границы значений                                        │
+└──────────────────────────────────────────────────────────────┘

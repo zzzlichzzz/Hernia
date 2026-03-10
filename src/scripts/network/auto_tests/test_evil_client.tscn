@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bmk3nm03tuptb"]
+
+[ext_resource type="Script" uid="uid://chkbipxsqjshh" path="res://src/scripts/network/auto_tests/test_evil_client.gd" id="1_irgwu"]
+
+[node name="TestEvilClient" type="Node" unique_id=1008373638]
+script = ExtResource("1_irgwu")

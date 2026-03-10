@@ -1,0 +1,28 @@
+Packet Name:          player_move
+Sync Mode:            CLIENT_TO_ALL_VIA_SERVER
+Channel:              UNRELIABLE
+Send Rate Hz:         20
+Server Validates:     ✓
+
+── Auto Sync ──
+Source Method:        get_network_state
+Receive Method:       apply_network_state
+Auto Peer Id:         ✓
+
+── Server Validation Rules ──
+Validate Player Exists:      ✓
+Validate Authenticated:      ✓
+Validate Max Distance:       50.0
+Validate Max Speed:          10.0
+Validate Speed Tolerance:    1.5
+Validate Cooldown:           0.0
+Validate Position Field:     position
+Validate Max Action Distance: 0.0
+
+── Fields ──
+[0] peer_id      INT      BITS_16    source_key: ""
+[1] position     VECTOR3  BITS_32    source_key: "position"
+[2] head_pitch   FLOAT    BITS_16    source_key: "rotation.x"
+	quantize [-1.5, 1.5]
+[3] body_yaw     FLOAT    BITS_16    source_key: "rotation.y"
+	quantize [-3.15, 3.15]

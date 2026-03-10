@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c2fw77ho0ep87"]
+
+[ext_resource type="Script" uid="uid://p8sivc45cvof" path="res://src/scripts/entities/player/block_selector.gd" id="1_3sphm"]
+
+[node name="Selector" type="Node" unique_id=377968243]
+script = ExtResource("1_3sphm")

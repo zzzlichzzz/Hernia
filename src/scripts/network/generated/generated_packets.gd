@@ -1,14 +1,56 @@
 # ═══════════════════════════════════════════════════
 # AUTO-GENERATED — DO NOT EDIT
 # Source: res://src/scripts/network/actions/
-# Date:   2026-03-09T14:08:17
+# Date:   2026-03-10T17:26:33
 # ═══════════════════════════════════════════════════
 class_name GeneratedPackets
 
+const BLOCK_BREAK_ID := 53016
+const BLOCK_PLACE_ID := 51992
 const PLAYER_MOVE_ID := 37676
 
 ## Метаданные пакетов для NetworkActionManager
 const PACKETS := {
+	53016: {
+		"name": "block_break",
+		"sync_mode": 3,
+		"channel": 0,
+		"server_validates": true,
+		"field_names": ["peer_id", "block_position"],
+		"send_rate_hz": 0,
+		"source_method": "",
+		"receive_method": "",
+		"auto_peer_id": true,
+		"source_keys": {"peer_id": "peer_id", "block_position": "block_position"},
+		"v_player_exists": true,
+		"v_authenticated": true,
+		"v_max_distance": 0.0,
+		"v_max_speed": 0.0,
+		"v_speed_tolerance": 1.5,
+		"v_cooldown": 0.1,
+		"v_position_field": "block_position",
+		"v_max_action_dist": 12.0,
+	},
+	51992: {
+		"name": "block_place",
+		"sync_mode": 3,
+		"channel": 0,
+		"server_validates": true,
+		"field_names": ["peer_id", "block_position", "block_id"],
+		"send_rate_hz": 0,
+		"source_method": "",
+		"receive_method": "",
+		"auto_peer_id": true,
+		"source_keys": {"peer_id": "peer_id", "block_position": "block_position", "block_id": "block_id"},
+		"v_player_exists": true,
+		"v_authenticated": true,
+		"v_max_distance": 0.0,
+		"v_max_speed": 0.0,
+		"v_speed_tolerance": 1.5,
+		"v_cooldown": 0.1,
+		"v_position_field": "block_position",
+		"v_max_action_dist": 12.0,
+	},
 	37676: {
 		"name": "player_move",
 		"sync_mode": 3,
@@ -30,6 +72,51 @@ const PACKETS := {
 		"v_max_action_dist": 0.0,
 	},
 }
+
+
+# ─── block_break (id=53016, 16 bytes (fixed)) ───
+
+static func write_block_break(peer_id: int, block_position: Vector3) -> PackedByteArray:
+	var _b := StreamPeerBuffer.new()
+	_b.big_endian = false
+	_b.put_u32(peer_id)
+	_b.put_float(block_position.x)
+	_b.put_float(block_position.y)
+	_b.put_float(block_position.z)
+	return PacketTypes.write_packet(53016, _b.data_array)
+
+
+static func read_block_break(_b: StreamPeerBuffer) -> Dictionary:
+	var _peer_id := _b.get_u32()
+	var _block_position := Vector3(_b.get_float(), _b.get_float(), _b.get_float())
+	return {
+		"peer_id": _peer_id,
+		"block_position": _block_position,
+	}
+
+
+# ─── block_place (id=51992, 18 bytes (fixed)) ───
+
+static func write_block_place(peer_id: int, block_position: Vector3, block_id: int) -> PackedByteArray:
+	var _b := StreamPeerBuffer.new()
+	_b.big_endian = false
+	_b.put_u32(peer_id)
+	_b.put_float(block_position.x)
+	_b.put_float(block_position.y)
+	_b.put_float(block_position.z)
+	_b.put_u16(block_id)
+	return PacketTypes.write_packet(51992, _b.data_array)
+
+
+static func read_block_place(_b: StreamPeerBuffer) -> Dictionary:
+	var _peer_id := _b.get_u32()
+	var _block_position := Vector3(_b.get_float(), _b.get_float(), _b.get_float())
+	var _block_id := _b.get_u16()
+	return {
+		"peer_id": _peer_id,
+		"block_position": _block_position,
+		"block_id": _block_id,
+	}
 
 
 # ─── player_move (id=37676, 18 bytes (fixed)) ───

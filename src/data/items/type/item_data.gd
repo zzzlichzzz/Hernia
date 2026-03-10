@@ -13,6 +13,17 @@ class_name ItemData extends Resource
 @export var consumable: bool = false
 
 
+func useRightClick() -> void:
+	pass
+	
+func useLeftClick() -> void:
+	pass
+
+func getDisplayName() -> String:
+	return display_name
+
+
+	
 
 
 	

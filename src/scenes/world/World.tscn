@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://uesbqkgc52ha"]
+
+[ext_resource type="Script" uid="uid://dy6x0o1p5b4km" path="res://src/scripts/world/world.gd" id="1_vvrex"]
+[ext_resource type="VoxelMesherBlocky" uid="uid://dcprqlo7ta2tm" path="res://src/data/blocks/voxel_mesher_blocky.tres" id="2_guu8q"]
+[ext_resource type="Script" uid="uid://pxmgosijcx0u" path="res://src/scripts/ui/menus/voxel_terrain.gd" id="3_26m1k"]
+[ext_resource type="PackedScene" uid="uid://dxf5dr4bn0yc7" path="res://src/scenes/world/entity/Player.tscn" id="4_jvqxg"]
+[ext_resource type="Script" uid="uid://bqaues5e71sqq" path="res://src/scripts/ui/debug_overlay.gd" id="5_wrwle"]
+[ext_resource type="Script" uid="uid://woicsrbbn2an" path="res://src/scripts/ui/chat_system.gd" id="6_iroh4"]
+
+[sub_resource type="VoxelGeneratorFlat" id="VoxelGeneratorFlat_qqcoc"]
+channel = 0
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_o7xes"]
+sky_top_color = Color(0.24482554, 0.42685997, 0.80994546, 1)
+sky_horizon_color = Color(0.47775733, 0.69649583, 0.7440424, 1)
+
+[sub_resource type="Sky" id="Sky_q7qfn"]
+sky_material = SubResource("ProceduralSkyMaterial_o7xes")
+
+[sub_resource type="Environment" id="Environment_hq2y8"]
+background_mode = 2
+sky = SubResource("Sky_q7qfn")
+
+[node name="World" type="Node3D" unique_id=1348666545]
+script = ExtResource("1_vvrex")
+
+[node name="VoxelTerrain" type="VoxelTerrain" parent="." unique_id=1732261503]
+generator = SubResource("VoxelGeneratorFlat_qqcoc")
+mesher = ExtResource("2_guu8q")
+bounds = AABB(-536870900, -536870900, -536870900, 1073741800, 1073741800, 1073741800)
+max_view_distance = 64
+script = ExtResource("3_26m1k")
+
+[node name="Player" parent="." unique_id=1646330281 instance=ExtResource("4_jvqxg")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.9517821494866165, 0)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2120198879]
+transform = Transform3D(1, 0, 0, 0, 0.7461038605535667, 0.665829579747749, 0, -0.665829579747749, 0.7461038605535667, 0, 75.22983780076964, 0)
+
+[node name="DebugOverlay" type="CanvasLayer" parent="." unique_id=1889231119 groups=["debug"]]
+script = ExtResource("5_wrwle")
+
+[node name="ChatSystem" type="CanvasLayer" parent="." unique_id=1424867689]
+script = ExtResource("6_iroh4")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1569347794]
+environment = SubResource("Environment_hq2y8")

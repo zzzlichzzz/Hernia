@@ -1,22 +1,41 @@
-extends CharacterBody3D
+class_name Player extends CharacterBody3D
 
 @export var move_speed: float = 5.0
 @export var sprint_speed: float = 8.0
 @export var gravity: float = 9.8
 @export var jump_velocity: float = 4.5
 @export var mouse_sensitivity: float = 0.002
+@export var reach_distance: float = 10.0
 
 var game_mode: int = 1
 
 @onready var neck: Node3D = $Neck
 @onready var camera: Camera3D = $Neck/Camera3D
+@onready var raycast: RayCast3D = $Neck/Camera3D/RayCast3D
+
 
 var inventory_open: bool = false
+var world: World
+const FRAME_COLLISION_LAYER = 2
+
 
 func _ready() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	collision_layer = 1
 	collision_mask = 3
+	world = get_parent()
+	if raycast:
+		raycast.target_position = Vector3(0, 0, -reach_distance)
+		raycast.collision_mask = 1 | FRAME_COLLISION_LAYER
+
+	
+
+func setWorld(world1: World) -> void:
+	world = world1
+	
+func getWorld() -> World:
+	return world
+
 
 func set_gamemode(mode: int) -> void:
 	game_mode = mode
@@ -68,3 +87,6 @@ func _move() -> void:
 func _is_chat_open() -> bool:
 	var chat = get_tree().get_first_node_in_group("chat")
 	return chat and chat.has_method("is_chat_open") and chat.is_chat_open()
+	
+func getRayCast() -> RayCast3D:
+	return raycast

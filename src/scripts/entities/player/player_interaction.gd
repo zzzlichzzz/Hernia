@@ -3,23 +3,17 @@ extends Node3D
 @onready var _camera: Camera3D = get_node("../Neck/Camera3D")
 @onready var _raycast: RayCast3D = get_node("../Neck/Camera3D/RayCast3D")
 
-var _terrain: VoxelTerrain = null
-var _terrain_tool: VoxelTool = null
-var _voxel_size: float = 1.0
 
-@export var reach_distance: float = 10.0
 @export var break_cooldown: float = 0.2
 @export var place_cooldown: float = 0.2
-@export var search_terrain_on_ready: bool = true
+# @export var search_terrain_on_ready: bool = true
 
 var _break_timer: float = 0.0
 var _place_timer: float = 0.0
 var _selected_block_id: String = ""
 var _selected_texture: String = "stone"
 
-# Frame blocks
-var _frame_manager: FrameBlockManager = null
-var _edit_mode: bool = false
+
 
 var _block_to_texture: Dictionary = {
 	1: "grass_block_top",
@@ -39,36 +33,24 @@ var _chameleon_mgr: Node = null
 # ══════════════════════════════════════════
 
 signal block_broken(position: Vector3i, block_id: int)
-signal block_placed(position: Vector3i, block_id: int)
+
 signal target_changed(position: Vector3i, has_target: bool)
-signal terrain_found(terrain: VoxelTerrain)
 signal terrain_lost()
 
 var items: ItemArrayRegistry
+var world_path = "res://src/script/world/world.gd"
 var item_path = "res://src/data/items/items.tres"
 
-func _init() -> void:
-	items = load(item_path)
+
+var player: Player
 
 
 func _ready():
 	await get_tree().process_frame
 	_find_inventory()
-	if search_terrain_on_ready:
-		_find_and_setup_terrain()
-	get_tree().node_added.connect(_on_node_added)
+	#get_tree().node_added.connect(player.getWorld()._on_node_added)
 	
-	_frame_manager = FrameBlockManager.new()
-	_frame_manager.name = "FrameBlockManager"
-	add_child(_frame_manager)
-	
-	if _terrain:
-		_frame_manager.set_terrain(_terrain)
-	
-	if _raycast:
-		_raycast.target_position = Vector3(0, 0, -reach_distance)
-		_raycast.collision_mask = 1 | FRAME_COLLISION_LAYER
-	
+	player = get_parent()
 	# ══════════════════════════════════════════
 	#  ХАМЕЛЕОН — получаем менеджер
 	# ══════════════════════════════════════════
@@ -108,88 +90,12 @@ func _update_selected_block_from_inventory():
 			_selected_block_id = ""
 			print("PlayerInteraction: слот пуст, установка отключена")
 
-func _find_and_setup_terrain() -> bool:
-	var current_scene = get_tree().current_scene
-	if current_scene:
-		_terrain = _find_terrain_recursive(current_scene)
-		if _terrain:
-			_setup_terrain_tool()
-			return true
-	
-	_terrain = _find_terrain_in_tree()
-	if _terrain:
-		_setup_terrain_tool()
-		return true
-	
-	var parent = get_parent()
-	while parent:
-		if parent is VoxelTerrain:
-			_terrain = parent
-			_setup_terrain_tool()
-			return true
-		parent = parent.get_parent()
-	
-	push_warning("❌ VoxelTerrain не найден!")
-	return false
-
-
-func _find_terrain_recursive(node: Node) -> VoxelTerrain:
-	if node is VoxelTerrain:
-		return node
-	for child in node.get_children():
-		var found = _find_terrain_recursive(child)
-		if found:
-			return found
-	return null
-
-
-func _find_terrain_in_tree() -> VoxelTerrain:
-	var nodes = get_tree().get_nodes_in_group("voxel_terrain")
-	if nodes.size() > 0:
-		return nodes[0]
-	for node in get_tree().get_root().get_children():
-		var terrain = _find_terrain_recursive(node)
-		if terrain:
-			return terrain
-	return null
-
-
-func _setup_terrain_tool():
-	if _terrain == null:
-		return
-	
-	_terrain_tool = _terrain.get_voxel_tool()
-	_terrain_tool.channel = VoxelBuffer.CHANNEL_TYPE
-	_terrain_tool.mode = VoxelTool.MODE_SET
-	_voxel_size = 1.0
-	if _raycast:
-		_raycast.target_position = Vector3(0, 0, -reach_distance)
-		_raycast.collision_mask = 1 | FRAME_COLLISION_LAYER
-	
-	if _frame_manager:
-		_frame_manager.set_terrain(_terrain)
-	
-	# ══════════════════════════════════════════
-	#  ХАМЕЛЕОН — подключаем материал через terrain
-	# ══════════════════════════════════════════
-	var cham = ChameleonManager.get_instance()
-	if cham:
-		cham.connect_to_terrain(_terrain)
-	# ══════════════════════════════════════════
-	
-	print("✅ Terrain найден: ", _terrain.name)
-	terrain_found.emit(_terrain)
-
-
-func _on_node_added(node: Node):
-	if _terrain == null and node is VoxelTerrain:
-		await get_tree().process_frame
-		_terrain = node
-		_setup_terrain_tool()
 
 
 func _process(delta):
-	if _terrain == null or _terrain_tool == null:
+	if getPlayer() == null:
+		return
+	if getPlayer().getWorld()._terrain == null or getPlayer().getWorld()._terrain_tool == null:
 		return
 	
 	if _is_chat_or_inventory_open():
@@ -208,16 +114,15 @@ func _is_chat_or_inventory_open() -> bool:
 		if chat.is_chat_open():
 			return true
 	
-	var player = get_tree().get_first_node_in_group("player")
-	if player and player.has("inventory_open"):
-		if player.inventory_open:
+	var players = get_tree().get_first_node_in_group("player")
+	if players and players.has("inventory_open"):
+		if players.inventory_open:
 			return true
 	
 	return false
 
 
 func _handle_input():
-	var player = get_parent()
 	var inventory_is_open = false
 	if player and "inventory_open" in player:
 		inventory_is_open = player.inventory_open
@@ -225,9 +130,6 @@ func _handle_input():
 	if inventory_is_open:
 		return
 	
-	if Input.is_action_just_pressed("toggle_edit_mode"):
-		_edit_mode = not _edit_mode
-		print("🔧 Режим редактирования: ", "ВКЛ" if _edit_mode else "ВЫКЛ")
 	
 	var target = _get_combined_target()
 	
@@ -238,39 +140,28 @@ func _handle_input():
 	
 	# ЛКМ — сломать
 	if Input.is_action_pressed("break_block") and _break_timer <= 0:
-		if target["is_frame"]:
-			_frame_manager.remove_frame_block(target["position"])
-		else:
-			_break_block(target["position"])
+		_break_block(target["position"])
 		_break_timer = break_cooldown
 	
 	# ПКМ — поставить / редактировать / покрасить хамелеон
 	if Input.is_action_pressed("place_block") and _place_timer <= 0:
-		if _edit_mode and _frame_manager:
-			if target["is_frame"]:
-				var face = target["face"]
-				_frame_manager.set_face_texture(target["position"], face, _selected_texture)
-			else:
-				var place_pos = target["place_position"]
-				if _can_place_at(place_pos):
-					_frame_manager.create_frame_block(place_pos)
+
 		# ══════════════════════════════════════════
 		#  ХАМЕЛЕОН — проверяем перед обычным размещением
 		# ══════════════════════════════════════════
-		elif _try_paint_chameleon(target["position"]):
+		if _try_paint_chameleon(target["position"]):
 			pass  # Хамелеон покрашен, ничего больше не делаем
 		# ══════════════════════════════════════════
 		else:
 			var place_pos = target["place_position"]
-			if _can_place_at(place_pos):
-				_place_block(place_pos)
+			if player.getWorld()._can_place_at(global_position, place_pos):
+				player.getWorld()._place_block(_selected_block_id, place_pos)
 		_place_timer = place_cooldown
 	
 	# Средняя кнопка — выбрать
 	if Input.is_action_just_pressed("pick_block"):
 		if target["is_frame"]:
 			var face = target["face"]
-			_selected_texture = _frame_manager.get_face_texture(target["position"], face)
 			print("👆 Скопирована текстура: ", _selected_texture)
 		else:
 			_pick_block(target["position"])
@@ -285,17 +176,17 @@ func _try_paint_chameleon(hit_pos: Vector3i) -> bool:
 	if cham == null:
 		return false
 	
-	if _terrain_tool == null:
+	if getPlayer().getWorld()._terrain_tool == null:
 		return false
 	
-	var voxel_id = _terrain_tool.get_voxel(hit_pos)
+	var voxel_id = getPlayer().getWorld()._terrain_tool.get_voxel(hit_pos)
 	if not cham.is_chameleon_block(voxel_id):
 		return false
 	
 	if _selected_block_id == "":
 		return false
 	
-	var success = cham.paint_chameleon_by_block_id(hit_pos, items.getItemBlockID(_selected_block_id))
+	var success = cham.paint_chameleon_by_block_id(hit_pos, getPlayer().getWorld().getItems().getItemBlockID(_selected_block_id))
 	
 	if success:
 		print("🎨 Хамелеон покрашен: ", hit_pos, " блоком ID: ", _selected_block_id)
@@ -327,19 +218,8 @@ func _get_combined_target() -> Dictionary:
 	if _raycast and _raycast.is_colliding():
 		var collider = _raycast.get_collider()
 		
-		if _frame_manager.is_frame_collider(collider):
-			var frame_pos = _frame_manager.get_block_pos_from_collider(collider)
-			var hit_normal = _raycast.get_collision_normal()
-			
-			result["has_target"] = true
-			result["is_frame"] = true
-			result["position"] = frame_pos
-			result["place_position"] = frame_pos + _normal_to_vec3i(hit_normal)
-			result["face"] = _normal_to_face(hit_normal)
-			result["normal"] = hit_normal
-			return result
 	
-	var hit = _terrain_tool.raycast(origin, forward, reach_distance)
+	var hit = getPlayer().getWorld()._terrain_tool.raycast(origin, forward, getPlayer().reach_distance)
 	if hit:
 		result["has_target"] = true
 		result["is_frame"] = false
@@ -385,67 +265,16 @@ func _normal_to_vec3i(normal: Vector3) -> Vector3i:
 	return Vector3i.ZERO
 
 
-func _break_block(pos: Vector3i):
-	if _terrain_tool == null:
-		return
-	var old_id = _terrain_tool.get_voxel(pos)
-	if old_id == 0:
-		return
-	
-	# ══════════════════════════════════════════
-	#  ХАМЕЛЕОН — очистка при разрушении
-	# ══════════════════════════════════════════
-	var cham = ChameleonManager.get_instance()
-	if cham and cham.is_chameleon_block(old_id):
-		cham.remove_chameleon(pos)
-	# ══════════════════════════════════════════
-	
-	_terrain_tool.value = 0
-	_terrain_tool.do_point(pos)
-	var new_id = _terrain_tool.get_voxel(pos)
-	if new_id == 0:
-		print("⛏️ Блок сломан: ", pos)
-		block_broken.emit(pos, old_id)
-	else:
-		print("❌ Не удалось сломать блок: ", pos)
 
-func _place_block(pos: Vector3i):
-	if _terrain_tool == null:
-		return
-	var current = _terrain_tool.get_voxel(pos)
-	if current != 0:
-		return
-		
-	if not items.isItemBlock(_selected_block_id):
-		return
-	
-	_terrain_tool.value = items.getItemBlockID(_selected_block_id)
-	_terrain_tool.do_point(pos)
-	var new_id = _terrain_tool.get_voxel(pos)
-	if new_id == items.getItemBlockID(_selected_block_id):
-		print("🧱 Блок установлен: ", pos)
-		block_placed.emit(pos, _selected_block_id)
 
 
 func _pick_block(pos: Vector3i):
-	var block_id = _terrain_tool.get_voxel(pos)
+	var block_id = getPlayer().getWorld()._terrain_tool.get_voxel(pos)
 	if block_id == 0:
 		return
 	print("👆 Выбран блок ID: ", block_id)
 
 
-func _world_to_voxel(world_pos: Vector3) -> Vector3i:
-	return Vector3i(floori(world_pos.x), floori(world_pos.y), floori(world_pos.z))
-
-
-func _voxel_to_world(voxel_pos: Vector3i) -> Vector3:
-	return Vector3(voxel_pos) + Vector3(0.5, 0.5, 0.5)
-
-
-func _can_place_at(pos: Vector3i) -> bool:
-	var player_pos = global_position
-	var block_world_pos = _voxel_to_world(pos)
-	return player_pos.distance_to(block_world_pos) > 1.5
 
 
 # ═══ ПУБЛИЧНЫЙ API ═══
@@ -465,20 +294,17 @@ func set_selected_texture(texture_name: String):
 func get_selected_texture() -> String:
 	return _selected_texture
 
-func get_terrain() -> VoxelTerrain:
-	return _terrain
-
-func has_terrain() -> bool:
-	return _terrain != null and _terrain_tool != null
+func getPlayer() -> Player:
+	return player
 
 func set_terrain(terrain: VoxelTerrain):
 	if terrain == null:
-		_terrain = null
-		_terrain_tool = null
+		getPlayer().getWorld()._terrain = null
+		getPlayer().getWorld()._terrain_tool = null
 		terrain_lost.emit()
 		return
-	_terrain = terrain
-	_setup_terrain_tool()
+	getPlayer().getWorld()._terrain = terrain
+	getPlayer().getWorld()._setup_terrain_tool()
 
 func find_terrain() -> bool:
-	return _find_and_setup_terrain()
+	return getPlayer().getWorld()._find_and_setup_terrain()

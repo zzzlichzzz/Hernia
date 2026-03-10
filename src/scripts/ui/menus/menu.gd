@@ -1,6 +1,6 @@
 extends Control
 
-const GAME_SCENE := "res://src/scenes/testing/LodScene.tscn"
+const GAME_SCENE := "res://src/scenes/world/World.tscn"
 
 func _ready() -> void:
 	var bg = ColorRect.new()

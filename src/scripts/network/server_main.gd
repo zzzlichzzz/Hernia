@@ -10,9 +10,10 @@ var _net : NetworkManager        = null
 var _pm  : PlayerManager         = null
 var _nam : NetworkActionManager  = null
 
-var _authenticated : Dictionary = {}
-var _connect_time  : Dictionary = {}
-var _security_log  : Dictionary = {}
+var _chameleon_state: Dictionary = {}   # Vector3i → int (source_block_id)
+var _authenticated  : Dictionary = {}
+var _connect_time   : Dictionary = {}
+var _security_log   : Dictionary = {}
 
 const MAX_VIOLATIONS  := 10
 const VIOLATION_DECAY := 30.0
@@ -104,6 +105,21 @@ func _on_auth_request(peer_id: int, body: StreamPeerBuffer) -> void:
 	_pm.add_player(peer_id, pos, rot)
 	_net.broadcast_except(peer_id, PacketTypes.write_player_joined(peer_id, pos, rot))
 
+	# ── Хамелеоны: начальная синхронизация ────
+	_send_chameleon_sync(peer_id)
+
+func _send_chameleon_sync(peer_id: int) -> void:
+	if _chameleon_state.is_empty():
+		return
+	var body := PacketTypes.write_chameleon_sync_body(_chameleon_state)
+	# Автофрагментация при большом количестве
+	_net.send_fragmented_to_peer(
+		peer_id,
+		PacketTypes.CHAMELEON_SYNC,
+		body,
+		0,
+		ENetPacketPeer.FLAG_RELIABLE
+	)
 
 func _on_peer_disconnected(id: int) -> void:
 	_pm.remove_player(id)
@@ -121,7 +137,14 @@ func _on_ping(peer_id: int, _body: StreamPeerBuffer) -> void:
 func _on_security_kick(peer_id: int, reason: String) -> void:
 	_net.kick_peer(peer_id)
 
+func _on_chameleon_paint(peer_id: int, data: Dictionary) -> void:
+	var pos := Vector3i(data["block_position"])
+	var block_id: int = data["source_block_id"]
+	_chameleon_state[pos] = block_id
 
+func _on_block_break(peer_id: int, data: Dictionary) -> void:
+	var pos := Vector3i(data["block_position"])
+	_chameleon_state.erase(pos)
 # ══════════════════════════════════════════════════
 #  НАРУШЕНИЯ
 # ══════════════════════════════════════════════════

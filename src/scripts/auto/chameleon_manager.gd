@@ -373,3 +373,40 @@ func load_save_data(data: Dictionary):
 	_rebuild_textures()
 	if debug_mode:
 		print("🔄 Загружено хамелеонов: ", _chameleon_positions.size())
+
+# ═══════════════════════════════════════════════════════════
+#  BATCH ОПЕРАЦИИ (для сетевой синхронизации)
+# ═══════════════════════════════════════════════════════════
+
+## Загрузить множество покрасок за один раз.
+## Перестраивает текстуры ОДИН раз в конце.
+## entries: { Vector3i → int (source_block_id) }
+func batch_paint_by_block_ids(entries: Dictionary) -> void:
+	if entries.is_empty():
+		return
+
+	var painted := 0
+	for pos: Vector3i in entries:
+		var block_id: int = entries[pos]
+		var tex_name: String = block_id_to_texture.get(block_id, "")
+		if tex_name == "":
+			continue
+
+		var uv = _get_uv(tex_name)
+		if uv.is_empty():
+			continue
+
+		var uv_data = Vector4(
+			uv["left"], uv["top"],
+			uv["right"] - uv["left"],
+			uv["bottom"] - uv["top"]
+		)
+		_chameleon_positions[pos] = uv_data
+		painted += 1
+
+	# Одна перестройка вместо N
+	if painted > 0:
+		_rebuild_textures()
+
+	if debug_mode:
+		print("🔄 Batch paint: %d/%d хамелеонов" % [painted, entries.size()])

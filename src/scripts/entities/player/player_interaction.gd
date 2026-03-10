@@ -49,7 +49,6 @@ var _nam: NetworkActionManager = null
 func _init() -> void:
 	items = load(item_path)
 
-
 func _ready():
 	# ── Мультиплеер: определить роль ─────────
 	_setup_network()
@@ -77,26 +76,23 @@ func _ready():
 func _setup_network() -> void:
 	var parent = get_parent()
 
-	# Определяем роль из BasePlayer
 	if parent is BasePlayer:
 		_is_local = (parent as BasePlayer).is_local
 		_network_id = (parent as BasePlayer).network_id
 	else:
-		# Нет BasePlayer → одиночная игра, всё работает локально
 		_is_local = true
 		_network_id = 0
 
-	# Удалённые игроки: модуль полностью выключен
 	if not _is_local:
 		set_process(false)
 		set_physics_process(false)
 		return
 
-	# Ищем NAM для мультиплеера
 	_nam = _find_nam()
 	if _nam:
 		_nam.on_action("block_break", _on_remote_block_break)
 		_nam.on_action("block_place", _on_remote_block_place)
+		_nam.on_action("chameleon_paint", _on_remote_chameleon_paint)
 		print("✅ PlayerInteraction: мультиплеер подключён")
 	else:
 		print("ℹ️ PlayerInteraction: NAM не найден, одиночный режим")
@@ -130,12 +126,15 @@ func _send_block_break(pos: Vector3i) -> void:
 		return
 	_nam.send_action("block_break", [_network_id, Vector3(pos)])
 
-
 func _send_block_place(pos: Vector3i, voxel_id: int) -> void:
 	if _nam == null:
 		return
 	_nam.send_action("block_place", [_network_id, Vector3(pos), voxel_id])
 
+func _send_chameleon_paint(pos: Vector3i, source_block_id: int) -> void:
+	if _nam == null:
+		return
+	_nam.send_action("chameleon_paint", [_network_id, Vector3(pos), source_block_id])
 
 # ══════════════════════════════════════════════════
 #  МУЛЬТИПЛЕЕР: ПРИЁМ ОТ ДРУГИХ ИГРОКОВ
@@ -170,6 +169,13 @@ func _on_remote_block_place(peer_id: int, data: Dictionary) -> void:
 	_terrain_tool.do_point(pos)
 	block_placed.emit(pos, voxel_id)
 
+func _on_remote_chameleon_paint(peer_id: int, data: Dictionary) -> void:
+	var cham = ChameleonManager.get_instance()
+	if cham == null:
+		return
+	var pos := Vector3i(data["block_position"])
+	var block_id: int = data["source_block_id"]
+	cham.paint_chameleon_by_block_id(pos, block_id)
 
 # ══════════════════════════════════════════════════
 #  СУЩЕСТВУЮЩИЙ КОД (без изменений кроме отмеченных)
@@ -356,16 +362,22 @@ func _try_paint_chameleon(hit_pos: Vector3i) -> bool:
 	if _selected_block_id == "":
 		return false
 
-	var success = cham.paint_chameleon_by_block_id(hit_pos, items.getItemBlockID(_selected_block_id))
+	var numeric_block_id: int = items.getItemBlockID(_selected_block_id)
+	var success = cham.paint_chameleon_by_block_id(hit_pos, numeric_block_id)
 
 	if success:
 		print("🎨 Хамелеон покрашен: ", hit_pos, " блоком ID: ", _selected_block_id)
+		# ── Мультиплеер: отправить другим ────
+		_send_chameleon_paint(hit_pos, numeric_block_id)
 	else:
 		var tex = _block_to_texture.get(_selected_block_id, "")
 		if tex != "":
 			success = cham.paint_chameleon(hit_pos, tex)
 			if success:
 				print("🎨 Хамелеон покрашен: ", hit_pos, " текстурой: ", tex)
+				# Для текстурной покраски отправляем block_id=0
+				# Сервер сохранит, клиенты откатятся к block_id_to_texture
+				_send_chameleon_paint(hit_pos, numeric_block_id)
 
 	return success
 

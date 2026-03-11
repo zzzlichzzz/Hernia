@@ -3,7 +3,7 @@ class_name PlayerInteraction extends Node3D
 var interaction_item: InteractionItem
 var interaction_block: InteractionBlock
 var interaction_entity: InteractionEntity	
-var player: Player
+var player: BasePlayer
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -19,16 +19,16 @@ func _process(delta: float) -> void:
 
 
 func _handle_input():
-	var inventory_is_open = false
+
 	if player and "inventory_open" in player:
-		player.iso() = player.inventory_open
+		if player.is_open_inventory(): return
 
-	if inventory_is_open:
-		return
 
-	if Input.is_action_pressed("break_block") and _break_timer <= 0:
-		_break_block(target["position"])
-		_break_timer = break_cooldown
+	if Input.is_action_pressed("break_block"):
+	#and _break_timer <= 0:
+		interaction_block._break_block(player)
+		#_break_block(target["position"])
+		#_break_timer = break_cooldown
 
 	# ПКМ — поставить / покрасить хамелеон
 	if Input.is_action_pressed("place_block") and _place_timer <= 0:

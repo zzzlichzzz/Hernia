@@ -27,7 +27,11 @@ enabled=PackedStringArray()
 folder_colors={
 "res://common/": "red",
 "res://src/": "green",
-"res://src/scripts/network/": "red"
+"res://src/data/": "yellow",
+"res://src/scenes/": "red",
+"res://src/scripts/": "purple",
+"res://src/scripts/network/": "blue",
+"res://src/shaders/": "orange"
 }
 
 [input]

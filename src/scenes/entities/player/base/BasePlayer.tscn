@@ -1,6 +1,6 @@
-[gd_scene format=3 uid="uid://crxemknfrh77e"]
+[gd_scene format=3 uid="uid://bquqq0ni2vmj4"]
 
-[ext_resource type="Script" path="res://src/scripts/entities/player/base_player.gd" id="1_esbev"]
+[ext_resource type="Script" uid="uid://cw0w0pgqaloq5" path="res://src/scripts/entities/player/base/base_player.gd" id="1_esbev"]
 [ext_resource type="PackedScene" uid="uid://cuemsvwvyjat5" path="res://src/scenes/entities/player/modules/CrossHair.tscn" id="2_lk1w5"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_xvymr"]

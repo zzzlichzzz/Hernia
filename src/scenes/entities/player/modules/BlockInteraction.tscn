@@ -1,6 +1,6 @@
-[gd_scene format=3 uid="uid://lj28y2cdjq0v"]
+[gd_scene format=3 uid="uid://bol8kcodj1j1j"]
 
 [ext_resource type="Script" path="res://src/scripts/entities/player/player_interaction.gd" id="1_kwb2m"]
 
-[node name="Interaction" type="Node3D" unique_id=1451133203]
+[node name="BlockInteraction" type="Node3D" unique_id=1451133203]
 script = ExtResource("1_kwb2m")

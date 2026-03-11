@@ -1,12 +1,12 @@
 [gd_scene format=3 uid="uid://dxf5dr4bn0yc7"]
 
 [ext_resource type="Script" uid="uid://cd5b1lg14gm2g" path="res://src/scripts/entities/player/player.gd" id="1_pkpq8"]
-[ext_resource type="Script" uid="uid://p8sivc45cvof" path="res://src/scripts/entities/player/block_selector.gd" id="3_ate8u"]
-[ext_resource type="PackedScene" uid="uid://cuwen1askdtab" path="res://src/scenes/entities/player/modules/Creative_Inventory.tscn" id="3_eqmfk"]
-[ext_resource type="Script" uid="uid://l0o5asdph27x" path="res://src/scripts/entities/player/creative_inventory.gd" id="4_8k4yg"]
+[ext_resource type="Script" path="res://src/scripts/entities/player/block_selector.gd" id="3_ate8u"]
+[ext_resource type="PackedScene" uid="uid://cuwen1askdtab" path="res://src/scenes/entities/player/modules/CreativeInventory.tscn" id="3_eqmfk"]
+[ext_resource type="Script" uid="uid://l0o5asdph27x" path="res://src/scripts/entities/player/components/creative_inventory.gd" id="4_8k4yg"]
 [ext_resource type="PackedScene" uid="uid://cuemsvwvyjat5" path="res://src/scenes/entities/player/modules/CrossHair.tscn" id="4_c2xi3"]
 [ext_resource type="PackedScene" uid="uid://cnwqn0s8f7ml3" path="res://src/scenes/entities/player/modules/Hotbar.tscn" id="4_e5tct"]
-[ext_resource type="Script" uid="uid://b2s2cwk7hiohb" path="res://src/scripts/entities/player/player_interaction.gd" id="5_e5tct"]
+[ext_resource type="Script" uid="uid://b2s2cwk7hiohb" path="res://src/scripts/entities/player/components/block_interaction.gd" id="5_e5tct"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_e5tct"]
 radius = 0.45

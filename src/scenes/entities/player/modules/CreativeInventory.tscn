@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cuwen1askdtab"]
 
-[ext_resource type="Script" uid="uid://l0o5asdph27x" path="res://src/scripts/entities/player/creative_inventory.gd" id="1_rhi3h"]
+[ext_resource type="Script" uid="uid://l0o5asdph27x" path="res://src/scripts/entities/player/components/creative_inventory.gd" id="1_rhi3h"]
 [ext_resource type="PackedScene" uid="uid://gk05pbux7spw" path="res://src/scenes/ui/InventorySlot.tscn" id="2_at5t7"]
 
 [node name="Inventory" type="ColorRect" unique_id=565793990]

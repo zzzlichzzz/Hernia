@@ -1,9 +1,9 @@
 [gd_scene format=3 uid="uid://4jch786af7ti"]
 
 [ext_resource type="Script" uid="uid://6mfnl2p1siba" path="res://src/scripts/network/client_main.gd" id="1_6b4o1"]
-[ext_resource type="PackedScene" uid="uid://b74jlqgmtglti" path="res://src/scenes/testing/LodScene.tscn" id="2_dtaj1"]
+[ext_resource type="PackedScene" uid="uid://bd315y2nrrss5" path="res://src/scenes/terrain/World.tscn" id="2_dtaj1"]
 
 [node name="ClientMain" type="Node3D" unique_id=504714921]
 script = ExtResource("1_6b4o1")
 
-[node name="World" parent="." unique_id=327434639 instance=ExtResource("2_dtaj1")]
+[node name="World" parent="." unique_id=1666085922 instance=ExtResource("2_dtaj1")]

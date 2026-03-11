@@ -1,4 +1,4 @@
-extends CharacterBody3D
+class_name Player extends CharacterBody3D
 
 @export var move_speed: float = 5.0
 @export var sprint_speed: float = 8.0
@@ -68,3 +68,6 @@ func _move() -> void:
 func _is_chat_open() -> bool:
 	var chat = get_tree().get_first_node_in_group("chat")
 	return chat and chat.has_method("is_chat_open") and chat.is_chat_open()
+
+func is_open_inventory() -> bool:
+	return inventory_open

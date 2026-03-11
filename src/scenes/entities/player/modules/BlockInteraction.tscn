@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bb1srelhjc6b7"]
+
+[ext_resource type="Script" uid="uid://b2s2cwk7hiohb" path="res://src/scripts/entities/player/components/block_interaction.gd" id="1_kwb2m"]
+
+[node name="BlockInteraction" type="Node3D" unique_id=1451133203]
+script = ExtResource("1_kwb2m")

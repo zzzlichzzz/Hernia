@@ -1,14 +1,13 @@
 # ═══════════════════════════════════════════════════
 # AUTO-GENERATED — DO NOT EDIT
 # Source: res://src/scripts/network/actions/
-# Date:   2026-03-12T13:05:35
+# Date:   2026-03-10T20:42:53
 # ═══════════════════════════════════════════════════
 class_name GeneratedPackets
 
 const BLOCK_BREAK_ID := 53016
 const BLOCK_PLACE_ID := 51992
 const CHAMELEON_PAINT_ID := 61104
-const PLAYER_CORRECTION_ID := 35565
 const PLAYER_MOVE_ID := 37676
 
 ## Метаданные пакетов для NetworkActionManager
@@ -73,37 +72,17 @@ const PACKETS := {
 		"v_position_field": "block_position",
 		"v_max_action_dist": 12.0,
 	},
-	35565: {
-		"name": "player_correction",
-		"sync_mode": 4,
-		"channel": 0,
-		"server_validates": false,
-		"field_names": ["peer_id", "position", "body_yaw", "head_pitch"],
-		"send_rate_hz": 0,
-		"source_method": "",
-		"receive_method": "",
-		"auto_peer_id": true,
-		"source_keys": {"peer_id": "peer_id", "position": "position", "body_yaw": "body_yaw", "head_pitch": "head_pitch"},
-		"v_player_exists": true,
-		"v_authenticated": true,
-		"v_max_distance": 0.0,
-		"v_max_speed": 0.0,
-		"v_speed_tolerance": 1.5,
-		"v_cooldown": 0.0,
-		"v_position_field": "position",
-		"v_max_action_dist": 0.0,
-	},
 	37676: {
 		"name": "player_move",
 		"sync_mode": 3,
 		"channel": 0,
 		"server_validates": true,
-		"field_names": ["peer_id", "delta", "position", "head_pitch", "body_yaw"],
+		"field_names": ["peer_id", "position", "head_pitch", "body_yaw"],
 		"send_rate_hz": 20,
 		"source_method": "get_network_state",
 		"receive_method": "apply_network_state",
 		"auto_peer_id": true,
-		"source_keys": {"peer_id": "peer_id", "delta": "delta", "position": "position", "head_pitch": "rotation.x", "body_yaw": "rotation.y"},
+		"source_keys": {"peer_id": "peer_id", "position": "position", "head_pitch": "rotation.x", "body_yaw": "rotation.y"},
 		"v_player_exists": true,
 		"v_authenticated": true,
 		"v_max_distance": 50.0,
@@ -185,40 +164,12 @@ static func read_chameleon_paint(_b: StreamPeerBuffer) -> Dictionary:
 	}
 
 
-# ─── player_correction (id=35565, 24 bytes (fixed)) ───
+# ─── player_move (id=37676, 18 bytes (fixed)) ───
 
-static func write_player_correction(peer_id: int, position: Vector3, body_yaw: float, head_pitch: float) -> PackedByteArray:
-	var _b := StreamPeerBuffer.new()
-	_b.big_endian = false
-	_b.put_u32(peer_id)
-	_b.put_float(position.x)
-	_b.put_float(position.y)
-	_b.put_float(position.z)
-	_b.put_float(body_yaw)
-	_b.put_float(head_pitch)
-	return PacketTypes.write_packet(35565, _b.data_array)
-
-
-static func read_player_correction(_b: StreamPeerBuffer) -> Dictionary:
-	var _peer_id := _b.get_u32()
-	var _position := Vector3(_b.get_float(), _b.get_float(), _b.get_float())
-	var _body_yaw := _b.get_float()
-	var _head_pitch := _b.get_float()
-	return {
-		"peer_id": _peer_id,
-		"position": _position,
-		"body_yaw": _body_yaw,
-		"head_pitch": _head_pitch,
-	}
-
-
-# ─── player_move (id=37676, 20 bytes (fixed)) ───
-
-static func write_player_move(peer_id: int, delta: float, position: Vector3, head_pitch: float, body_yaw: float) -> PackedByteArray:
+static func write_player_move(peer_id: int, position: Vector3, head_pitch: float, body_yaw: float) -> PackedByteArray:
 	var _b := StreamPeerBuffer.new()
 	_b.big_endian = false
 	_b.put_u16(peer_id)
-	_b.put_u16(int(clampf((delta - (0.0)) / ((1.0) - (0.0)), 0.0, 1.0) * 65535.0))
 	_b.put_float(position.x)
 	_b.put_float(position.y)
 	_b.put_float(position.z)
@@ -229,13 +180,11 @@ static func write_player_move(peer_id: int, delta: float, position: Vector3, hea
 
 static func read_player_move(_b: StreamPeerBuffer) -> Dictionary:
 	var _peer_id := _b.get_u16()
-	var _delta := (0.0) + (float(_b.get_u16()) / 65535.0) * ((1.0) - (0.0))
 	var _position := Vector3(_b.get_float(), _b.get_float(), _b.get_float())
 	var _head_pitch := (-1.5) + (float(_b.get_u16()) / 65535.0) * ((1.5) - (-1.5))
 	var _body_yaw := (-3.15) + (float(_b.get_u16()) / 65535.0) * ((3.15) - (-3.15))
 	return {
 		"peer_id": _peer_id,
-		"delta": _delta,
 		"position": _position,
 		"head_pitch": _head_pitch,
 		"body_yaw": _body_yaw,

@@ -1,174 +1,155 @@
 extends Node
+# Автоматический генератор ресурсов
+# Запускает по очереди все необходимые скрипты для обновления атласа и библиотеки блоков
+# Прикрепите этот скрипт к любой сцене и запустите сцену для генерации
 
-@export var auto_start: bool = true
+@export var auto_start: bool = true  # Запускать автоматически при загрузке сцены?
 @export var debug_mode: bool = true
 
+# Пути к скриптам
 const ATLAS_MANAGER_PATH = "res://src/scripts/build/atlas/atlas_manager.gd"
 const ATLAS_ICON_MANAGER_PATH = "res://src/scripts/build/atlas/atlas_icon_manager.gd"
 const ITEMS_REGISTRY_PATH = "res://src/data/items/items_registry.gd"
 const BLOCK_3D_ICON_GENERATOR_PATH = "res://src/scripts/build/icon/block_3d_icon_generator.gd"
-
-# ─── Логирование ───
-
-func _log(message: String):
-	if debug_mode:
-		print(message)
-
-func _log_error(message: String):
-	# Ошибки выводим всегда
-	printerr(message)
-
-# ─── Точка входа ───
 
 func _ready():
 	if auto_start:
 		start()
 
 func start():
-	_log("🚀 АВТОГЕНЕРАТОР: Запуск последовательной сборки ресурсов")
-	if debug_mode:
-		_log("🔧 Debug mode: ВКЛ (все проверки активны)")
+	print("🚀 АВТОГЕНЕРАТОР: Запуск последовательной сборки ресурсов")
 	
 	var start_time = Time.get_ticks_msec()
 	
-	# ШАГ 1
+	# ШАГ 1: Запускаем AtlasManager
 	if not _run_atlas_manager():
-		_log_error("❌ АВТОГЕНЕРАТОР: Остановлено из-за ошибки в AtlasManager")
+		print("❌ АВТОГЕНЕРАТОР: Остановлено из-за ошибки в AtlasManager")
 		return
 	
+	# Небольшая пауза между шагами для надежности
 	await get_tree().create_timer(0.3).timeout
 	
-	# ШАГ 2
+	
+	# ШАГ 2: Запускаем BlockRegistry
 	if not _run_items_registry():
-		_log_error("❌ АВТОГЕНЕРАТОР: Остановлено из-за ошибки в BlockRegistry")
+		print("❌ АВТОГЕНЕРАТОР: Остановлено из-за ошибки в BlockRegistry")
 		return
 	
+	# Небольшая пауза перед 3D иконками
 	await get_tree().create_timer(0.3).timeout
 	
-	# ШАГ 3
+	# ШАГ 3: Генерируем 3D иконки блоков (как в Minecraft - 2 вида)
 	if not await _run_block_3d_icon_generator():
-		_log("⚠️ АВТОГЕНЕРАТОР: Ошибка генерации 3D иконок (не критично)")
+		print("⚠️ АВТОГЕНЕРАТОР: Ошибка генерации 3D иконок (не критично)")
 	
-	# ШАГ 4
 	if not _run_atlas_icon_manager():
-		_log_error("❌ АВТОГЕНЕРАТОР: Остановлено из-за ошибки в AtlasManagerIcon")
+		print("❌ АВТОГЕНЕРАТОР: Остановлено из-за ошибки в AtlasManagerIcon")
 		return
-	
-	var elapsed = (Time.get_ticks_msec() - start_time) / 1000.0
-	_log("✅ АВТОГЕНЕРАТОР: Все ресурсы обновлены за %.2f секунд" % elapsed)
 
-# ─── Atlas Manager ───
-
-func _run_atlas_manager() -> bool:
-	_log("\n📦 ШАГ 1: Запуск AtlasManager...")
+	var end_time = Time.get_ticks_msec()
+	var elapsed = (end_time - start_time) / 1000.0
 	
-	if debug_mode:
-		if not ResourceLoader.exists(ATLAS_MANAGER_PATH):
-			_log_error("❌ AtlasManager не найден: " + ATLAS_MANAGER_PATH)
-			return false
+	print("✅ АВТОГЕНЕРАТОР: Все ресурсы успешно обновлены за %.2f секунд" % elapsed)
 	
-	var atlas_script = load(ATLAS_MANAGER_PATH)
-	
-	if debug_mode:
-		if not atlas_script:
-			_log_error("❌ Не удалось загрузить AtlasManager")
-			return false
-	
-	var atlas_manager = atlas_script.new()
-	
-	if debug_mode:
-		if not atlas_manager.has_method("build_atlas"):
-			_log_error("❌ AtlasManager: метод build_atlas() не найден")
-			return false
-	
-	var result = atlas_manager.build_atlas()
-	
-	if debug_mode and not result:
-		_log_error("❌ AtlasManager вернул ошибку")
-		return false
-	
-	_log("✅ AtlasManager успешно выполнен")
-	return true
-
-# ─── Atlas Icon Manager ───
+	# Опционально: закрыть сцену после завершения
+	# await get_tree().create_timer(2.0).timeout
+	# queue_free()
 
 func _run_atlas_icon_manager() -> bool:
-	_log("\n📦 ШАГ 4: Запуск AtlasIconManager...")
+	print("\n📦 ШАГ 1/3: Запуск AtlasManagerIcon...")
 	
-	if debug_mode:
-		if not ResourceLoader.exists(ATLAS_ICON_MANAGER_PATH):
-			_log_error("❌ AtlasIconManager не найден: " + ATLAS_ICON_MANAGER_PATH)
-			return false
-	
-	var atlas_script = load(ATLAS_ICON_MANAGER_PATH)
-	
-	if debug_mode:
-		if not atlas_script:
-			_log_error("❌ Не удалось загрузить AtlasIconManager")
-			return false
-	
-	var atlas_manager = atlas_script.new()
-	
-	if debug_mode:
-		if not atlas_manager.has_method("build_atlas"):
-			_log_error("❌ AtlasIconManager: метод build_atlas() не найден")
-			return false
-	
-	var result = atlas_manager.build_atlas()
-	
-	if debug_mode and not result:
-		_log_error("❌ AtlasIconManager вернул ошибку")
+	if not ResourceLoader.exists(ATLAS_ICON_MANAGER_PATH):
+		print("❌ AtlasManagerIcon не найден по пути: ", ATLAS_ICON_MANAGER_PATH)
 		return false
 	
-	_log("✅ AtlasIconManager успешно выполнен")
-	return true
+	var atlas_script = load(ATLAS_ICON_MANAGER_PATH)
+	if not atlas_script:
+		print("❌ Не удалось загрузить AtlasManagerIcon")
+		return false
+	
+	var atlas_manager = atlas_script.new()
+	if not atlas_manager.has_method("build_atlas"):
+		print("❌ AtlasManagerIcon: метод build_atlas() не найден")
+		return false
+	
+	var result = atlas_manager.build_atlas()
+	if result:
+		print("✅ AtlasManagerIcon успешно выполнен")
+		return true
+	else:
+		print("❌ AtlasManagerIcon вернул ошибку")
+		return false
 
-# ─── Items Registry ───
+func _run_atlas_manager() -> bool:
+	print("\n📦 ШАГ 1/3: Запуск AtlasManager...")
+	
+	if not ResourceLoader.exists(ATLAS_MANAGER_PATH):
+		print("❌ AtlasManager не найден по пути: ", ATLAS_MANAGER_PATH)
+		return false
+	
+	var atlas_script = load(ATLAS_MANAGER_PATH)
+	if not atlas_script:
+		print("❌ Не удалось загрузить AtlasManager")
+		return false
+	
+	var atlas_manager = atlas_script.new()
+	if not atlas_manager.has_method("build_atlas"):
+		print("❌ AtlasManager: метод build_atlas() не найден")
+		return false
+	
+	var result = atlas_manager.build_atlas()
+	if result:
+		print("✅ AtlasManager успешно выполнен")
+		return true
+	else:
+		print("❌ AtlasManager вернул ошибку")
+		return false
 
 func _run_items_registry() -> bool:
-	_log("\n📦 ШАГ 2: Запуск ItemRegistry...")
-	
+	print("\n📦 ШАГ 2/3: Запуск ItemRegistry")
+
 	var registry_script = load(ITEMS_REGISTRY_PATH)
 	var registry = registry_script.new()
 	
-	if debug_mode:
-		if not registry.has_method("_build_library"):
-			_log_error("❌ BlockRegistry: метод _build_library не найден")
-			return false
-	
-	registry._build_library()
-	_log("✅ BlockRegistry._build_library() выполнен")
+	# Проверяем наличие метода _build_library (как в вашем скрипте)
+	if registry.has_method("_build_library"):
+		registry._build_library()
+		print("✅ BlockRegistry._build_library() выполнен")
+		return true
+	else:
+		print("❌ BlockRegistry: метод _build_library не найден")
+		return false
+
+	print("✅ BlockRegistry._build_library() выполнен")
 	return true
 
-# ─── 3D Icon Generator ───
 
 func _run_block_3d_icon_generator() -> bool:
-	_log("\n📦 ШАГ 3: Генерация 3D иконок блоков...")
+	print("\n📦 ШАГ 3/3: Генерация 3D иконок блоков...")
 	
-	if debug_mode:
-		if not ResourceLoader.exists(BLOCK_3D_ICON_GENERATOR_PATH):
-			_log_error("❌ Block3DIconGenerator не найден: " + BLOCK_3D_ICON_GENERATOR_PATH)
-			return false
+	if not ResourceLoader.exists(BLOCK_3D_ICON_GENERATOR_PATH):
+		print("❌ Block3DIconGenerator не найден по пути: ", BLOCK_3D_ICON_GENERATOR_PATH)
+		return false
 	
 	var icon_script = load(BLOCK_3D_ICON_GENERATOR_PATH)
-	
-	if debug_mode:
-		if not icon_script:
-			_log_error("❌ Не удалось загрузить Block3DIconGenerator")
-			return false
+	if not icon_script:
+		print("❌ Не удалось загрузить Block3DIconGenerator")
+		return false
 	
 	var generator = icon_script.new()
 	add_child(generator)
 	
+	# Даем время на инициализацию
 	await get_tree().process_frame
 	
+	# Генерируем все 3D иконки
 	var icons = await generator.generate_all_3d_icons()
 	
-	if debug_mode and icons.size() == 0:
-		_log("⚠️ Block3DIconGenerator: иконки не созданы")
+	if icons.size() > 0:
+		print("✅ Block3DIconGenerator: создано ", icons.size(), " 3D иконок")
+		generator.queue_free()
+		return true
+	else:
+		print("⚠️ Block3DIconGenerator: иконки не созданы")
 		generator.queue_free()
 		return false
-	
-	_log("✅ Block3DIconGenerator: создано %d 3D иконок" % icons.size())
-	generator.queue_free()
-	return true

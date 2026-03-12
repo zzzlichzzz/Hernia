@@ -9,7 +9,6 @@ var _handlers: Dictionary = {}
 var _validators: Dictionary = {}
 var _gp: RefCounted
 var _name_to_id: Dictionary = {}
-var _last_correction_time: Dictionary = {}   # peer_id → float
 
 var _tick_data: Dictionary = {}
 
@@ -19,7 +18,6 @@ var _rate_kick_callback: Callable
 
 const RATE_LIMIT_WINDOW := 1.0
 const RATE_KICK_MULTIPLIER := 5
-const CORRECTION_COOLDOWN := 0.2             # Не чаще 5 раз в секунду
 
 var _sources: Dictionary = {}
 var _receiver_manager: Object = null
@@ -476,11 +474,10 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 		var max_dist: float = meta.get("v_max_distance", 0.0)
 		if max_dist > 0.0 and distance > max_dist:
 			_report_violation(peer_id, "teleport_%s" % action_name)
-			_send_correction(peer_id, old_data)
 			return false
 
 		if max_speed > 0.0:
-			var dt := 0.05  # дефолт: 20 Hz
+			var dt := 0.05
 			var peer_times: Dictionary = _last_move_times.get(peer_id, {})
 			if pid in peer_times:
 				dt = clampf(now - peer_times[pid], 0.01, 2.0)
@@ -488,7 +485,6 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 			var max_allowed := max_speed * dt * tolerance
 			if distance > max_allowed:
 				_report_violation(peer_id, "speed_%s" % action_name)
-				_send_correction(peer_id, old_data)
 				return false
 
 		var max_action: float = meta.get("v_max_action_dist", 0.0)
@@ -512,35 +508,6 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 
 	return true
 
-## Отправить коррекцию позиции клиенту.
-## Телепортирует клиента на последнюю валидную позицию.
-func _send_correction(peer_id: int, player_data: Dictionary) -> void:
-	if _net == null or not _net.is_server():
-		return
-
-	# Cooldown чтобы не спамить коррекциями
-	var now := Time.get_unix_time_from_system()
-	if peer_id in _last_correction_time:
-		if now - _last_correction_time[peer_id] < CORRECTION_COOLDOWN:
-			return
-	_last_correction_time[peer_id] = now
-
-	var pos: Vector3 = player_data.get("position", Vector3.ZERO)
-	var rot: Vector3 = player_data.get("rotation", Vector3.ZERO)
-
-	# Используем GeneratedPackets если player_correction существует
-	var pid := _find_id("player_correction")
-	if pid == -1:
-		return
-
-	var pkt: PackedByteArray = _gp.call(
-		"write_player_correction",
-		peer_id,
-		pos,
-		rot.y,
-		rot.x
-	)
-	_net.send_to_peer(peer_id, pkt, 0, ENetPacketPeer.FLAG_RELIABLE)
 
 func _report_violation(peer_id: int, reason: String) -> void:
 	if _violation_callback.is_valid():
@@ -579,7 +546,7 @@ func clear_peer_data(peer_id: int) -> void:
 	_rate_limits.erase(peer_id)
 	_last_move_times.erase(peer_id)
 	_cooldown_times.erase(peer_id)
-	_last_correction_time.erase(peer_id)
+
 
 # ══════════════════════════════════════════════════
 #  УТИЛИТЫ

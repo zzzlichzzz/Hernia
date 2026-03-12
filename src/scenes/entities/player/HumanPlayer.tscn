@@ -12,5 +12,6 @@ script = ExtResource("2_twyb4")
 [node name="BlockInteraction" parent="." index="3" unique_id=1451133203 instance=ExtResource("3_u1arh")]
 
 [node name="Inventory" parent="." index="5" unique_id=565793990 instance=ExtResource("4_rl2wk")]
+visible = false
 
 [node name="HotBar" parent="." index="6" unique_id=17073395 instance=ExtResource("7_u1arh")]

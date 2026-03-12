@@ -98,10 +98,10 @@ func _on_disconnected(_id: int) -> void:
 func _cleanup() -> void:
 	_ping_timer.stop()
 
-	# ── Сначала отвязать NAM от игрока ────────
-	# Иначе NAM попытается собрать данные с freed ноды
 	if _nam:
 		_nam.clear_sources()
+
+	_pm.clear_local_player()
 
 	if _local_player and is_instance_valid(_local_player):
 		_local_player.queue_free()
@@ -125,12 +125,13 @@ func _on_welcome(_peer_id: int, body: StreamPeerBuffer) -> void:
 	_local_player = PLAYER_SCENE.instantiate() as CharacterBody3D
 	_local_player.name = "LocalPlayer"
 
-	# ── Установить ПЕРЕД add_child → _ready() увидит ──
 	if _local_player is BasePlayer:
 		(_local_player as BasePlayer).is_local = true
 		(_local_player as BasePlayer).network_id = _my_id
 
 	container.add_child(_local_player)
+	_pm.set_local_player(_my_id, _local_player)
+
 	_local_player.global_position = data["position"]
 	_local_player.rotation.y = data["rotation"].y
 

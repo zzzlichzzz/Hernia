@@ -180,8 +180,20 @@ func _on_violation(peer_id: int, reason: String) -> void:
 
 func _on_player_move(peer_id: int, data: Dictionary) -> void:
 	var pos: Vector3 = data["position"]
-	var rot := Vector3(data["head_pitch"], data["body_yaw"], 0.0)
-	_pm.update_player(peer_id, pos, rot)
+	var head_pitch: float = data["head_pitch"]
+	var body_yaw: float = data["body_yaw"]
+	var tick: int = int(data.get("tick", 0))
+
+	# _auto_update_pm() уже обновил PlayerManager,
+	# поэтому здесь можно не дублировать _pm.update_player().
+
+	_nam.send_action_to(peer_id, "player_correction", [
+		peer_id,
+		tick,
+		pos,
+		head_pitch,
+		body_yaw,
+	])
 
 func get_security_log() -> Dictionary:
 	return _security_log

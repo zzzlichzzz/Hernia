@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="NetworkPacketDef" format=3 uid="uid://dwaa6x4m7pgat"]
+
+[ext_resource type="Script" uid="uid://btch1jd2smm4m" path="res://src/scripts/network/net/network_field_def.gd" id="1_e4nvl"]
+[ext_resource type="Script" uid="uid://3kiamyek5h1n" path="res://src/scripts/network/net/network_packet_def.gd" id="2_xfp0a"]
+
+[sub_resource type="Resource" id="Resource_e4nvl"]
+resource_name = "peer_id (int, 16bit)"
+script = ExtResource("1_e4nvl")
+field_name = "peer_id"
+byte_size = 2
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_xfp0a"]
+resource_name = "tick (int, 16bit)"
+script = ExtResource("1_e4nvl")
+field_name = "tick"
+byte_size = 2
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_mpbkj"]
+resource_name = "position (vec3, 32bit)"
+script = ExtResource("1_e4nvl")
+field_name = "position"
+field_type = 4
+byte_size = 3
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_cu8pn"]
+resource_name = "head_pitch (float, 16bit)"
+script = ExtResource("1_e4nvl")
+field_name = "head_pitch"
+field_type = 2
+byte_size = 2
+use_quantization = true
+quantize_min = -1.5
+quantize_max = 1.5
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_fogqi"]
+resource_name = "body_yaw (float, 16bit)"
+script = ExtResource("1_e4nvl")
+field_name = "body_yaw"
+field_type = 2
+byte_size = 2
+use_quantization = true
+quantize_min = -3.15
+quantize_max = 3.15
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[resource]
+resource_name = "player_correction"
+script = ExtResource("2_xfp0a")
+packet_name = "player_correction"
+sync_mode = 4
+channel = 1
+fields = Array[ExtResource("1_e4nvl")]([SubResource("Resource_e4nvl"), SubResource("Resource_xfp0a"), SubResource("Resource_mpbkj"), SubResource("Resource_cu8pn"), SubResource("Resource_fogqi")])
+receive_method = "apply_correction_state"
+auto_peer_id = false

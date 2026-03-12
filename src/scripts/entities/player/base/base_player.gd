@@ -40,6 +40,23 @@ var network_id: int = 0
 var _net_snapshots: Array[Dictionary] = []
 var _net_remote_initialized: bool = false
 
+var _network_tick: int = 0
+var _last_received_tick: int = -1
+
+@export_range(16, 256, 1) var max_local_history: int = 64
+@export_range(0.01, 0.50, 0.01) var correction_ignore_distance: float = 0.08
+@export_range(0.001, 0.50, 0.001) var correction_ignore_angle: float = 0.02
+@export_range(0.10, 10.0, 0.05) var correction_hard_distance: float = 2.0
+@export_range(1.0, 30.0, 0.5) var correction_position_blend_speed: float = 14.0
+@export_range(1.0, 30.0, 0.5) var correction_rotation_blend_speed: float = 16.0
+
+var _local_state_history: Dictionary = {}
+var _local_state_order: Array[int] = []
+var _pending_position_correction: Vector3 = Vector3.ZERO
+var _pending_yaw_correction: float = 0.0
+var _pending_pitch_correction: float = 0.0
+var _last_correction_tick: int = -1
+
 # ══════════════════════════════════════════════════
 # КОМПОНЕНТЫ (ECS)
 # ══════════════════════════════════════════════════
@@ -81,6 +98,14 @@ func _setup_local() -> void:
 	set_process_input(true)
 	set_process_unhandled_input(true)
 
+	_network_tick = 0
+	_last_correction_tick = -1
+	_local_state_history.clear()
+	_local_state_order.clear()
+	_pending_position_correction = Vector3.ZERO
+	_pending_yaw_correction = 0.0
+	_pending_pitch_correction = 0.0
+
 
 ## Настройка для удалённого игрока.
 func _setup_remote() -> void:
@@ -91,6 +116,7 @@ func _setup_remote() -> void:
 	velocity = Vector3.ZERO
 	_net_snapshots.clear()
 	_net_remote_initialized = false
+	_last_received_tick = -1
 
 
 ## Обработка мыши — _input вызывается РАНЬШЕ _unhandled_input,
@@ -109,12 +135,12 @@ func _apply_mouse_rotation(relative: Vector2) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	# Компоненты обновляются для всех (и локальных, и удалённых)
 	for comp in _components:
 		comp.process(delta, is_local)
 
 	if is_local:
 		_process_local(delta)
+		_apply_local_correction_blend(delta)
 	else:
 		_network_remote_step(delta)
 		_process_remote(delta)
@@ -157,14 +183,20 @@ func has_component(type: Variant) -> bool:
 
 ## Собрать состояние для отправки. Вызывается NAM на локальном игроке.
 func get_network_state() -> Dictionary:
+	_network_tick = (_network_tick + 1) & 0xFFFF
+
+	var pitch := _head.rotation.x if _head else 0.0
+	var yaw := rotation.y
+	var pos := global_position
+
 	var state := {
-		"position": global_position,
-		"rotation": Vector3(
-			_head.rotation.x if _head else 0.0,
-			rotation.y,
-			0.0
-		),
+		"tick": _network_tick,
+		"position": pos,
+		"rotation": Vector3(pitch, yaw, 0.0),
 	}
+
+	_store_local_prediction(_network_tick, pos, yaw, pitch)
+
 	for comp in _components:
 		state.merge(comp.collect_state())
 	return state
@@ -179,9 +211,13 @@ func apply_network_state(peer_id: int, data: Dictionary) -> void:
 	if network_id != 0 and peer_id != network_id:
 		return
 
+	if "tick" in data:
+		var pkt_tick := int(data["tick"])
+		if not _accept_remote_tick(pkt_tick):
+			return
+
 	_queue_network_snapshot(data)
 
-	# Компонентные состояния можно применять сразу
 	for comp in _components:
 		comp.apply_state(data)
 
@@ -198,7 +234,140 @@ func update_state(pos: Vector3, rot: Vector3) -> void:
 		velocity = Vector3.ZERO
 		_net_snapshots.clear()
 		_net_remote_initialized = true
+		_last_received_tick = -1
 
+func apply_correction_state(peer_id: int, data: Dictionary) -> void:
+	if not is_local:
+		return
+
+	var target_id: int = int(data.get("peer_id", peer_id))
+	if network_id != 0 and target_id != network_id:
+		return
+
+	if "tick" not in data or "position" not in data:
+		return
+
+	var tick := int(data["tick"]) & 0xFFFF
+	if not _accept_correction_tick(tick):
+		return
+
+	var server_pos: Vector3 = data["position"]
+	var server_yaw: float = float(data.get("body_yaw", rotation.y))
+	var server_pitch: float = float(data.get("head_pitch", _head.rotation.x if _head else 0.0))
+
+	var predicted_pos := global_position
+	var predicted_yaw := rotation.y
+	var predicted_pitch := _head.rotation.x if _head else 0.0
+
+	if tick in _local_state_history:
+		var hist: Dictionary = _local_state_history[tick]
+		predicted_pos = hist["position"]
+		predicted_yaw = float(hist["yaw"])
+		predicted_pitch = float(hist["pitch"])
+
+	var pos_delta: Vector3 = server_pos - predicted_pos
+	var yaw_delta: float = _angle_delta(predicted_yaw, server_yaw)
+	var pitch_delta: float = _angle_delta(predicted_pitch, server_pitch)
+
+	var pos_error := pos_delta.length()
+	var angle_error := maxf(absf(yaw_delta), absf(pitch_delta))
+
+	_drop_local_history_through(tick)
+
+	if pos_error <= correction_ignore_distance and angle_error <= correction_ignore_angle:
+		return
+
+	if pos_error >= correction_hard_distance:
+		global_position += pos_delta
+		rotation.y = wrapf(rotation.y + yaw_delta, -PI, PI)
+		if _head:
+			_head.rotation.x += pitch_delta
+
+		_pending_position_correction = Vector3.ZERO
+		_pending_yaw_correction = 0.0
+		_pending_pitch_correction = 0.0
+		return
+
+	_pending_position_correction += pos_delta
+	_pending_yaw_correction = wrapf(_pending_yaw_correction + yaw_delta, -PI, PI)
+	_pending_pitch_correction = wrapf(_pending_pitch_correction + pitch_delta, -PI, PI)
+
+func _store_local_prediction(tick: int, pos: Vector3, yaw: float, pitch: float) -> void:
+	_local_state_history[tick] = {
+		"position": pos,
+		"yaw": yaw,
+		"pitch": pitch,
+		"time": _net_now(),
+	}
+
+	_local_state_order.append(tick)
+
+	while _local_state_order.size() > max_local_history:
+		var old_tick := _local_state_order[0]
+		_local_state_order.remove_at(0)
+		_local_state_history.erase(old_tick)
+
+
+func _drop_local_history_through(tick: int) -> void:
+	var remaining: Array[int] = []
+
+	for t in _local_state_order:
+		if _is_older_or_equal_u16(t, tick):
+			_local_state_history.erase(t)
+		else:
+			remaining.append(t)
+
+	_local_state_order = remaining
+
+
+func _apply_local_correction_blend(delta: float) -> void:
+	if _pending_position_correction.length_squared() > 0.0:
+		var pos_alpha := clampf(correction_position_blend_speed * delta, 0.0, 1.0)
+		var pos_step := _pending_position_correction * pos_alpha
+		global_position += pos_step
+		_pending_position_correction -= pos_step
+
+		if _pending_position_correction.length() <= 0.001:
+			_pending_position_correction = Vector3.ZERO
+
+	if absf(_pending_yaw_correction) > 0.0001:
+		var yaw_alpha := clampf(correction_rotation_blend_speed * delta, 0.0, 1.0)
+		var yaw_step := _pending_yaw_correction * yaw_alpha
+		rotation.y = wrapf(rotation.y + yaw_step, -PI, PI)
+		_pending_yaw_correction = wrapf(_pending_yaw_correction - yaw_step, -PI, PI)
+
+		if absf(_pending_yaw_correction) <= 0.001:
+			_pending_yaw_correction = 0.0
+
+	if _head and absf(_pending_pitch_correction) > 0.0001:
+		var pitch_alpha := clampf(correction_rotation_blend_speed * delta, 0.0, 1.0)
+		var pitch_step := _pending_pitch_correction * pitch_alpha
+		_head.rotation.x += pitch_step
+		_pending_pitch_correction = wrapf(_pending_pitch_correction - pitch_step, -PI, PI)
+
+		if absf(_pending_pitch_correction) <= 0.001:
+			_pending_pitch_correction = 0.0
+
+
+func _accept_correction_tick(new_tick: int) -> bool:
+	var tick := new_tick & 0xFFFF
+
+	if _last_correction_tick == -1:
+		_last_correction_tick = tick
+		return true
+
+	if not _is_newer_u16(tick, _last_correction_tick):
+		return false
+
+	_last_correction_tick = tick
+	return true
+
+func _is_older_or_equal_u16(value: int, reference: int) -> bool:
+	var diff := (reference - value) & 0xFFFF
+	return diff < 0x8000
+
+func _angle_delta(from_angle: float, to_angle: float) -> float:
+	return wrapf(to_angle - from_angle, -PI, PI)
 # ══════════════════════════════════════════════════
 # REMOTE INTERPOLATION
 # ══════════════════════════════════════════════════
@@ -221,6 +390,23 @@ func _queue_network_snapshot(data: Dictionary) -> void:
 	while _net_snapshots.size() > max_snapshot_buffer:
 		_net_snapshots.remove_at(0)
 
+func _accept_remote_tick(new_tick: int) -> bool:
+	var tick := new_tick & 0xFFFF
+
+	if _last_received_tick == -1:
+		_last_received_tick = tick
+		return true
+
+	if not _is_newer_u16(tick, _last_received_tick):
+		return false
+
+	_last_received_tick = tick
+	return true
+
+
+func _is_newer_u16(new_tick: int, old_tick: int) -> bool:
+	var diff := (new_tick - old_tick) & 0xFFFF
+	return diff != 0 and diff < 0x8000
 
 func _network_remote_step(delta: float) -> void:
 	if _net_snapshots.is_empty():

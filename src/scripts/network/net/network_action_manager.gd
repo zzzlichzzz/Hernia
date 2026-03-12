@@ -28,7 +28,9 @@ var _player_manager: PlayerManager = null
 var _auth_data: Dictionary = {}        # peer_id → bool (ссылка на внешний)
 var _last_move_times: Dictionary = {}   # peer_id → { pid → float }
 var _cooldown_times: Dictionary = {}   # peer_id → { action → float }
+var _last_server_ticks: Dictionary = {} # peer_id → { pid → int }
 var _violation_callback: Callable      # (peer_id, reason) → void
+
 
 
 func setup(net: NetworkManager) -> void:
@@ -228,20 +230,22 @@ func send_action_to(peer_id: int, action_name: String, args: Array) -> void:
 		return
 	var meta: Dictionary = GeneratedPackets.PACKETS[pid]
 	var pkt: PackedByteArray = _gp.callv("write_%s" % action_name, args)
-	_net.send_to_peer(peer_id, pkt, 0, _channel_flags(meta["channel"]))
+	var enet_channel := _enet_channel(meta["channel"])
+	_net.send_to_peer(peer_id, pkt, enet_channel, _channel_flags(meta["channel"]))
 	packet_sent.emit(action_name)
 
 
 func _send_immediate(pid: int, action_name: String, args: Array) -> void:
 	var meta: Dictionary = GeneratedPackets.PACKETS[pid]
 	var pkt: PackedByteArray = _gp.callv("write_%s" % action_name, args)
+	var enet_channel := _enet_channel(meta["channel"])
 	var flags := _channel_flags(meta["channel"])
 	if _net.is_server():
 		match meta["sync_mode"]:
-			1: _net.broadcast(pkt, 0, flags)
-			2: _net.broadcast(pkt, 0, flags)
+			1: _net.broadcast(pkt, enet_channel, flags)
+			2: _net.broadcast(pkt, enet_channel, flags)
 	else:
-		_net.send_to_server(pkt, 0, flags)
+		_net.send_to_server(pkt, enet_channel, flags)
 	packet_sent.emit(action_name)
 
 
@@ -378,7 +382,9 @@ func _handle_server(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 	if "peer_id" in data:
 		data["peer_id"] = peer_id
 
-	# ── Автовалидация из .tres правил ─────────────
+	if not _accept_packet_tick_server(peer_id, pid, data):
+		return
+
 	if meta["server_validates"]:
 		if not _auto_validate(pid, peer_id, data, meta):
 			return
@@ -386,14 +392,11 @@ func _handle_server(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 			if not (_validators[pid] as Callable).call(peer_id, data):
 				return
 
-	# ── Авто-обновление PlayerManager ─────────────
 	_auto_update_pm(peer_id, data, meta)
 
-	# ── Обработчик ────────────────────────────────
 	if pid in _handlers:
 		(_handlers[pid] as Callable).call(peer_id, data)
 
-	# ── Маршрутизация ─────────────────────────────
 	if sync_mode == 0:
 		return
 
@@ -402,13 +405,15 @@ func _handle_server(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 	for fname in field_names:
 		values.append(data[fname])
 	var pkt: PackedByteArray = _gp.callv("write_%s" % meta["name"], values)
+
+	var enet_channel := _enet_channel(meta["channel"])
 	var flags := _channel_flags(meta["channel"])
 
 	match sync_mode:
-		1: _net.broadcast(pkt, 0, flags)
-		2: _net.broadcast_except(peer_id, pkt, 0, flags)
-		3: _net.broadcast_except(peer_id, pkt, 0, flags)
-		4: _net.send_to_peer(peer_id, pkt, 0, flags)
+		1: _net.broadcast(pkt, enet_channel, flags)
+		2: _net.broadcast_except(peer_id, pkt, enet_channel, flags)
+		3: _net.broadcast_except(peer_id, pkt, enet_channel, flags)
+		4: _net.send_to_peer(peer_id, pkt, enet_channel, flags)
 
 
 func _handle_client(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) -> void:
@@ -422,17 +427,17 @@ func _handle_client(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 
 func _auto_receive(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) -> void:
 	var receive_method: String = meta.get("receive_method", "")
-	var remote_id: int = data.get("peer_id", peer_id)
+	var target_id: int = int(data.get("peer_id", peer_id))
+
 	if _receiver_manager is PlayerManager:
 		var pm := _receiver_manager as PlayerManager
-		if not pm.has_player(remote_id):
-			return
-		var player_data := pm.get_player_data(remote_id)
-		var node: Node = player_data.get("node", null)
+		var node := pm.get_player_node(target_id)
 		if node != null and is_instance_valid(node) and node.has_method(receive_method):
-			node.call(receive_method, remote_id, data)
-	elif _receiver_manager.has_method(receive_method):
-		_receiver_manager.call(receive_method, remote_id, data)
+			node.call(receive_method, target_id, data)
+			return
+
+	if _receiver_manager.has_method(receive_method):
+		_receiver_manager.call(receive_method, target_id, data)
 
 
 # ══════════════════════════════════════════════════
@@ -513,6 +518,32 @@ func _report_violation(peer_id: int, reason: String) -> void:
 	if _violation_callback.is_valid():
 		_violation_callback.call(peer_id, reason)
 
+func _accept_packet_tick_server(peer_id: int, pid: int, data: Dictionary) -> bool:
+	if "tick" not in data:
+		return true
+
+	var tick := int(data["tick"]) & 0xFFFF
+
+	if peer_id not in _last_server_ticks:
+		_last_server_ticks[peer_id] = {}
+
+	var peer_ticks: Dictionary = _last_server_ticks[peer_id]
+
+	if pid not in peer_ticks:
+		peer_ticks[pid] = tick
+		return true
+
+	var old_tick := int(peer_ticks[pid])
+	if not _is_newer_u16(tick, old_tick):
+		return false
+
+	peer_ticks[pid] = tick
+	return true
+
+
+func _is_newer_u16(new_tick: int, old_tick: int) -> bool:
+	var diff := (new_tick - old_tick) & 0xFFFF
+	return diff != 0 and diff < 0x8000
 
 # ══════════════════════════════════════════════════
 #  RATE LIMITING
@@ -546,6 +577,7 @@ func clear_peer_data(peer_id: int) -> void:
 	_rate_limits.erase(peer_id)
 	_last_move_times.erase(peer_id)
 	_cooldown_times.erase(peer_id)
+	_last_server_ticks.erase(peer_id)
 
 
 # ══════════════════════════════════════════════════
@@ -562,7 +594,14 @@ func _find_id(action_name: String) -> int:
 	return -1
 
 
-func _channel_flags(channel: int) -> int:
-	if channel == 0:
+func _enet_channel(channel_mode: int) -> int:
+	if channel_mode == 0:
+		return 0
+	return 1
+
+
+func _channel_flags(channel_mode: int) -> int:
+	if channel_mode == 0:
 		return ENetPacketPeer.FLAG_RELIABLE
-	return ENetPacketPeer.FLAG_UNSEQUENCED
+	# Обычный unreliable sequenced
+	return 0

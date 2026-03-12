@@ -4,7 +4,6 @@
 [ext_resource type="PackedScene" uid="uid://gk05pbux7spw" path="res://src/scenes/ui/InventorySlot.tscn" id="2_at5t7"]
 
 [node name="Inventory" type="ColorRect" unique_id=565793990]
-visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

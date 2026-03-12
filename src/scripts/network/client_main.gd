@@ -38,6 +38,7 @@ func _ready() -> void:
 	_net.register_handler(PacketTypes.PONG,           _on_pong)
 	_net.register_handler(PacketTypes.AUTH_RESPONSE,   _on_auth_response)
 	_net.register_handler(PacketTypes.CHAMELEON_SYNC, _on_chameleon_sync)
+	_net.register_handler(PacketTypes.PLAYER_SNAPSHOT_BATCH, _on_player_snapshot_batch)
 
 	_nam.setup(_net)
 	_nam.auto_bind_receiver(_pm)
@@ -165,3 +166,21 @@ func _notification(what: int) -> void:
 		if _net:
 			_net.shutdown()
 		get_tree().quit()
+
+func _on_player_snapshot_batch(_peer_id: int, body: StreamPeerBuffer) -> void:
+	var entries := PacketTypes.read_player_snapshot_batch(body)
+	if entries.is_empty():
+		return
+
+	for entry: Dictionary in entries:
+		var target_id: int = int(entry.get("peer_id", 0))
+
+		if target_id == _my_id:
+			continue
+
+		var node := _pm.get_player_node(target_id)
+		if node == null or not is_instance_valid(node):
+			continue
+
+		if node.has_method("apply_network_state"):
+			node.call("apply_network_state", target_id, entry)

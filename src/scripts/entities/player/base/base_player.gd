@@ -50,6 +50,12 @@ var _last_received_tick: int = -1
 @export_range(1.0, 30.0, 0.5) var correction_position_blend_speed: float = 14.0
 @export_range(1.0, 30.0, 0.5) var correction_rotation_blend_speed: float = 16.0
 
+@export_group("Network Send Optimization")
+@export_range(0.001, 0.5, 0.001) var net_pos_quantum: float = 0.02
+@export_range(0.001, 0.2, 0.001) var net_yaw_quantum: float = 0.01
+@export_range(0.001, 0.2, 0.001) var net_pitch_quantum: float = 0.01
+@export_range(0.05, 2.0, 0.01) var net_idle_keepalive: float = 0.5
+
 var _local_state_history: Dictionary = {}
 var _local_state_order: Array[int] = []
 var _pending_position_correction: Vector3 = Vector3.ZERO
@@ -199,6 +205,12 @@ func get_network_state() -> Dictionary:
 
 	for comp in _components:
 		state.merge(comp.collect_state())
+
+	# Служебные ключи для NAM.
+	# Они НЕ попадут в пакет, потому что в .tres их нет.
+	state["_net_signature"] = _build_net_send_signature(pos, yaw, pitch)
+	state["_net_keepalive"] = net_idle_keepalive
+
 	return state
 
 
@@ -407,6 +419,24 @@ func _accept_remote_tick(new_tick: int) -> bool:
 func _is_newer_u16(new_tick: int, old_tick: int) -> bool:
 	var diff := (new_tick - old_tick) & 0xFFFF
 	return diff != 0 and diff < 0x8000
+
+func _build_net_send_signature(pos: Vector3, yaw: float, pitch: float) -> String:
+	var pyaw := wrapf(yaw, -PI, PI)
+	var ppitch := wrapf(pitch, -PI, PI)
+
+	return "%d|%d|%d|%d|%d" % [
+		_quantize_for_signature(pos.x, net_pos_quantum),
+		_quantize_for_signature(pos.y, net_pos_quantum),
+		_quantize_for_signature(pos.z, net_pos_quantum),
+		_quantize_for_signature(pyaw, net_yaw_quantum),
+		_quantize_for_signature(ppitch, net_pitch_quantum),
+	]
+
+
+func _quantize_for_signature(v: float, step: float) -> int:
+	if step <= 0.0:
+		return int(round(v * 1000.0))
+	return int(round(v / step))
 
 func _network_remote_step(delta: float) -> void:
 	if _net_snapshots.is_empty():

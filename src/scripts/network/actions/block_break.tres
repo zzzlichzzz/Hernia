@@ -22,6 +22,7 @@ metadata/_custom_type_script = "uid://btch1jd2smm4m"
 resource_name = "block_break"
 script = ExtResource("2_2afhy")
 packet_name = "block_break"
+packet_id = 1101
 server_validates = true
 fields = Array[ExtResource("1_84dkx")]([SubResource("Resource_84dkx"), SubResource("Resource_2afhy")])
 validate_cooldown = 0.1

@@ -51,6 +51,7 @@ metadata/_custom_type_script = "uid://btch1jd2smm4m"
 resource_name = "player_correction"
 script = ExtResource("2_xfp0a")
 packet_name = "player_correction"
+packet_id = 1002
 sync_mode = 4
 channel = 1
 fields = Array[ExtResource("1_e4nvl")]([SubResource("Resource_e4nvl"), SubResource("Resource_xfp0a"), SubResource("Resource_mpbkj"), SubResource("Resource_cu8pn"), SubResource("Resource_fogqi")])

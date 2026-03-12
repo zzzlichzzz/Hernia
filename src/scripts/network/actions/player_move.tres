@@ -54,6 +54,7 @@ metadata/_custom_type_script = "uid://btch1jd2smm4m"
 resource_name = "player_move"
 script = ExtResource("1_script")
 packet_name = "player_move"
+packet_id = 1001
 sync_mode = 0
 channel = 1
 send_rate_hz = 20

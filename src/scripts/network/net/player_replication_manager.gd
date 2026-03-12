@@ -1,0 +1,422 @@
+class_name PlayerReplicationManager
+extends Node
+
+## Отвечает за:
+## - AOI / interest management
+## - spatial partition (grid-based)
+## - visibility enter/exit
+## - distance-based replication LOD
+## - batching снапшотов
+## - хранение authoritative movement tick по игрокам
+
+const REPLICATION_TPS := 30.0
+
+const AOI_UPDATE_TPS := 5.0
+
+const AOI_ENTER_DISTANCE := 100.0
+const AOI_EXIT_DISTANCE  := 115.0
+
+const LOD_NEAR_DISTANCE := 20.0
+const LOD_MID_DISTANCE  := 45.0
+const LOD_FAR_DISTANCE  := 90.0
+
+const LOD_NEAR_HZ      := 20.0
+const LOD_MID_HZ       := 10.0
+const LOD_FAR_HZ       := 5.0
+const LOD_VERY_FAR_HZ  := 2.0
+
+## Размер ячейки spatial grid.
+## 40.0 — хороший старт для текущих AOI радиусов.
+const GRID_CELL_SIZE := 40.0
+
+var _net: NetworkManager = null
+var _pm: PlayerManager = null
+var _authenticated: Dictionary = {}
+
+var _replication_accumulator: float = 0.0
+var _replication_time: float = 0.0
+var _aoi_accumulator: float = 0.0
+
+# observer_id -> { target_id -> last_send_time }
+var _replication_last_send: Dictionary = {}
+
+# observer_id -> { target_id -> last_sent_tick }
+var _replication_last_tick: Dictionary = {}
+
+# target_id -> latest authoritative movement tick
+var _authoritative_move_ticks: Dictionary = {}
+
+# observer_id -> { target_id -> true }
+var _visible_targets: Dictionary = {}
+
+# Spatial grid:
+# cell(Vector2i) -> { peer_id -> true }
+var _spatial_cells: Dictionary = {}
+
+# peer_id -> cell(Vector2i)
+var _peer_cells: Dictionary = {}
+
+
+func setup(net: NetworkManager, pm: PlayerManager, authenticated: Dictionary) -> void:
+	_net = net
+	_pm = pm
+	_authenticated = authenticated
+
+
+func tick(delta: float) -> void:
+	if _net == null or _pm == null:
+		return
+
+	_aoi_accumulator += delta
+	var aoi_step := 1.0 / AOI_UPDATE_TPS
+	while _aoi_accumulator >= aoi_step:
+		_aoi_accumulator -= aoi_step
+		_rebuild_spatial_grid()
+		_update_visibility_sets()
+
+	_replication_time += delta
+	_replication_accumulator += delta
+
+	var step := 1.0 / REPLICATION_TPS
+	while _replication_accumulator >= step:
+		_replication_accumulator -= step
+		_replicate_player_snapshots()
+
+
+func on_player_spawned(peer_id: int) -> void:
+	_authoritative_move_ticks[peer_id] = 0
+
+
+func on_authoritative_move(peer_id: int, tick: int) -> void:
+	_authoritative_move_ticks[peer_id] = tick
+
+
+func on_player_disconnected(peer_id: int) -> void:
+	_cleanup_replication_peer(peer_id, true)
+
+
+func refresh_visibility_now() -> void:
+	_rebuild_spatial_grid()
+	_update_visibility_sets()
+
+
+func clear() -> void:
+	_replication_accumulator = 0.0
+	_replication_time = 0.0
+	_aoi_accumulator = 0.0
+
+	_replication_last_send.clear()
+	_replication_last_tick.clear()
+	_authoritative_move_ticks.clear()
+	_visible_targets.clear()
+
+	_spatial_cells.clear()
+	_peer_cells.clear()
+
+
+# ══════════════════════════════════════════════════
+#  REPLICATION
+# ══════════════════════════════════════════════════
+
+func _replicate_player_snapshots() -> void:
+	for observer_var in _visible_targets.keys():
+		var observer_id: int = int(observer_var)
+
+		if not _is_peer_ready_for_replication(observer_id):
+			continue
+
+		var observer_data: Dictionary = _pm.get_player_data(observer_id)
+		var observer_pos: Vector3 = observer_data.get("position", Vector3.ZERO)
+
+		var visible_map: Dictionary = _visible_targets.get(observer_id, {})
+		var send_map: Dictionary = _replication_last_send.get(observer_id, {})
+		var tick_map: Dictionary = _replication_last_tick.get(observer_id, {})
+
+		var batch_entries: Array[Dictionary] = []
+
+		for target_var in visible_map.keys():
+			var target_id: int = int(target_var)
+
+			if not _is_peer_ready_for_replication(target_id):
+				continue
+
+			var target_tick: int = int(_authoritative_move_ticks.get(target_id, -1))
+			if target_tick < 0:
+				continue
+
+			var target_data: Dictionary = _pm.get_player_data(target_id)
+			var target_pos: Vector3 = target_data.get("position", Vector3.ZERO)
+			var target_rot: Vector3 = target_data.get("rotation", Vector3.ZERO)
+
+			var distance := _horizontal_distance(observer_pos, target_pos)
+			var hz := _get_replication_hz(distance)
+			if hz <= 0.0:
+				continue
+
+			var last_tick_sent: int = int(tick_map.get(target_id, -1))
+			if last_tick_sent == target_tick:
+				continue
+
+			var interval := 1.0 / hz
+			var last_send_time: float = float(send_map.get(target_id, -1.0))
+			if last_send_time >= 0.0 and (_replication_time - last_send_time) < interval:
+				continue
+
+			batch_entries.append({
+				"peer_id": target_id,
+				"tick": target_tick,
+				"position": target_pos,
+				"head_pitch": target_rot.x,
+				"body_yaw": target_rot.y,
+			})
+
+			send_map[target_id] = _replication_time
+			tick_map[target_id] = target_tick
+
+		if not batch_entries.is_empty():
+			_send_snapshot_batches(observer_id, batch_entries)
+
+
+func _get_replication_hz(distance: float) -> float:
+	if distance <= LOD_NEAR_DISTANCE:
+		return LOD_NEAR_HZ
+	if distance <= LOD_MID_DISTANCE:
+		return LOD_MID_HZ
+	if distance <= LOD_FAR_DISTANCE:
+		return LOD_FAR_HZ
+	return LOD_VERY_FAR_HZ
+
+
+func _send_snapshot_batches(observer_id: int, entries: Array[Dictionary]) -> void:
+	var max_entries := PacketTypes.SNAPSHOT_BATCH_MAX_ENTRIES
+	if max_entries <= 0:
+		return
+
+	var offset := 0
+	while offset < entries.size():
+		var end := mini(offset + max_entries, entries.size())
+		var chunk := entries.slice(offset, end)
+
+		var pkt := PacketTypes.write_player_snapshot_batch(chunk)
+		_net.send_to_peer(observer_id, pkt, 1, 0) # channel 1, unreliable sequenced
+
+		offset = end
+
+
+# ══════════════════════════════════════════════════
+#  AOI / VISIBILITY
+# ══════════════════════════════════════════════════
+
+func _update_visibility_sets() -> void:
+	var ids: Array = _pm.get_all_ids()
+
+	for observer_var in ids:
+		var observer_id: int = int(observer_var)
+
+		if not _is_peer_ready_for_replication(observer_id):
+			_clear_observer_replication_state(observer_id)
+			continue
+
+		_ensure_observer_replication_state(observer_id)
+
+		var observer_data: Dictionary = _pm.get_player_data(observer_id)
+		var observer_pos: Vector3 = observer_data.get("position", Vector3.ZERO)
+
+		var visible_map: Dictionary = _visible_targets[observer_id]
+		var send_map: Dictionary = _replication_last_send[observer_id]
+		var tick_map: Dictionary = _replication_last_tick[observer_id]
+
+		var candidate_targets := _gather_candidate_targets(observer_pos)
+		candidate_targets.erase(observer_id)
+
+		var stale_targets: Dictionary = {}
+
+		for target_var in candidate_targets.keys():
+			var target_id: int = int(target_var)
+
+			if not _is_peer_ready_for_replication(target_id):
+				continue
+
+			var target_data: Dictionary = _pm.get_player_data(target_id)
+			var target_pos: Vector3 = target_data.get("position", Vector3.ZERO)
+
+			var currently_visible := target_id in visible_map
+			var distance_sq := _horizontal_distance_sq(observer_pos, target_pos)
+			var should_be_visible := _aoi_should_be_visible(distance_sq, currently_visible)
+
+			if should_be_visible:
+				if not currently_visible:
+					visible_map[target_id] = true
+
+					# Новый visible target должен начать получать snapshots сразу
+					send_map.erase(target_id)
+					tick_map.erase(target_id)
+
+					_send_player_enter(observer_id, target_id)
+			else:
+				if currently_visible:
+					stale_targets[target_id] = true
+
+		var visible_keys: Array = visible_map.keys()
+		for target_var in visible_keys:
+			var target_id: int = int(target_var)
+			if target_id not in candidate_targets:
+				stale_targets[target_id] = true
+
+		for target_var in stale_targets.keys():
+			var target_id: int = int(target_var)
+			if target_id in visible_map:
+				visible_map.erase(target_id)
+				send_map.erase(target_id)
+				tick_map.erase(target_id)
+				_send_player_exit(observer_id, target_id)
+
+
+func _ensure_observer_replication_state(observer_id: int) -> void:
+	if observer_id not in _visible_targets:
+		_visible_targets[observer_id] = {}
+	if observer_id not in _replication_last_send:
+		_replication_last_send[observer_id] = {}
+	if observer_id not in _replication_last_tick:
+		_replication_last_tick[observer_id] = {}
+
+
+func _clear_observer_replication_state(observer_id: int) -> void:
+	_visible_targets.erase(observer_id)
+	_replication_last_send.erase(observer_id)
+	_replication_last_tick.erase(observer_id)
+
+
+func _is_peer_ready_for_replication(peer_id: int) -> bool:
+	return _authenticated.get(peer_id, false) and _pm.has_player(peer_id)
+
+
+func _aoi_should_be_visible(distance_sq: float, currently_visible: bool) -> bool:
+	var enter_sq := AOI_ENTER_DISTANCE * AOI_ENTER_DISTANCE
+	var exit_sq := AOI_EXIT_DISTANCE * AOI_EXIT_DISTANCE
+
+	if currently_visible:
+		return distance_sq <= exit_sq
+	return distance_sq <= enter_sq
+
+
+func _send_player_enter(observer_id: int, target_id: int) -> void:
+	if not _pm.has_player(target_id):
+		return
+
+	var data: Dictionary = _pm.get_player_data(target_id)
+	var pos: Vector3 = data.get("position", Vector3.ZERO)
+	var rot: Vector3 = data.get("rotation", Vector3.ZERO)
+
+	_net.send_to_peer(observer_id, PacketTypes.write_player_joined(target_id, pos, rot))
+
+
+func _send_player_exit(observer_id: int, target_id: int) -> void:
+	_net.send_to_peer(observer_id, PacketTypes.write_player_left(target_id))
+
+
+# ══════════════════════════════════════════════════
+#  SPATIAL GRID
+# ══════════════════════════════════════════════════
+
+func _rebuild_spatial_grid() -> void:
+	_spatial_cells.clear()
+	_peer_cells.clear()
+
+	var ids: Array = _pm.get_all_ids()
+	for peer_var in ids:
+		var peer_id: int = int(peer_var)
+
+		if not _is_peer_ready_for_replication(peer_id):
+			continue
+
+		var data: Dictionary = _pm.get_player_data(peer_id)
+		var pos: Vector3 = data.get("position", Vector3.ZERO)
+		var cell := _world_to_cell(pos)
+
+		_peer_cells[peer_id] = cell
+
+		if cell not in _spatial_cells:
+			_spatial_cells[cell] = {}
+
+		(_spatial_cells[cell] as Dictionary)[peer_id] = true
+
+
+func _gather_candidate_targets(observer_pos: Vector3) -> Dictionary:
+	var result: Dictionary = {}
+	var center := _world_to_cell(observer_pos)
+	var radius_cells := _get_cell_query_radius()
+
+	for dz in range(-radius_cells, radius_cells + 1):
+		for dx in range(-radius_cells, radius_cells + 1):
+			var cell := Vector2i(center.x + dx, center.y + dz)
+			if cell not in _spatial_cells:
+				continue
+
+			var bucket: Dictionary = _spatial_cells[cell]
+			for peer_var in bucket.keys():
+				result[int(peer_var)] = true
+
+	return result
+
+
+func _get_cell_query_radius() -> int:
+	return int(ceili(AOI_EXIT_DISTANCE / GRID_CELL_SIZE))
+
+
+func _world_to_cell(pos: Vector3) -> Vector2i:
+	return Vector2i(
+		floori(pos.x / GRID_CELL_SIZE),
+		floori(pos.z / GRID_CELL_SIZE)
+	)
+
+
+func _horizontal_distance(a: Vector3, b: Vector3) -> float:
+	var dx := a.x - b.x
+	var dz := a.z - b.z
+	return sqrt(dx * dx + dz * dz)
+
+
+func _horizontal_distance_sq(a: Vector3, b: Vector3) -> float:
+	var dx := a.x - b.x
+	var dz := a.z - b.z
+	return dx * dx + dz * dz
+
+
+# ══════════════════════════════════════════════════
+#  CLEANUP
+# ══════════════════════════════════════════════════
+
+func _cleanup_replication_peer(peer_id: int, notify_exit: bool = false) -> void:
+	# Удаляем peer из spatial grid
+	if peer_id in _peer_cells:
+		var cell: Vector2i = _peer_cells[peer_id]
+		if cell in _spatial_cells:
+			var bucket: Dictionary = _spatial_cells[cell]
+			bucket.erase(peer_id)
+			if bucket.is_empty():
+				_spatial_cells.erase(cell)
+		_peer_cells.erase(peer_id)
+
+	# Удаляем peer как observer
+	_visible_targets.erase(peer_id)
+	_replication_last_send.erase(peer_id)
+	_replication_last_tick.erase(peer_id)
+	_authoritative_move_ticks.erase(peer_id)
+
+	# Удаляем peer как target у всех остальных observer-ов
+	for observer_var in _visible_targets.keys():
+		var observer_id: int = int(observer_var)
+		var visible_map: Dictionary = _visible_targets[observer_id]
+
+		if peer_id in visible_map:
+			visible_map.erase(peer_id)
+
+			if notify_exit and observer_id != peer_id and _net.get_peer_ids().has(observer_id):
+				_send_player_exit(observer_id, peer_id)
+
+		if observer_id in _replication_last_send:
+			(_replication_last_send[observer_id] as Dictionary).erase(peer_id)
+
+		if observer_id in _replication_last_tick:
+			(_replication_last_tick[observer_id] as Dictionary).erase(peer_id)

@@ -50,6 +50,12 @@ func setup(net: NetworkManager) -> void:
 				"dirty": false,
 				"accumulator": 0.0,
 				"interval": 1.0 / float(hz),
+
+				# Оптимизация отправки
+				"last_sent_signature": null,
+				"pending_signature": null,
+				"last_sent_time": -1.0,
+				"keepalive": 0.0,
 			}
 		else:
 			_rate_max[pid] = 30
@@ -101,6 +107,10 @@ func clear_sources() -> void:
 	for pid: int in _tick_data:
 		_tick_data[pid]["dirty"] = false
 		_tick_data[pid]["args"] = []
+		_tick_data[pid]["pending_signature"] = null
+		_tick_data[pid]["last_sent_signature"] = null
+		_tick_data[pid]["last_sent_time"] = -1.0
+		_tick_data[pid]["keepalive"] = 0.0
 
 
 func auto_bind_receiver(manager: Object) -> void:
@@ -265,6 +275,9 @@ func _physics_process(delta: float) -> void:
 			var meta: Dictionary = GeneratedPackets.PACKETS[pid]
 			_send_immediate(pid, meta["name"], td["args"])
 			td["dirty"] = false
+			td["last_sent_signature"] = td.get("pending_signature", null)
+			td["last_sent_time"] = _nam_now()
+			td["pending_signature"] = null
 
 
 func _collect_from_sources() -> void:
@@ -273,7 +286,6 @@ func _collect_from_sources() -> void:
 	for pid: int in _sources:
 		var source: Dictionary = _sources[pid]
 
-		# Безтиповое чтение — не крашит на freed instance
 		var node_ref: Variant = source.get("node", null)
 		if node_ref == null or not is_instance_valid(node_ref):
 			stale.append(pid)
@@ -289,17 +301,37 @@ func _collect_from_sources() -> void:
 		var args := _build_args(pid, meta, state, source["peer_id"])
 
 		if pid in _tick_data:
-			_tick_data[pid]["args"] = args
-			_tick_data[pid]["dirty"] = true
+			var td: Dictionary = _tick_data[pid]
+
+			var force_send: bool = bool(state.get("_net_force_send", false))
+			var signature: Variant = state.get("_net_signature", null)
+			var keepalive: float = float(state.get("_net_keepalive", 0.0))
+
+			# Если пакет уже ждёт своего send tick — просто обновляем его
+			# до самого свежего состояния.
+			if td["dirty"]:
+				td["args"] = args
+				td["pending_signature"] = signature
+				td["keepalive"] = keepalive
+				continue
+
+			if _should_queue_tick_packet(td, signature, keepalive, force_send):
+				td["args"] = args
+				td["dirty"] = true
+				td["pending_signature"] = signature
+				td["keepalive"] = keepalive
 		else:
+			# Для событийных пакетов старое поведение остаётся.
+			if bool(state.get("_net_skip", false)) and not bool(state.get("_net_force_send", false)):
+				continue
 			_send_immediate(pid, meta["name"], args)
 
-	# Убрать мёртвые источники
 	for pid in stale:
 		_sources.erase(pid)
 		if pid in _tick_data:
 			_tick_data[pid]["dirty"] = false
 			_tick_data[pid]["args"] = []
+			_tick_data[pid]["pending_signature"] = null
 
 
 func _build_args(pid: int, meta: Dictionary, state: Dictionary, peer_id: int) -> Array:
@@ -349,8 +381,15 @@ func set_send_rate(action_name: String, hz: int) -> void:
 		return
 	if pid not in _tick_data:
 		_tick_data[pid] = {
-			"args": [], "dirty": false,
-			"accumulator": 0.0, "interval": 1.0 / float(hz),
+			"args": [],
+			"dirty": false,
+			"accumulator": 0.0,
+			"interval": 1.0 / float(hz),
+
+			"last_sent_signature": null,
+			"pending_signature": null,
+			"last_sent_time": -1.0,
+			"keepalive": 0.0,
 		}
 	else:
 		_tick_data[pid]["interval"] = 1.0 / float(hz)
@@ -593,6 +632,34 @@ func _find_id(action_name: String) -> int:
 			return pid
 	return -1
 
+func _should_queue_tick_packet(td: Dictionary, signature: Variant, keepalive: float, force_send: bool) -> bool:
+	if force_send:
+		return true
+
+	# Если источник не дал signature — оставляем старое поведение:
+	# тик-пакет считается "всегда отправляемым".
+	if signature == null:
+		return true
+
+	var last_signature: Variant = td.get("last_sent_signature", null)
+	if last_signature == null:
+		return true
+
+	if signature != last_signature:
+		return true
+
+	if keepalive > 0.0:
+		var last_sent_time: float = float(td.get("last_sent_time", -1.0))
+		if last_sent_time < 0.0:
+			return true
+		if (_nam_now() - last_sent_time) >= keepalive:
+			return true
+
+	return false
+
+
+func _nam_now() -> float:
+	return float(Time.get_ticks_msec()) * 0.001
 
 func _enet_channel(channel_mode: int) -> int:
 	if channel_mode == 0:

@@ -51,6 +51,7 @@ metadata/_custom_type_script = "uid://btch1jd2smm4m"
 resource_name = "player_snapshot"
 script = ExtResource("2_dgl3l")
 packet_name = "player_snapshot"
+packet_id = 1003
 sync_mode = 1
 channel = 1
 fields = Array[ExtResource("1_vsl8m")]([SubResource("Resource_vsl8m"), SubResource("Resource_dgl3l"), SubResource("Resource_d487f"), SubResource("Resource_4wpk6"), SubResource("Resource_nidm3")])

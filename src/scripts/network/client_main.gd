@@ -41,6 +41,7 @@ func _ready() -> void:
 
 	_nam.setup(_net)
 	_nam.auto_bind_receiver(_pm)
+	_nam.on_action("player_correction", _on_player_correction)
 
 	_ping_timer = Timer.new()
 	_ping_timer.wait_time = PING_INTERVAL
@@ -75,6 +76,10 @@ func _on_connected(_id: int) -> void:
 	print("[client] Соединение установлено")
 	_net.send_to_server(PacketTypes.write_auth_request("my_game_v1"))
 
+func _on_player_correction(peer_id: int, data: Dictionary) -> void:
+	if _local_player and is_instance_valid(_local_player):
+		if _local_player.has_method("apply_server_correction"):
+			_local_player.apply_server_correction(peer_id, data)
 
 func _on_auth_response(_peer_id: int, body: StreamPeerBuffer) -> void:
 	var data := PacketTypes.read_auth_response(body)

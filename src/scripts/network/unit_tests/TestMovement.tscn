@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://vwpv3l2x1dwi"]
+
+[ext_resource type="Script" uid="uid://b4yy1a08v8vxu" path="res://src/scripts/network/unit_tests/test_movement.gd" id="1_qcmjm"]
+
+[node name="TestMovement" type="Node" unique_id=1226599483]
+script = ExtResource("1_qcmjm")

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cpk44qdp5ilah"]
 
-[ext_resource type="Script" uid="uid://cys85d5lg6xa7" path="res://src/scripts/network/auto_tests/test_packets.gd" id="1_r8bxm"]
+[ext_resource type="Script" uid="uid://cys85d5lg6xa7" path="res://src/scripts/network/unit_tests/test_packets.gd" id="1_r8bxm"]
 
 [node name="TestPackets" type="Node" unique_id=898993620]
 script = ExtResource("1_r8bxm")

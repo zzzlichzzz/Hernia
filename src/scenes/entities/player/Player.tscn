@@ -26,10 +26,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8000000000029104, 0)
 
 [node name="VoxelViewer" type="VoxelViewer" parent="Neck" unique_id=521870754]
 
-[node name="BlockInteraction" parent="." unique_id=1451133203 instance=ExtResource("2_e5tct")]
-
 [node name="Inventory" parent="." unique_id=565793990 instance=ExtResource("3_eqmfk")]
 
 [node name="crosshair" parent="." unique_id=923928767 instance=ExtResource("4_c2xi3")]
 
 [node name="HotBar" parent="." unique_id=17073395 instance=ExtResource("4_e5tct")]
+
+[node name="BlockInteraction" parent="." unique_id=1451133203 instance=ExtResource("2_e5tct")]

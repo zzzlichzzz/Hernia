@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════
 # AUTO-GENERATED — DO NOT EDIT
 # Source: res://src/scripts/network/actions/
-# Date:   2026-03-12T20:51:29
+# Date:   2026-03-12T21:21:52
 # ═══════════════════════════════════════════════════
 class_name GeneratedPackets
 
@@ -10,6 +10,7 @@ const BLOCK_PLACE_ID := 51992
 const CHAMELEON_PAINT_ID := 61104
 const PLAYER_CORRECTION_ID := 35565
 const PLAYER_MOVE_ID := 37676
+const PLAYER_SNAPSHOT_ID := 2245
 
 ## Метаданные пакетов для NetworkActionManager
 const PACKETS := {
@@ -95,7 +96,7 @@ const PACKETS := {
 	},
 	37676: {
 		"name": "player_move",
-		"sync_mode": 3,
+		"sync_mode": 0,
 		"channel": 1,
 		"server_validates": true,
 		"field_names": ["peer_id", "tick", "position", "head_pitch", "body_yaw"],
@@ -108,6 +109,26 @@ const PACKETS := {
 		"v_authenticated": true,
 		"v_max_distance": 50.0,
 		"v_max_speed": 10.0,
+		"v_speed_tolerance": 1.5,
+		"v_cooldown": 0.0,
+		"v_position_field": "position",
+		"v_max_action_dist": 0.0,
+	},
+	2245: {
+		"name": "player_snapshot",
+		"sync_mode": 1,
+		"channel": 1,
+		"server_validates": false,
+		"field_names": ["peer_id", "tick", "position", "head_pitch", "body_yaw"],
+		"send_rate_hz": 0,
+		"source_method": "",
+		"receive_method": "apply_network_state",
+		"auto_peer_id": false,
+		"source_keys": {"peer_id": "peer_id", "tick": "tick", "position": "position", "head_pitch": "head_pitch", "body_yaw": "body_yaw"},
+		"v_player_exists": true,
+		"v_authenticated": true,
+		"v_max_distance": 0.0,
+		"v_max_speed": 0.0,
 		"v_speed_tolerance": 1.5,
 		"v_cooldown": 0.0,
 		"v_position_field": "position",
@@ -231,6 +252,36 @@ static func write_player_move(peer_id: int, tick: int, position: Vector3, head_p
 
 
 static func read_player_move(_b: StreamPeerBuffer) -> Dictionary:
+	var _peer_id := _b.get_u16()
+	var _tick := _b.get_u16()
+	var _position := Vector3(_b.get_float(), _b.get_float(), _b.get_float())
+	var _head_pitch := (-1.5) + (float(_b.get_u16()) / 65535.0) * ((1.5) - (-1.5))
+	var _body_yaw := (-3.15) + (float(_b.get_u16()) / 65535.0) * ((3.15) - (-3.15))
+	return {
+		"peer_id": _peer_id,
+		"tick": _tick,
+		"position": _position,
+		"head_pitch": _head_pitch,
+		"body_yaw": _body_yaw,
+	}
+
+
+# ─── player_snapshot (id=2245, 20 bytes (fixed)) ───
+
+static func write_player_snapshot(peer_id: int, tick: int, position: Vector3, head_pitch: float, body_yaw: float) -> PackedByteArray:
+	var _b := StreamPeerBuffer.new()
+	_b.big_endian = false
+	_b.put_u16(peer_id)
+	_b.put_u16(tick)
+	_b.put_float(position.x)
+	_b.put_float(position.y)
+	_b.put_float(position.z)
+	_b.put_u16(int(clampf((head_pitch - (-1.5)) / ((1.5) - (-1.5)), 0.0, 1.0) * 65535.0))
+	_b.put_u16(int(clampf((body_yaw - (-3.15)) / ((3.15) - (-3.15)), 0.0, 1.0) * 65535.0))
+	return PacketTypes.write_packet(2245, _b.data_array)
+
+
+static func read_player_snapshot(_b: StreamPeerBuffer) -> Dictionary:
 	var _peer_id := _b.get_u16()
 	var _tick := _b.get_u16()
 	var _position := Vector3(_b.get_float(), _b.get_float(), _b.get_float())

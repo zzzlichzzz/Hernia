@@ -6,6 +6,20 @@ const SPAWN_Y      := 2.0
 const SERVER_TOKEN := "my_game_v1"
 const AUTH_TIMEOUT  := 5.0
 
+const REPLICATION_TPS := 30.0
+
+const LOD_NEAR_DISTANCE := 20.0
+const LOD_MID_DISTANCE  := 45.0
+const LOD_FAR_DISTANCE  := 90.0
+
+const LOD_NEAR_HZ      := 20.0
+const LOD_MID_HZ       := 10.0
+const LOD_FAR_HZ       := 5.0
+const LOD_VERY_FAR_HZ  := 2.0
+
+const MAX_VIOLATIONS  := 10
+const VIOLATION_DECAY := 30.0
+
 var _net : NetworkManager        = null
 var _pm  : PlayerManager         = null
 var _nam : NetworkActionManager  = null
@@ -15,10 +29,13 @@ var _authenticated  : Dictionary = {}
 var _connect_time   : Dictionary = {}
 var _security_log   : Dictionary = {}
 
-const MAX_VIOLATIONS  := 10
-const VIOLATION_DECAY := 30.0
 var _violations : Dictionary = {}
 
+var _replication_accumulator: float = 0.0
+var _replication_time: float = 0.0
+var _replication_last_send: Dictionary = {} # observer_id -> { target_id -> last_send_time }
+var _replication_last_tick: Dictionary = {} # observer_id -> { target_id -> last_sent_tick }
+var _authoritative_move_ticks: Dictionary = {} # target_id -> latest authoritative movement tick
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
@@ -56,8 +73,16 @@ func _ready() -> void:
 	# ═══ HUD ═══
 	$ServerHUD.setup(_net, _pm, _nam)
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_check_auth_timeout()
+
+	_replication_time += delta
+	_replication_accumulator += delta
+
+	var step := 1.0 / REPLICATION_TPS
+	while _replication_accumulator >= step:
+		_replication_accumulator -= step
+		_replicate_player_snapshots()
 
 
 # ══════════════════════════════════════════════════
@@ -103,6 +128,7 @@ func _on_auth_request(peer_id: int, body: StreamPeerBuffer) -> void:
 			eid, d["position"], d["rotation"]))
 
 	_pm.add_player(peer_id, pos, rot)
+	_authoritative_move_ticks[peer_id] = 0
 	_net.broadcast_except(peer_id, PacketTypes.write_player_joined(peer_id, pos, rot))
 
 	# ── Хамелеоны: начальная синхронизация ────
@@ -128,6 +154,7 @@ func _on_peer_disconnected(id: int) -> void:
 	_connect_time.erase(id)
 	_violations.erase(id)
 	_nam.clear_peer_data(id)
+	_cleanup_replication_peer(id)
 
 
 func _on_ping(peer_id: int, _body: StreamPeerBuffer) -> void:
@@ -184,8 +211,7 @@ func _on_player_move(peer_id: int, data: Dictionary) -> void:
 	var body_yaw: float = data["body_yaw"]
 	var tick: int = int(data.get("tick", 0))
 
-	# _auto_update_pm() уже обновил PlayerManager,
-	# поэтому здесь можно не дублировать _pm.update_player().
+	_authoritative_move_ticks[peer_id] = tick
 
 	_nam.send_action_to(peer_id, "player_correction", [
 		peer_id,
@@ -194,6 +220,95 @@ func _on_player_move(peer_id: int, data: Dictionary) -> void:
 		head_pitch,
 		body_yaw,
 	])
+
+func _replicate_player_snapshots() -> void:
+	var ids: Array = _pm.get_all_ids()
+	if ids.size() <= 1:
+		return
+
+	for observer_var in ids:
+		var observer_id: int = int(observer_var)
+
+		if not _authenticated.get(observer_id, false):
+			continue
+		if not _pm.has_player(observer_id):
+			continue
+
+		var observer_data: Dictionary = _pm.get_player_data(observer_id)
+		var observer_pos: Vector3 = observer_data.get("position", Vector3.ZERO)
+
+		if observer_id not in _replication_last_send:
+			_replication_last_send[observer_id] = {}
+		if observer_id not in _replication_last_tick:
+			_replication_last_tick[observer_id] = {}
+
+		var send_map: Dictionary = _replication_last_send[observer_id]
+		var tick_map: Dictionary = _replication_last_tick[observer_id]
+
+		for target_var in ids:
+			var target_id: int = int(target_var)
+
+			if target_id == observer_id:
+				continue
+			if not _authenticated.get(target_id, false):
+				continue
+			if not _pm.has_player(target_id):
+				continue
+
+			var target_tick: int = int(_authoritative_move_ticks.get(target_id, -1))
+			if target_tick < 0:
+				continue
+
+			var target_data: Dictionary = _pm.get_player_data(target_id)
+			var target_pos: Vector3 = target_data.get("position", Vector3.ZERO)
+			var target_rot: Vector3 = target_data.get("rotation", Vector3.ZERO)
+
+			var distance := observer_pos.distance_to(target_pos)
+			var hz := _get_replication_hz(distance)
+			if hz <= 0.0:
+				continue
+
+			var last_tick_sent: int = int(tick_map.get(target_id, -1))
+			if last_tick_sent == target_tick:
+				continue
+
+			var interval := 1.0 / hz
+			var last_send_time: float = float(send_map.get(target_id, -1.0))
+			if last_send_time >= 0.0 and (_replication_time - last_send_time) < interval:
+				continue
+
+			_nam.send_action_to(observer_id, "player_snapshot", [
+				target_id,
+				target_tick,
+				target_pos,
+				target_rot.x,
+				target_rot.y,
+			])
+
+			send_map[target_id] = _replication_time
+			tick_map[target_id] = target_tick
+
+func _get_replication_hz(distance: float) -> float:
+	if distance <= LOD_NEAR_DISTANCE:
+		return LOD_NEAR_HZ
+	if distance <= LOD_MID_DISTANCE:
+		return LOD_MID_HZ
+	if distance <= LOD_FAR_DISTANCE:
+		return LOD_FAR_HZ
+	return LOD_VERY_FAR_HZ
+
+func _cleanup_replication_peer(peer_id: int) -> void:
+	_replication_last_send.erase(peer_id)
+	_replication_last_tick.erase(peer_id)
+	_authoritative_move_ticks.erase(peer_id)
+
+	for observer_id in _replication_last_send.keys():
+		var send_map: Dictionary = _replication_last_send[observer_id]
+		send_map.erase(peer_id)
+
+	for observer_id in _replication_last_tick.keys():
+		var tick_map: Dictionary = _replication_last_tick[observer_id]
+		tick_map.erase(peer_id)
 
 func get_security_log() -> Dictionary:
 	return _security_log

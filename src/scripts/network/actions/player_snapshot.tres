@@ -1,0 +1,59 @@
+[gd_resource type="Resource" script_class="NetworkPacketDef" format=3 uid="uid://bbdbh6aiyu527"]
+
+[ext_resource type="Script" uid="uid://btch1jd2smm4m" path="res://src/scripts/network/net/network_field_def.gd" id="1_vsl8m"]
+[ext_resource type="Script" uid="uid://3kiamyek5h1n" path="res://src/scripts/network/net/network_packet_def.gd" id="2_dgl3l"]
+
+[sub_resource type="Resource" id="Resource_vsl8m"]
+resource_name = "peer_id (int, 16bit)"
+script = ExtResource("1_vsl8m")
+field_name = "peer_id"
+byte_size = 2
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_dgl3l"]
+resource_name = "tick (int, 16bit)"
+script = ExtResource("1_vsl8m")
+field_name = "tick"
+byte_size = 2
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_d487f"]
+resource_name = "position (vec3, 32bit)"
+script = ExtResource("1_vsl8m")
+field_name = "position"
+field_type = 4
+byte_size = 3
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_4wpk6"]
+resource_name = "head_pitch (float, 16bit)"
+script = ExtResource("1_vsl8m")
+field_name = "head_pitch"
+field_type = 2
+byte_size = 2
+use_quantization = true
+quantize_min = -1.5
+quantize_max = 1.5
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_nidm3"]
+resource_name = "body_yaw (float, 16bit)"
+script = ExtResource("1_vsl8m")
+field_name = "body_yaw"
+field_type = 2
+byte_size = 2
+use_quantization = true
+quantize_min = -3.15
+quantize_max = 3.15
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[resource]
+resource_name = "player_snapshot"
+script = ExtResource("2_dgl3l")
+packet_name = "player_snapshot"
+sync_mode = 1
+channel = 1
+fields = Array[ExtResource("1_vsl8m")]([SubResource("Resource_vsl8m"), SubResource("Resource_dgl3l"), SubResource("Resource_d487f"), SubResource("Resource_4wpk6"), SubResource("Resource_nidm3")])
+description = "Sync Mode - не активен , используется другая логика для этих пакетов"
+receive_method = "apply_network_state"
+auto_peer_id = false

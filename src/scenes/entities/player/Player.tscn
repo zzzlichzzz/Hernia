@@ -30,7 +30,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8000000000029104, 0)
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> parent of be46f95 (добавил single player)
 =======
 >>>>>>> parent of be46f95 (добавил single player)
 [node name="Interaction" type="Node3D" parent="." unique_id=1313213708]
@@ -40,7 +43,16 @@ break_cooldown = null
 place_cooldown = null
 search_terrain_on_ready = null
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+
+[node name="BlockSelector" type="Node3D" parent="." unique_id=1638476033]
+script = ExtResource("3_ate8u")
+
+[node name="inventory" type="Node3D" parent="." unique_id=1391453542]
+script = ExtResource("4_8k4yg")
+>>>>>>> parent of be46f95 (добавил single player)
 
 [node name="BlockSelector" type="Node3D" parent="." unique_id=1638476033]
 script = ExtResource("3_ate8u")
@@ -65,8 +77,11 @@ visible = false
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 [node name="BlockInteraction" parent="." unique_id=1451133203 instance=ExtResource("2_e5tct")]
 =======
+=======
+>>>>>>> parent of be46f95 (добавил single player)
 =======
 >>>>>>> parent of be46f95 (добавил single player)
 [node name="BlockSelectorUI" type="Label" parent="." unique_id=1457576755]
@@ -75,6 +90,9 @@ offset_top = 583.0
 offset_right = 636.0
 offset_bottom = 606.0
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> parent of be46f95 (добавил single player)
+=======
 >>>>>>> parent of be46f95 (добавил single player)
 =======
 >>>>>>> parent of be46f95 (добавил single player)

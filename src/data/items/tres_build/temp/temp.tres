@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="Item_Id_Registry" format=3]
+
+[ext_resource type="Script" path="res://src/data/items/script/items_id.gd" id="1_32iwf"]
+
+[resource]
+script = ExtResource("1_32iwf")
+temp_id = Dictionary[int, String]({
+0: "empty",
+1: "block_grass",
+2: "cherry_planks",
+3: "cherry_stair",
+4: "dirt",
+5: "stone",
+6: "chameleon",
+7: "stair_chameleon",
+8: "test2",
+9: "test1",
+65537: "apple_item"
+})
+list_id = Dictionary[String, int]({
+"apple_item": 65537,
+"block_grass": 1,
+"chameleon": 6,
+"cherry_planks": 2,
+"cherry_stair": 3,
+"dirt": 4,
+"empty": 0,
+"stair_chameleon": 7,
+"stone": 5,
+"test1": 9,
+"test2": 8
+})

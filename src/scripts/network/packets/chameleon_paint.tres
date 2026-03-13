@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="NetworkPacketDef" format=3 uid="uid://cxm5fuavmmrq0"]
+[gd_resource type="Resource" script_class="NetworkPacketDef" format=3 uid="uid://bfsja7mudi44u"]
 
-[ext_resource type="Script" uid="uid://btch1jd2smm4m" path="res://src/scripts/network/net/network_field_def.gd" id="1_hbpgq"]
-[ext_resource type="Script" uid="uid://3kiamyek5h1n" path="res://src/scripts/network/net/network_packet_def.gd" id="2_qjxqn"]
+[ext_resource type="Script" uid="uid://btch1jd2smm4m" path="res://src/scripts/network/protocol/network_field_def.gd" id="1_hbpgq"]
+[ext_resource type="Script" uid="uid://3kiamyek5h1n" path="res://src/scripts/network/protocol/network_packet_def.gd" id="2_qjxqn"]
 
 [sub_resource type="Resource" id="Resource_84dkx"]
 resource_name = "peer_id (int, 32bit)"
@@ -29,6 +29,7 @@ metadata/_custom_type_script = "uid://btch1jd2smm4m"
 resource_name = "chameleon_paint"
 script = ExtResource("2_qjxqn")
 packet_name = "chameleon_paint"
+packet_id = 1103
 server_validates = true
 fields = Array[ExtResource("1_hbpgq")]([SubResource("Resource_84dkx"), SubResource("Resource_2afhy"), SubResource("Resource_hbpgq")])
 validate_cooldown = 0.1

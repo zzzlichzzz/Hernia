@@ -1,0 +1,25 @@
+src/scripts/network/
+	transport/
+		network_manager.gd
+		packet_types.gd
+
+	protocol/
+		network_field_def.gd
+		network_packet_def.gd
+		builder.gd
+		generated/
+			generated_packets.gd
+
+	action/
+		network_action_manager.gd
+
+	replication/
+		player_replication_manager.gd
+		client_replication_receiver.gd
+
+	session/
+		client_session_manager.gd
+		server_auth_manager.gd
+
+	world/
+		server_world_state_manager.gd

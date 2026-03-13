@@ -2,8 +2,8 @@ extends Node
 ## Генератор сетевого кода из .tres определений.
 ## Запуск: открыть builder_scene.tscn → Run Scene (F6)
 
-const ACTIONS_DIR := "res://src/scripts/network/actions/"
-const OUTPUT_PATH := "res://src/scripts/network/generated/generated_packets.gd"
+const ACTIONS_DIR := "res://src/scripts/network/packets/"
+const OUTPUT_PATH := "res://src/scripts/network/protocol/generated/generated_packets.gd"
 
 const KNOWN_SCRIPTS := [
 	"res://src/scripts/network/scenes/player.gd",

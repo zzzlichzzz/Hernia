@@ -15,9 +15,9 @@ var _nam : NetworkActionManager = null
 
 var _replication: PlayerReplicationManager = null
 var _auth: ServerAuthManager = null
+var _world_state: ServerWorldStateManager = null
 
-var _chameleon_state: Dictionary = {}   # Vector3i → int (source_block_id)
-var _authenticated  : Dictionary = {}   # peer_id -> bool (ссылка, её использует auth manager)
+var _authenticated  : Dictionary = {}   # peer_id -> bool
 var _security_log   : Dictionary = {}
 var _violations     : Dictionary = {}
 
@@ -57,8 +57,15 @@ func _ready() -> void:
 	add_child(_auth)
 	_auth.setup(_net, _authenticated, AUTH_TIMEOUT, SERVER_TOKEN, SPAWN_Y)
 
-	# Если позже появится master server / transfer token validation,
-	# достаточно будет подставить внешний валидатор:
+	_world_state = ServerWorldStateManager.new()
+	_world_state.name = "ServerWorldStateManager"
+	add_child(_world_state)
+	_world_state.setup(_net)
+
+	# Теперь world_state уже существует — можно безопасно передать resolver
+	_replication.set_world_resolver(Callable(_world_state, "get_player_world"))
+
+	# На будущее:
 	# _auth.set_validator(_validate_external_auth)
 
 	_net.peer_connected.connect(_auth.on_peer_connected)
@@ -105,6 +112,11 @@ func _on_peer_authenticated(peer_id: int, session_data: Dictionary) -> void:
 
 	var pos: Vector3 = session_data.get("spawn_position", Vector3.ZERO)
 	var rot: Vector3 = session_data.get("spawn_rotation", Vector3.ZERO)
+	var world_id: String = session_data.get("world_id", "default_world")
+	var race_id: String = session_data.get("race_id", "human")
+
+	if _world_state != null:
+		_world_state.attach_player_to_world(peer_id, world_id)
 
 	_net.send_to_peer(peer_id, PacketTypes.write_welcome(peer_id, pos, rot))
 
@@ -114,10 +126,9 @@ func _on_peer_authenticated(peer_id: int, session_data: Dictionary) -> void:
 		_replication.on_player_spawned(peer_id)
 		_replication.refresh_visibility_now()
 
-	_send_chameleon_sync(peer_id)
+	if _world_state != null:
+		_world_state.send_initial_sync(peer_id, world_id)
 
-	var race_id: String = session_data.get("race_id", "unknown")
-	var world_id: String = session_data.get("world_id", "unknown")
 	print("[server] peer=%d authenticated, race=%s world=%s" % [peer_id, race_id, world_id])
 
 
@@ -134,36 +145,6 @@ func get_player_session(peer_id: int) -> Dictionary:
 
 
 # ══════════════════════════════════════════════════
-#  WORLD SYNC
-# ══════════════════════════════════════════════════
-
-func _send_chameleon_sync(peer_id: int) -> void:
-	if _chameleon_state.is_empty():
-		return
-
-	var body := PacketTypes.write_chameleon_sync_body(_chameleon_state)
-
-	_net.send_fragmented_to_peer(
-		peer_id,
-		PacketTypes.CHAMELEON_SYNC,
-		body,
-		0,
-		ENetPacketPeer.FLAG_RELIABLE
-	)
-
-
-func _on_chameleon_paint(_peer_id: int, data: Dictionary) -> void:
-	var pos := Vector3i(data["block_position"])
-	var block_id: int = data["source_block_id"]
-	_chameleon_state[pos] = block_id
-
-
-func _on_block_break(_peer_id: int, data: Dictionary) -> void:
-	var pos := Vector3i(data["block_position"])
-	_chameleon_state.erase(pos)
-
-
-# ══════════════════════════════════════════════════
 #  CONNECTION / DISCONNECT
 # ══════════════════════════════════════════════════
 
@@ -173,6 +154,9 @@ func _on_peer_disconnected(id: int) -> void:
 
 	if _auth != null:
 		_auth.clear_peer(id)
+
+	if _world_state != null:
+		_world_state.detach_player(id)
 
 	_pm.remove_player(id)
 	_player_sessions.erase(id)
@@ -237,6 +221,18 @@ func _on_player_move(peer_id: int, data: Dictionary) -> void:
 	])
 
 
+## Делегирование world-state менеджеру.
+## auto_bind_server(self) продолжит находить эти методы по имени пакета.
+func _on_chameleon_paint(peer_id: int, data: Dictionary) -> void:
+	if _world_state != null:
+		_world_state.handle_chameleon_paint(peer_id, data)
+
+
+func _on_block_break(peer_id: int, data: Dictionary) -> void:
+	if _world_state != null:
+		_world_state.handle_block_break(peer_id, data)
+
+
 # ══════════════════════════════════════════════════
 #  FUTURE MASTER / TRANSFER HOOK
 # ══════════════════════════════════════════════════
@@ -244,10 +240,6 @@ func _on_player_move(peer_id: int, data: Dictionary) -> void:
 ## Пример будущего внешнего валидатора для master server / transfer token.
 ## Пока не используется.
 # func _validate_external_auth(peer_id: int, token: String) -> Dictionary:
-# 	# Здесь позже можно:
-# 	# - проверить token у master server
-# 	# - получить world_id / character_id / race_id
-# 	# - получить spawn_position после transfer между мирами
 # 	return {
 # 		"success": token != "",
 # 		"message": "Bad token" if token == "" else "",
@@ -269,6 +261,9 @@ func _notification(what: int) -> void:
 
 		if _replication != null:
 			_replication.clear()
+
+		if _world_state != null:
+			_world_state.clear()
 
 		if _net != null:
 			_net.shutdown()

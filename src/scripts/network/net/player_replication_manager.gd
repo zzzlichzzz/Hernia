@@ -8,6 +8,9 @@ extends Node
 ## - distance-based replication LOD
 ## - batching снапшотов
 ## - хранение authoritative movement tick по игрокам
+## - изоляцию репликации по world_id
+
+const DEFAULT_WORLD_ID := "default_world"
 
 const REPLICATION_TPS := 30.0
 
@@ -26,12 +29,14 @@ const LOD_FAR_HZ       := 5.0
 const LOD_VERY_FAR_HZ  := 2.0
 
 ## Размер ячейки spatial grid.
-## 40.0 — хороший старт для текущих AOI радиусов.
 const GRID_CELL_SIZE := 40.0
 
 var _net: NetworkManager = null
 var _pm: PlayerManager = null
 var _authenticated: Dictionary = {}
+
+## Callable(peer_id) -> String(world_id)
+var _world_resolver: Callable = Callable()
 
 var _replication_accumulator: float = 0.0
 var _replication_time: float = 0.0
@@ -49,18 +54,27 @@ var _authoritative_move_ticks: Dictionary = {}
 # observer_id -> { target_id -> true }
 var _visible_targets: Dictionary = {}
 
-# Spatial grid:
-# cell(Vector2i) -> { peer_id -> true }
+# world_id -> { cell(Vector2i) -> { peer_id -> true } }
 var _spatial_cells: Dictionary = {}
 
-# peer_id -> cell(Vector2i)
+# peer_id -> { "world_id": String, "cell": Vector2i }
 var _peer_cells: Dictionary = {}
 
 
-func setup(net: NetworkManager, pm: PlayerManager, authenticated: Dictionary) -> void:
+func setup(
+	net: NetworkManager,
+	pm: PlayerManager,
+	authenticated: Dictionary,
+	world_resolver: Callable = Callable()
+) -> void:
 	_net = net
 	_pm = pm
 	_authenticated = authenticated
+	_world_resolver = world_resolver
+
+
+func set_world_resolver(world_resolver: Callable) -> void:
+	_world_resolver = world_resolver
 
 
 func tick(delta: float) -> void:
@@ -125,6 +139,7 @@ func _replicate_player_snapshots() -> void:
 		if not _is_peer_ready_for_replication(observer_id):
 			continue
 
+		var observer_world := _get_peer_world(observer_id)
 		var observer_data: Dictionary = _pm.get_player_data(observer_id)
 		var observer_pos: Vector3 = observer_data.get("position", Vector3.ZERO)
 
@@ -138,6 +153,8 @@ func _replicate_player_snapshots() -> void:
 			var target_id: int = int(target_var)
 
 			if not _is_peer_ready_for_replication(target_id):
+				continue
+			if _get_peer_world(target_id) != observer_world:
 				continue
 
 			var target_tick: int = int(_authoritative_move_ticks.get(target_id, -1))
@@ -219,6 +236,7 @@ func _update_visibility_sets() -> void:
 
 		_ensure_observer_replication_state(observer_id)
 
+		var observer_world := _get_peer_world(observer_id)
 		var observer_data: Dictionary = _pm.get_player_data(observer_id)
 		var observer_pos: Vector3 = observer_data.get("position", Vector3.ZERO)
 
@@ -226,7 +244,7 @@ func _update_visibility_sets() -> void:
 		var send_map: Dictionary = _replication_last_send[observer_id]
 		var tick_map: Dictionary = _replication_last_tick[observer_id]
 
-		var candidate_targets := _gather_candidate_targets(observer_pos)
+		var candidate_targets := _gather_candidate_targets(observer_pos, observer_world)
 		candidate_targets.erase(observer_id)
 
 		var stale_targets: Dictionary = {}
@@ -248,7 +266,6 @@ func _update_visibility_sets() -> void:
 				if not currently_visible:
 					visible_map[target_id] = true
 
-					# Новый visible target должен начать получать snapshots сразу
 					send_map.erase(target_id)
 					tick_map.erase(target_id)
 
@@ -330,30 +347,46 @@ func _rebuild_spatial_grid() -> void:
 		if not _is_peer_ready_for_replication(peer_id):
 			continue
 
+		var world_id := _get_peer_world(peer_id)
 		var data: Dictionary = _pm.get_player_data(peer_id)
 		var pos: Vector3 = data.get("position", Vector3.ZERO)
 		var cell := _world_to_cell(pos)
 
-		_peer_cells[peer_id] = cell
+		_peer_cells[peer_id] = {
+			"world_id": world_id,
+			"cell": cell,
+		}
 
-		if cell not in _spatial_cells:
-			_spatial_cells[cell] = {}
+		if world_id not in _spatial_cells:
+			_spatial_cells[world_id] = {}
 
-		(_spatial_cells[cell] as Dictionary)[peer_id] = true
+		var world_grid: Dictionary = _spatial_cells[world_id]
+		if cell not in world_grid:
+			world_grid[cell] = {}
+
+		var bucket: Dictionary = world_grid[cell]
+		bucket[peer_id] = true
+		world_grid[cell] = bucket
+		_spatial_cells[world_id] = world_grid
 
 
-func _gather_candidate_targets(observer_pos: Vector3) -> Dictionary:
+func _gather_candidate_targets(observer_pos: Vector3, world_id: String) -> Dictionary:
 	var result: Dictionary = {}
 	var center := _world_to_cell(observer_pos)
 	var radius_cells := _get_cell_query_radius()
 
+	if world_id not in _spatial_cells:
+		return result
+
+	var world_grid: Dictionary = _spatial_cells[world_id]
+
 	for dz in range(-radius_cells, radius_cells + 1):
 		for dx in range(-radius_cells, radius_cells + 1):
 			var cell := Vector2i(center.x + dx, center.y + dz)
-			if cell not in _spatial_cells:
+			if cell not in world_grid:
 				continue
 
-			var bucket: Dictionary = _spatial_cells[cell]
+			var bucket: Dictionary = world_grid[cell]
 			for peer_var in bucket.keys():
 				result[int(peer_var)] = true
 
@@ -383,28 +416,49 @@ func _horizontal_distance_sq(a: Vector3, b: Vector3) -> float:
 	return dx * dx + dz * dz
 
 
+func _get_peer_world(peer_id: int) -> String:
+	if _world_resolver.is_valid():
+		var value: Variant = _world_resolver.call(peer_id)
+		if value is String:
+			var world_id: String = value
+			if world_id != "":
+				return world_id
+	return DEFAULT_WORLD_ID
+
+
 # ══════════════════════════════════════════════════
 #  CLEANUP
 # ══════════════════════════════════════════════════
 
 func _cleanup_replication_peer(peer_id: int, notify_exit: bool = false) -> void:
-	# Удаляем peer из spatial grid
 	if peer_id in _peer_cells:
-		var cell: Vector2i = _peer_cells[peer_id]
-		if cell in _spatial_cells:
-			var bucket: Dictionary = _spatial_cells[cell]
-			bucket.erase(peer_id)
-			if bucket.is_empty():
-				_spatial_cells.erase(cell)
+		var peer_info: Dictionary = _peer_cells[peer_id]
+		var world_id: String = peer_info.get("world_id", DEFAULT_WORLD_ID)
+		var cell: Vector2i = peer_info.get("cell", Vector2i.ZERO)
+
+		if world_id in _spatial_cells:
+			var world_grid: Dictionary = _spatial_cells[world_id]
+			if cell in world_grid:
+				var bucket: Dictionary = world_grid[cell]
+				bucket.erase(peer_id)
+
+				if bucket.is_empty():
+					world_grid.erase(cell)
+				else:
+					world_grid[cell] = bucket
+
+				if world_grid.is_empty():
+					_spatial_cells.erase(world_id)
+				else:
+					_spatial_cells[world_id] = world_grid
+
 		_peer_cells.erase(peer_id)
 
-	# Удаляем peer как observer
 	_visible_targets.erase(peer_id)
 	_replication_last_send.erase(peer_id)
 	_replication_last_tick.erase(peer_id)
 	_authoritative_move_ticks.erase(peer_id)
 
-	# Удаляем peer как target у всех остальных observer-ов
 	for observer_var in _visible_targets.keys():
 		var observer_id: int = int(observer_var)
 		var visible_map: Dictionary = _visible_targets[observer_id]

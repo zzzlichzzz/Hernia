@@ -2,18 +2,16 @@ class_name ItemArrayRegistry extends Resource
 
 
 
-#@export var item_array: Array[ItemData]
-@export var item_array: Dictionary[String, ItemData]
+
+@export var item_array: Array[ItemData]
 
 
-func addItem(item: ItemData) -> void:
-	item_array.set(item.id, item)
+
+func addItem(index: int, item: ItemData) -> void:
+	item_array.set(index, item)
 	
-func getItem(id: String) -> ItemData:
-	return item_array.get(id, null)
+func getItem(id: int) -> ItemData:
+	return item_array.get(id)
 	
-func getItemBlockID(id: String) -> int:
-	return item_array.get(id).getIdBlock()
-	
-func isItemBlock(id: String) -> bool:
+func isItemBlock(id: int) -> bool:
 	return item_array.get(id) is ItemBlock

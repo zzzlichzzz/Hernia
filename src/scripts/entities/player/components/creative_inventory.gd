@@ -9,7 +9,7 @@ extends Node
 # ═══════════════════════════════════════════════════════════
 
 # --- Настройки ---
-@export var library_path: String = "res://src/data/items/items.tres"
+@export var library_path: String = "res://src/data/items/registry/items.tres"
 @export var icons_directory: String = "res://src/assets/textures/atlas/icon/"
 
 # --- Внутренние ресурсы ---
@@ -97,9 +97,10 @@ func _load_block_library():
 		push_error("CreativeInventory: не удалось загрузить библиотеку: %s" % library_path)
 		return
 
-	var items: Dictionary = _items_library.item_array
+	var items: Array[ItemData] = _items_library.item_array
 	for key in items:
-		var model = items[key]
+		if key== null: continue
+		var model = key
 		if model == null:
 			continue
 		var block_name: String = model.resource_name
@@ -265,7 +266,7 @@ func _create_inventory_ui():
 	add_child(_canvas_layer)
 
 	var viewport_size := get_viewport().get_visible_rect().size
-	var panel_size := Vector2(400, 300)
+	var panel_size := Vector2(430, 300)
 
 	_inventory_panel = Panel.new()
 	_inventory_panel.name = "InventoryPanel"

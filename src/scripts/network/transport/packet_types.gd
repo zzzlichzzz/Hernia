@@ -13,11 +13,21 @@ enum {
 	WELCOME        = 8,
 }
 
-const HEADER_SIZE       := 8
-const AUTH_REQUEST      := 9
-const AUTH_RESPONSE     := 10
-const CHAMELEON_SYNC    := 11
-const MAX_FRAGMENT_BODY := 1024
+const HEADER_SIZE           := 8
+const AUTH_REQUEST          := 9
+const AUTH_RESPONSE         := 10
+const CHAMELEON_SYNC        := 11
+const MAX_FRAGMENT_BODY     := 1024
+const PLAYER_SNAPSHOT_BATCH := 12
+
+const SNAPSHOT_ENTRY_SIZE := 20
+const SNAPSHOT_BATCH_HEADER_SIZE := 2
+const SNAPSHOT_BATCH_MAX_ENTRIES := int((MAX_FRAGMENT_BODY - SNAPSHOT_BATCH_HEADER_SIZE) / SNAPSHOT_ENTRY_SIZE)
+
+const SNAPSHOT_PITCH_MIN := -1.5
+const SNAPSHOT_PITCH_MAX := 1.5
+const SNAPSHOT_YAW_MIN := -3.15
+const SNAPSHOT_YAW_MAX := 3.15
 
 
 # ══════════════════════════════════════════════════
@@ -335,3 +345,104 @@ class FragmentAssembler:
 
 	func _make_key(sender_id: int, type: int) -> String:
 		return "%d_%d" % [sender_id, type]
+
+
+# ══════════════════════════════════════════════════
+#  PLAYER SNAPSHOT BATCH
+# ══════════════════════════════════════════════════
+
+## entries: Array[Dictionary]
+## Каждый entry:
+## {
+##   "peer_id": int,
+##   "tick": int,
+##   "position": Vector3,
+##   "head_pitch": float,
+##   "body_yaw": float,
+## }
+static func write_player_snapshot_batch_body(entries: Array) -> PackedByteArray:
+	var b := StreamPeerBuffer.new()
+	b.big_endian = false
+
+	var count := mini(entries.size(), SNAPSHOT_BATCH_MAX_ENTRIES)
+	b.put_u16(count)
+
+	for i in count:
+		var e: Dictionary = entries[i]
+
+		var peer_id: int = int(e.get("peer_id", 0)) & 0xFFFF
+		var tick: int = int(e.get("tick", 0)) & 0xFFFF
+		var pos: Vector3 = e.get("position", Vector3.ZERO)
+		var head_pitch: float = float(e.get("head_pitch", 0.0))
+		var body_yaw: float = float(e.get("body_yaw", 0.0))
+
+		b.put_u16(peer_id)
+		b.put_u16(tick)
+
+		b.put_float(pos.x)
+		b.put_float(pos.y)
+		b.put_float(pos.z)
+
+		b.put_u16(_encode_quantized_u16(head_pitch, SNAPSHOT_PITCH_MIN, SNAPSHOT_PITCH_MAX))
+		b.put_u16(_encode_quantized_u16(body_yaw, SNAPSHOT_YAW_MIN, SNAPSHOT_YAW_MAX))
+
+	return b.data_array
+
+
+static func write_player_snapshot_batch(entries: Array) -> PackedByteArray:
+	return write_packet(PLAYER_SNAPSHOT_BATCH, write_player_snapshot_batch_body(entries))
+
+
+static func read_player_snapshot_batch(buf: StreamPeerBuffer) -> Array[Dictionary]:
+	var count := buf.get_u16()
+
+	# Защита от битого пакета/мусора
+	if count > 512:
+		push_warning("player_snapshot_batch: слишком много записей: %d" % count)
+		return []
+
+	var result: Array[Dictionary] = []
+	result.resize(0)
+
+	for i in count:
+		var peer_id := buf.get_u16()
+		var tick := buf.get_u16()
+
+		var pos := Vector3(
+			buf.get_float(),
+			buf.get_float(),
+			buf.get_float()
+		)
+
+		var head_pitch := _decode_quantized_u16(
+			buf.get_u16(),
+			SNAPSHOT_PITCH_MIN,
+			SNAPSHOT_PITCH_MAX
+		)
+
+		var body_yaw := _decode_quantized_u16(
+			buf.get_u16(),
+			SNAPSHOT_YAW_MIN,
+			SNAPSHOT_YAW_MAX
+		)
+
+		result.append({
+			"peer_id": peer_id,
+			"tick": tick,
+			"position": pos,
+			"head_pitch": head_pitch,
+			"body_yaw": body_yaw,
+		})
+
+	return result
+
+static func _encode_quantized_u16(v: float, min_v: float, max_v: float) -> int:
+	if max_v <= min_v:
+		return 0
+	return int(clampf((v - min_v) / (max_v - min_v), 0.0, 1.0) * 65535.0)
+
+
+static func _decode_quantized_u16(raw: int, min_v: float, max_v: float) -> float:
+	if max_v <= min_v:
+		return min_v
+	return min_v + (float(raw) / 65535.0) * (max_v - min_v)

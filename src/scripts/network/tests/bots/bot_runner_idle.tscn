@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://dt4qqlmui5pjl"]
+
+[ext_resource type="Script" uid="uid://c4o4p0vpoaw0v" path="res://src/scripts/network/tests/bots/bot_load_runner.gd" id="1_cmgux"]
+
+[node name="BotRunnerIdle" type="Node2D" unique_id=790496815]
+script = ExtResource("1_cmgux")
+bot_count = 25
+bot_mode = 0

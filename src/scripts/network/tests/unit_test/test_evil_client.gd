@@ -10,6 +10,7 @@ var _nam: NetworkActionManager = null
 var _my_id: int = 0
 var _connected: bool = false
 var _gp: RefCounted = null
+var _move_tick: int = 0
 
 
 func _ready() -> void:
@@ -63,6 +64,7 @@ func _on_auth_response(_peer_id: int, body: StreamPeerBuffer) -> void:
 func _on_welcome(_peer_id: int, body: StreamPeerBuffer) -> void:
 	var data := PacketTypes.read_welcome(body)
 	_my_id = data["id"]
+	_move_tick = 0
 	print("[evil] ✓ WELCOME id=%d" % _my_id)
 	print("")
 	print("[evil] Тесты:")
@@ -129,13 +131,14 @@ func _test_bad_token() -> void:
 # ══════════════════════════════════════════════════
 
 func _test_fake_peer_id() -> void:
-	if not _is_ready(): return
+	if not _is_ready():
+		return
+
 	print("\n[evil] ═══ ТЕСТ 2: Подмена peer_id ═══")
 
 	var fake_id := 999
 	var pos := Vector3(0, 2, 0)
-	var pkt: PackedByteArray = _gp.call("write_player_move", fake_id, pos, 0.0, 0.0)
-	_net.send_to_server(pkt, 0, ENetPacketPeer.FLAG_RELIABLE)
+	_send_player_move(fake_id, pos, 0.0, 0.0)
 
 	print("[evil] Отправлен peer_id=%d (реальный=%d)" % [fake_id, _my_id])
 	print("[evil] ✓ Сервер должен перезаписать на %d" % _my_id)
@@ -147,25 +150,22 @@ func _test_fake_peer_id() -> void:
 # ══════════════════════════════════════════════════
 
 func _test_teleport() -> void:
-	if not _is_ready(): return
+	if not _is_ready():
+		return
+
 	print("\n[evil] ═══ ТЕСТ 3: Телепортация ═══")
 
-	# Сначала отправляем нормальную позицию (чтобы сервер знал где мы)
 	var normal_pos := Vector3(0, 2, 0)
-	var pkt1: PackedByteArray = _gp.call("write_player_move", _my_id, normal_pos, 0.0, 0.0)
-	_net.send_to_server(pkt1, 0, ENetPacketPeer.FLAG_RELIABLE)
+	_send_player_move(_my_id, normal_pos, 0.0, 0.0)
 
-	# Ждём чтобы сервер обработал
 	await get_tree().create_timer(0.2).timeout
 
 	if not _connected:
 		print("[evil] ✗ Потеряно соединение")
 		return
 
-	# Теперь телепортируемся
 	var fake_pos := Vector3(99999.0, 0.0, 99999.0)
-	var pkt2: PackedByteArray = _gp.call("write_player_move", _my_id, fake_pos, 0.0, 0.0)
-	_net.send_to_server(pkt2, 0, ENetPacketPeer.FLAG_RELIABLE)
+	_send_player_move(_my_id, fake_pos, 0.0, 0.0)
 
 	print("[evil] Отправлено: %s → %s" % [normal_pos, fake_pos])
 	print("[evil] ✓ Сервер должен отклонить (distance > 50)")
@@ -176,13 +176,13 @@ func _test_teleport() -> void:
 # ══════════════════════════════════════════════════
 
 func _test_speedhack() -> void:
-	if not _is_ready(): return
+	if not _is_ready():
+		return
+
 	print("\n[evil] ═══ ТЕСТ 4: Спидхак ═══")
 
-	# Нормальная позиция
 	var pos := Vector3(0, 2, 0)
-	var pkt1: PackedByteArray = _gp.call("write_player_move", _my_id, pos, 0.0, 0.0)
-	_net.send_to_server(pkt1, 0, ENetPacketPeer.FLAG_RELIABLE)
+	_send_player_move(_my_id, pos, 0.0, 0.0)
 
 	await get_tree().create_timer(0.1).timeout
 
@@ -190,12 +190,13 @@ func _test_speedhack() -> void:
 		print("[evil] ✗ Потеряно соединение")
 		return
 
-	# Быстрое перемещение: 50 юнит за 0.1 сек = 500 юнит/сек (макс 10)
 	var fast_pos := pos + Vector3(50, 0, 0)
-	var pkt2: PackedByteArray = _gp.call("write_player_move", _my_id, fast_pos, 0.0, 0.0)
-	_net.send_to_server(pkt2, 0, ENetPacketPeer.FLAG_RELIABLE)
 
-	print("[evil] Отправлено: %s → %s за 0.1 сек (500 ед/сек)" % [pos, fast_pos])
+	# Для честной проверки античита не подделываем огромный tick gap,
+	# а отправляем обычный следующий tick.
+	_send_player_move(_my_id, fast_pos, 0.0, 0.0)
+
+	print("[evil] Отправлено: %s → %s за короткое время" % [pos, fast_pos])
 	print("[evil] ✓ Сервер должен отклонить (> max_speed)")
 
 
@@ -204,7 +205,9 @@ func _test_speedhack() -> void:
 # ══════════════════════════════════════════════════
 
 func _test_packet_spam() -> void:
-	if not _is_ready(): return
+	if not _is_ready():
+		return
+
 	print("\n[evil] ═══ ТЕСТ 5: Спам пакетами ═══")
 	print("[evil] ⚠ После этого теста скорее всего кикнут!")
 
@@ -214,8 +217,7 @@ func _test_packet_spam() -> void:
 	for i in 200:
 		if not _connected:
 			break
-		var pkt: PackedByteArray = _gp.call("write_player_move", _my_id, pos, 0.0, 0.0)
-		_net.send_to_server(pkt, 0, ENetPacketPeer.FLAG_UNSEQUENCED)
+		_send_player_move(_my_id, pos, 0.0, 0.0)
 		sent += 1
 
 	print("[evil] Отправлено: %d пакетов" % sent)
@@ -249,6 +251,22 @@ func _test_all() -> void:
 	print("\n[evil] ═══ ВСЕ ТЕСТЫ ЗАВЕРШЕНЫ ═══")
 	print("[evil] Проверь СОСТОЯНИЕ СЕРВЕРА в логах!")
 
+func _next_tick() -> int:
+	_move_tick = (_move_tick + 1) & 0xFFFF
+	return _move_tick
+
+
+func _make_player_move(peer_id: int, pos: Vector3, head_pitch: float = 0.0, body_yaw: float = 0.0, tick: int = -1) -> PackedByteArray:
+	var t := tick
+	if t < 0:
+		t = _next_tick()
+	return _gp.call("write_player_move", peer_id, t, pos, head_pitch, body_yaw)
+
+
+func _send_player_move(peer_id: int, pos: Vector3, head_pitch: float = 0.0, body_yaw: float = 0.0, tick: int = -1) -> void:
+	var pkt := _make_player_move(peer_id, pos, head_pitch, body_yaw, tick)
+	# movement у тебя сейчас идёт как unreliable sequenced на канале 1
+	_net.send_to_server(pkt, 1, 0)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:

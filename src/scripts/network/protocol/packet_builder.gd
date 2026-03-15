@@ -2,13 +2,27 @@ extends Node
 ## Генератор сетевого кода из .tres определений.
 ## Запуск: открыть builder_scene.tscn → Run Scene (F6)
 
-const ACTIONS_DIR := "res://src/scripts/network/actions/"
-const OUTPUT_PATH := "res://src/scripts/network/generated/generated_packets.gd"
+const ACTIONS_DIR := "res://src/scripts/network/packets/"
+const OUTPUT_PATH := "res://src/scripts/network/protocol/generated/generated_packets.gd"
 
 const KNOWN_SCRIPTS := [
 	"res://src/scripts/network/scenes/player.gd",
 	"res://src/scripts/network/scenes/remote_player.gd",
 ]
+const AUTO_PACKET_ID_START := 1000
+const AUTO_PACKET_ID_END := 65535
+
+const RESERVED_PACKET_IDS := {
+	3: true,
+	4: true,
+	6: true,
+	7: true,
+	8: true,
+	9: true,
+	10: true,
+	11: true,
+	12: true,
+}
 
 func _ready() -> void:
 	print("═══════════════════════════════════════")
@@ -20,12 +34,16 @@ func _ready() -> void:
 		print("[builder] Нет .tres файлов в %s" % ACTIONS_DIR)
 		_quit(); return
 
+	var changed := _assign_packet_ids(defs)
+	if changed < 0:
+		push_error("[builder] Не удалось назначить packet_id!")
+		_quit()
+		return
+	if changed > 0:
+		print("[builder] Автоназначено/исправлено packet_id: %d" % changed)
+
 	if not _validate(defs):
 		push_error("[builder] Валидация не пройдена!")
-		_quit(); return
-
-	var code := _generate(defs)
-	if not _save(code):
 		_quit(); return
 
 	_report(defs)
@@ -72,25 +90,53 @@ func _validate(defs: Array[NetworkPacketDef]) -> bool:
 	var ok := true
 	var ids: Dictionary = {}
 	var names: Dictionary = {}
+
 	for d in defs:
 		if d.packet_name.is_empty():
-			push_error("[builder] Пакет без имени!"); ok = false; continue
+			push_error("[builder] Пакет без имени!")
+			ok = false
+			continue
+
 		if d.packet_name in names:
-			push_error("[builder] Дублирование имени '%s'!" % d.packet_name); ok = false
+			push_error("[builder] Дублирование имени '%s'!" % d.packet_name)
+			ok = false
 		names[d.packet_name] = true
+
 		var pid := d.get_packet_id()
+
+		if pid < AUTO_PACKET_ID_START or pid > AUTO_PACKET_ID_END:
+			push_error("[builder] Пакет '%s': packet_id=%d вне допустимого диапазона %d..%d" % [
+				d.packet_name, pid, AUTO_PACKET_ID_START, AUTO_PACKET_ID_END
+			])
+			ok = false
+
+		if pid in RESERVED_PACKET_IDS:
+			push_error("[builder] Пакет '%s': packet_id=%d зарезервирован служебными PacketTypes" % [
+				d.packet_name, pid
+			])
+			ok = false
+
 		if pid in ids:
-			push_error("[builder] Коллизия ID! '%s' и '%s' → id=%d" % [ids[pid], d.packet_name, pid])
+			push_error("[builder] Коллизия ID! '%s' и '%s' → id=%d" % [
+				ids[pid], d.packet_name, pid
+			])
 			ok = false
 		ids[pid] = d.packet_name
+
 		var field_names: Dictionary = {}
 		for f: NetworkFieldDef in d.fields:
 			if f.field_name.is_empty():
-				push_error("[builder] Пакет '%s': поле без имени!" % d.packet_name); ok = false
-			if f.field_name in field_names:
-				push_error("[builder] Пакет '%s': дублирование поля '%s'!" % [d.packet_name, f.field_name])
+				push_error("[builder] Пакет '%s': поле без имени!" % d.packet_name)
 				ok = false
+
+			if f.field_name in field_names:
+				push_error("[builder] Пакет '%s': дублирование поля '%s'!" % [
+					d.packet_name, f.field_name
+				])
+				ok = false
+
 			field_names[f.field_name] = true
+
 	return ok
 
 func _validate_methods(defs: Array[NetworkPacketDef]) -> void:
@@ -129,6 +175,88 @@ func _validate_methods(defs: Array[NetworkPacketDef]) -> void:
 				push_warning("[builder] ⚠ Пакет '%s': receive_method '%s' не найден ни в одном скрипте" % [
 					d.packet_name, d.receive_method])
 
+func _assign_packet_ids(defs: Array[NetworkPacketDef]) -> int:
+	var changed := 0
+	var used: Dictionary = RESERVED_PACKET_IDS.duplicate(true)
+
+	# Детерминированный порядок:
+	# существующие валидные ID сохраняем,
+	# битым/пустым/дублирующимся назначаем новые.
+	var ordered: Array[NetworkPacketDef] = defs.duplicate()
+	ordered.sort_custom(func(a: NetworkPacketDef, b: NetworkPacketDef) -> bool:
+		var ap := a.resource_path if a.resource_path != "" else a.packet_name
+		var bp := b.resource_path if b.resource_path != "" else b.packet_name
+		return ap < bp
+	)
+
+	var to_assign: Array[NetworkPacketDef] = []
+
+	# 1 проход: собираем валидные уникальные ID
+	for d in ordered:
+		var pid := d.get_packet_id()
+		var valid := true
+
+		if pid < AUTO_PACKET_ID_START or pid > AUTO_PACKET_ID_END:
+			valid = false
+		elif pid in used:
+			valid = false
+
+		if valid:
+			used[pid] = true
+		else:
+			to_assign.append(d)
+
+	# 2 проход: назначаем новые ID
+	for d in to_assign:
+		var old_id := d.get_packet_id()
+		var new_id := _alloc_next_packet_id(used)
+		if new_id == -1:
+			push_error("[builder] Закончились свободные packet_id!")
+			return -1
+
+		d.packet_id = new_id
+		used[new_id] = true
+
+		if not _save_packet_def_resource(d):
+			push_error("[builder] Не удалось сохранить packet_id для '%s'" % d.packet_name)
+			return -1
+
+		print("[builder] packet_id: '%s' %d → %d" % [d.packet_name, old_id, new_id])
+		changed += 1
+
+	return changed
+
+
+func _alloc_next_packet_id(used: Dictionary) -> int:
+	# Не переиспользуем "дырки", а растём вверх.
+	# Это безопаснее для будущей совместимости версий.
+	var candidate := AUTO_PACKET_ID_START
+
+	for k in used.keys():
+		var id := int(k)
+		if id >= candidate:
+			candidate = id + 1
+
+	while candidate <= AUTO_PACKET_ID_END:
+		if candidate not in used:
+			return candidate
+		candidate += 1
+
+	return -1
+
+
+func _save_packet_def_resource(d: NetworkPacketDef) -> bool:
+	if d.resource_path == "":
+		push_error("[builder] У ресурса '%s' нет resource_path" % d.packet_name)
+		return false
+
+	var err := ResourceSaver.save(d, d.resource_path)
+	if err != OK:
+		push_error("[builder] Не могу сохранить %s: %s" % [d.resource_path, error_string(err)])
+		return false
+
+	return true
+	
 # ══════════════════════════════════════════════════
 #  ГЕНЕРАЦИЯ
 # ══════════════════════════════════════════════════

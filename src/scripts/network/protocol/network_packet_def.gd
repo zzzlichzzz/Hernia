@@ -8,6 +8,10 @@ extends Resource
 		packet_name = value
 		resource_name = value if value != "" else "unnamed_packet"
 
+## Стабильный ID пакета.
+## 0 = builder назначит автоматически.
+@export_range(0, 65535, 1) var packet_id: int = 0
+
 enum SyncMode {
 	CLIENT_TO_SERVER,
 	SERVER_TO_ALL,
@@ -62,4 +66,4 @@ enum ChannelMode { RELIABLE, UNRELIABLE }
 
 
 func get_packet_id() -> int:
-	return 100 + (packet_name.hash() & 0xFFFF)
+	return packet_id

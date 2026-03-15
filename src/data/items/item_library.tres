@@ -119,6 +119,17 @@ block_definition = SubResource("Resource_a666k")
 id = &"stair_chameleon"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
+[sub_resource type="Resource" id="Resource_d76le"]
+script = ExtResource("2_n3j2i")
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_il4ia"]
+resource_name = "name"
+script = ExtResource("2_s5eag")
+block_definition = SubResource("Resource_d76le")
+id = &"name"
+metadata/_custom_type_script = "uid://bhox1u5qj13c3"
+
 [sub_resource type="Resource" id="Resource_xvaua"]
 script = ExtResource("3_n3j2i")
 id = &"apple_item"
@@ -127,6 +138,6 @@ metadata/_custom_type_script = "uid://dkfwwcqcapdoq"
 
 [resource]
 script = ExtResource("9_a666k")
-block_item = Array[ExtResource("1_lwnk8")]([SubResource("Resource_s5eag"), SubResource("Resource_j5g3c"), SubResource("Resource_60gwa"), SubResource("Resource_6xypv"), SubResource("Resource_dok7y"), SubResource("Resource_x613m"), SubResource("Resource_k2w68")])
+block_item = Array[ExtResource("1_lwnk8")]([SubResource("Resource_s5eag"), SubResource("Resource_j5g3c"), SubResource("Resource_60gwa"), SubResource("Resource_6xypv"), SubResource("Resource_dok7y"), SubResource("Resource_x613m"), SubResource("Resource_k2w68"), SubResource("Resource_il4ia")])
 consumble_item = Array[ExtResource("1_lwnk8")]([SubResource("Resource_xvaua")])
 metadata/_custom_type_script = "uid://ci7ob21y7q5ce"

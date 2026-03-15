@@ -1,10 +1,10 @@
 extends Node
 
 const PORT         := 9999
-const MAX_CLIENTS  := 32
+const MAX_CLIENTS  := 1200
 const SPAWN_Y      := 2.0
 const SERVER_TOKEN := "my_game_v1"
-const AUTH_TIMEOUT := 5.0
+const AUTH_TIMEOUT := 15.0
 
 const MAX_VIOLATIONS  := 10
 const VIOLATION_DECAY := 30.0

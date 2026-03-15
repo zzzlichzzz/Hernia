@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://cq7ilmmaav4nj"]
+
+[ext_resource type="Script" uid="uid://c4o4p0vpoaw0v" path="res://src/scripts/network/tests/bots/bot_load_runner.gd" id="1_63qp5"]
+
+[node name="BotRunnerCircle" type="Node2D" unique_id=1023076480]
+script = ExtResource("1_63qp5")
+bot_count = 25

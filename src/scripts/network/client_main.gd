@@ -9,6 +9,7 @@ const REMOTE_PLAYER_SCENE = preload("res://src/scenes/entities/player/HumanPlaye
 var _net: NetworkManager = null
 var _pm: PlayerManager = null
 var _nam: NetworkActionManager = null
+var _world_runtime: ClientWorldRuntimeManager = null
 var _session: ClientSessionManager = null
 
 
@@ -25,6 +26,10 @@ func _ready() -> void:
 	_nam.name = "NetworkActionManager"
 	add_child(_nam)
 
+	_world_runtime = ClientWorldRuntimeManager.new()
+	_world_runtime.name = "ClientWorldRuntimeManager"
+	add_child(_world_runtime)
+
 	_session = ClientSessionManager.new()
 	_session.name = "ClientSessionManager"
 	add_child(_session)
@@ -32,7 +37,7 @@ func _ready() -> void:
 	_nam.setup(_net)
 	_nam.auto_bind_receiver(_pm)
 
-	_session.setup(
+	_world_runtime.setup(
 		_net,
 		_pm,
 		_nam,
@@ -40,6 +45,8 @@ func _ready() -> void:
 		REMOTE_PLAYER_SCENE,
 		_get_player_container()
 	)
+
+	_session.setup(_net, _world_runtime)
 
 	_session.session_ready.connect(_on_session_ready)
 	_session.session_disconnected.connect(_on_session_disconnected)

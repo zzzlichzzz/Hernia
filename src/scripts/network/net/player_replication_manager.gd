@@ -60,6 +60,9 @@ var _spatial_cells: Dictionary = {}
 # peer_id -> { "world_id": String, "cell": Vector2i }
 var _peer_cells: Dictionary = {}
 
+var _stats_batch_packets_sent_total: int = 0
+var _stats_batch_entries_sent_total: int = 0
+var _stats_batch_max_entries_seen: int = 0
 
 func setup(
 	net: NetworkManager,
@@ -126,6 +129,10 @@ func clear() -> void:
 
 	_spatial_cells.clear()
 	_peer_cells.clear()
+
+	_stats_batch_packets_sent_total = 0
+	_stats_batch_entries_sent_total = 0
+	_stats_batch_max_entries_seen = 0
 
 
 # ══════════════════════════════════════════════════
@@ -205,14 +212,20 @@ func _get_replication_hz(distance: float) -> float:
 
 
 func _send_snapshot_batches(observer_id: int, entries: Array[Dictionary]) -> void:
-	var max_entries := PacketTypes.SNAPSHOT_BATCH_MAX_ENTRIES
+	var max_entries: int = PacketTypes.SNAPSHOT_BATCH_MAX_ENTRIES
 	if max_entries <= 0:
 		return
 
 	var offset := 0
 	while offset < entries.size():
 		var end := mini(offset + max_entries, entries.size())
-		var chunk := entries.slice(offset, end)
+		var chunk: Array[Dictionary] = entries.slice(offset, end)
+
+		var chunk_entry_count: int = chunk.size()
+		_stats_batch_packets_sent_total += 1
+		_stats_batch_entries_sent_total += chunk_entry_count
+		if chunk_entry_count > _stats_batch_max_entries_seen:
+			_stats_batch_max_entries_seen = chunk_entry_count
 
 		var pkt := PacketTypes.write_player_snapshot_batch(chunk)
 		_net.send_to_peer(observer_id, pkt, 1, 0) # channel 1, unreliable sequenced
@@ -474,3 +487,10 @@ func _cleanup_replication_peer(peer_id: int, notify_exit: bool = false) -> void:
 
 		if observer_id in _replication_last_tick:
 			(_replication_last_tick[observer_id] as Dictionary).erase(peer_id)
+
+func get_stats_snapshot() -> Dictionary:
+	return {
+		"batch_packets_sent_total": _stats_batch_packets_sent_total,
+		"batch_entries_sent_total": _stats_batch_entries_sent_total,
+		"batch_max_entries_seen": _stats_batch_max_entries_seen,
+	}

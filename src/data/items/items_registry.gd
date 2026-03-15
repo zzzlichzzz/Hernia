@@ -33,37 +33,41 @@ func _build_library() -> void:
 	if debug_mode:
 		print("Начало собирания предметов")
 	
-
 	print("Подгружаем предмет из библиотеки")
 
 	var item_library = load(ITEM_LIBRARY)
-	var item_registry_id = load(ITEM_REGISTRY_ID)
+	var item_registry_id: Item_Id_Registry = load(ITEM_REGISTRY_ID)
 	if item_registry_id == null:
 		item_registry_id = Item_Id_Registry.new()
 		ResourceSaver.save(item_registry_id, ITEM_REGISTRY_ID)
 		item_registry_id = load(ITEM_REGISTRY_ID)
 	
 	var s = item_library.getArray("consumble_item")
-	var z = item_library.getArray("block_item")
+	var z: Array = item_library.getArray("block_item")
 
-	
 	item_registry_id.registry_id(item_library)
-	
 
-	
+
+	if item_registry_id.errors.size() != 0:
+		var block_empty: ItemBlock = ItemBlock.new()
+		block_empty.id = "empty"
+		for d in item_registry_id.errors.keys():
+			if item_registry_id.get_list_id().get(d) >= size_block: 
+				ITEM.set(item_registry_id.get_list_id().get(d), null)
+				continue
+			ITEM_BLOCK.set(item_registry_id.get_list_id().get(d), block_empty)
+
 	for items in z:
 		var int_id = item_registry_id.get_list_id().get(items.id)
-		if items.id == "empty": continue
-		
+		if items.id == "empty" and int_id == 0: continue
 		items.set_id_int(int_id)
 		ITEM_BLOCK.set(item_registry_id.get_list_id().get(items.id), items)
-		
 
 	for items in s:
 		var int_id = item_registry_id.get_list_id().get(items.id)
 		items.set_id_int(int_id)
 		ITEM.set(item_registry_id.get_list_id().get(items.id), items)
-		
+
 
 	var block_registry = load(BLOCK_REGISTRY)
 	var registry = block_registry.new()
@@ -74,18 +78,23 @@ func _build_library() -> void:
 	item_array.item_array.resize(500000)
 	
 	for v in ITEM_BLOCK.keys():
+		item_array.items.set(ITEM_BLOCK.get(v).id, ITEM_BLOCK.get(v).get_id_int())
 		item_array.addItem(ITEM_BLOCK.get(v).get_id_int(), ITEM_BLOCK.get(v))
 
 	print("Начало сборки блоков")
 	
 	for c in ITEM.keys():
+		if ITEM.get(c) == null: continue
+		item_array.items.set(ITEM.get(c).id, ITEM.get(c).get_id_int())
 		item_array.addItem(ITEM.get(c).get_id_int(), ITEM.get(c))
-	
 	
 	is_icon_items(item_registry_id.list_id)
 	
 	ResourceSaver.save(item_array, ITEM_ARRAY)
 
+func count_errors(list: Dictionary[String, int]) -> int:
+	
+	return 0
 
 func is_icon_items(list: Dictionary[String, int]) -> void:
 	var png: Array = find_png_files("res://src/assets/textures/gui/icons/items/")
@@ -101,7 +110,6 @@ func find_png_files(folder: String) -> Array:
 	_find_png_files_recursive(folder, files)
 	files.sort_custom(func(a, b): return a.name < b.name)
 	return files
-
 
 func _find_png_files_recursive(folder: String, files: Array):
 	var dir = DirAccess.open(folder)

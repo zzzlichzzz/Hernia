@@ -13,11 +13,18 @@ temp_id = Dictionary[int, String]({
 5: "stone",
 6: "chameleon",
 7: "stair_chameleon",
-8: "test2",
-9: "test1",
-65537: "apple_item"
+8: "test8",
+9: "test67",
+10: "tes98",
+11: "tes75gg",
+65537: "apple_item",
+65538: "apple",
+65539: "ap",
+65540: "sdgsdg"
 })
 list_id = Dictionary[String, int]({
+"ap": 65539,
+"apple": 65538,
 "apple_item": 65537,
 "block_grass": 1,
 "chameleon": 6,
@@ -25,8 +32,11 @@ list_id = Dictionary[String, int]({
 "cherry_stair": 3,
 "dirt": 4,
 "empty": 0,
+"sdgsdg": 65540,
 "stair_chameleon": 7,
 "stone": 5,
-"test1": 9,
-"test2": 8
+"tes75gg": 11,
+"tes98": 10,
+"test67": 9,
+"test8": 8
 })

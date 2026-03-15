@@ -1,0 +1,69 @@
+[gd_scene format=3 uid="uid://bjn3asl8e0pag"]
+
+[ext_resource type="Script" uid="uid://2c0dl6ir01to" path="res://src/scripts/testing/set_id_items.gd" id="1_r0xus"]
+
+[node name="SetIdItems" type="Control" unique_id=1044314558]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_r0xus")
+
+[node name="box_container" type="HBoxContainer" parent="." unique_id=1350184662]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -290.0
+offset_top = -159.0
+offset_right = 290.0
+offset_bottom = 159.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="container_1" type="VBoxContainer" parent="box_container" unique_id=651236969]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+
+[node name="PanelContainer" type="PanelContainer" parent="box_container/container_1" unique_id=1556641619]
+layout_mode = 2
+size_flags_vertical = 2
+
+[node name="ColorRect" type="ColorRect" parent="box_container/container_1/PanelContainer" unique_id=539805764]
+layout_mode = 2
+size_flags_vertical = 3
+color = Color(0.90369666, 0.022704335, 0.28783274, 1)
+
+[node name="id" type="Label" parent="box_container/container_1/PanelContainer" unique_id=1299122509]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "dgdfg"
+
+[node name="container_2" type="VBoxContainer" parent="box_container" unique_id=713157494]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+
+[node name="string_id" type="LineEdit" parent="box_container/container_2" unique_id=1576022753]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+placeholder_text = "ghfhfhf"
+
+[node name="Button" type="Button" parent="." unique_id=710641319]
+layout_mode = 0
+offset_left = 318.0
+offset_top = 476.0
+offset_right = 823.0
+offset_bottom = 585.0
+text = "Сохранить"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1912969245]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0

@@ -81,7 +81,7 @@ func _build_library(blocks: Dictionary[int, ItemData]):
 	if debug_mode:
 		print("\n🧱 ШАГ 4: Добавление блоков")
 	for file_path in blocks.size() + 1:
-		if file_path == 0: file_path = 1
+		if file_path == 0: continue
 		_process_block_definition(blocks.get(file_path))
 	
 
@@ -251,7 +251,7 @@ func _process_block_definition(def_resource: ItemData):
 		#if debug_mode:
 			#print("   ❌ Неверный формат: ", file_path)
 		#return
-	if def_resource == null: 
+	if def_resource == null or def_resource.id == "empty": 
 		_add_air()
 		return
 	

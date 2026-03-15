@@ -18,7 +18,7 @@ var _voxel_size: float = 1.0
 
 var _break_timer: float = 0.0
 var _place_timer: float = 0.0
-var _selected_block_id: String = ""
+var _selected_block_id: int = -1
 var _selected_texture: String = "stone"
 
 var _block_to_texture: Dictionary = {
@@ -38,12 +38,15 @@ signal terrain_found(terrain: VoxelTerrain)
 signal terrain_lost()
 
 var items: ItemArrayRegistry
-var item_path = "res://src/data/items/items.tres"
+var item_path = "res://src/data/items/registry/items.tres"
 
 
-func _init() -> void:
+	
+func _ready() -> void:
 	items = load(item_path)
-
+	_find_and_setup_terrain()
+	_setup_terrain_tool()
+	_inventory = $"../Inventory"
 
 # ══════════════════════════════════════════════════
 #  ПЕРЕОПРЕДЕЛЕНИЯ InteractionModule
@@ -201,10 +204,11 @@ func _place_block(pos: Vector3i):
 	if current != 0:
 		return
 
+	_update_selected_block_from_inventory()
 	if not items.isItemBlock(_selected_block_id):
 		return
 
-	var voxel_id: int = items.getItemBlockID(_selected_block_id)
+	var voxel_id: int = _selected_block_id
 	_terrain_tool.value = voxel_id
 	_terrain_tool.do_point(pos)
 	var new_id = _terrain_tool.get_voxel(pos)
@@ -221,20 +225,21 @@ func _try_paint_chameleon(hit_pos: Vector3i) -> bool:
 	if _terrain_tool == null:
 		return false
 
+	_update_selected_block_from_inventory()
 	var voxel_id = _terrain_tool.get_voxel(hit_pos)
 	if not cham.is_chameleon_block(voxel_id):
 		return false
-	if _selected_block_id == "":
+	if _selected_block_id == -1:
 		return false
-
-	var numeric_block_id: int = items.getItemBlockID(_selected_block_id)
+	
+	var numeric_block_id: int = _selected_block_id
 	var success = cham.paint_chameleon_by_block_id(hit_pos, numeric_block_id)
 
 	if success:
-		print("🎨 Хамелеон покрашен: ", hit_pos, " блоком ID: ", _selected_block_id)
+		print("🎨 Хамелеон покрашен: ", hit_pos, " блоком ID: ", items.get_item_int(_selected_block_id).id)
 		_send("chameleon_paint", [Vector3(hit_pos), numeric_block_id])
 	else:
-		var tex = _block_to_texture.get(_selected_block_id, "")
+		var tex = _block_to_texture.get(items.get_item_int(_selected_block_id).id, "")
 		if tex != "":
 			success = cham.paint_chameleon(hit_pos, tex)
 			if success:
@@ -276,10 +281,10 @@ func _on_selected_slot_changed(_index: int):
 func _update_selected_block_from_inventory():
 	if _inventory:
 		var info = _inventory.get_selected_block_info()
-		if not info.is_empty() and info.has("id") and info.id != "":
-			_selected_block_id = info.id
+		if not info.is_empty():
+			_selected_block_id = items.getItemId(info.id.id)
 		else:
-			_selected_block_id = ""
+			_selected_block_id = -1
 
 
 func _find_and_setup_terrain() -> bool:
@@ -406,7 +411,7 @@ func _can_place_at(pos: Vector3i) -> bool:
 func set_selected_block(block_id: String):
 	pass
 
-func get_selected_block() -> String:
+func get_selected_block() -> int:
 	return _selected_block_id
 
 func set_selected_texture(texture_name: String):

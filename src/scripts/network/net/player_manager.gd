@@ -5,10 +5,11 @@ extends Node
 ## Сервер: только словарь (pos/rot).
 ## Клиент: + спавнит/удаляет Node3D-модели.
 
-var _remote_scene : PackedScene = null
-var _container    : Node = null
-var _players      : Dictionary = {}   # id → { "position", "rotation", "node" }
-
+var _remote_scene     : PackedScene = null
+var _container        : Node = null
+var _players          : Dictionary = {}   # id → { "position", "rotation", "node" }
+var _local_player_id  : int = 0
+var _local_player_node: Node = null
 
 ## Вызвать на клиенте, чтобы PlayerManager умел спавнить 3D-модели.
 func setup_client(scene: PackedScene, container: Node) -> void:
@@ -85,6 +86,27 @@ func get_all_ids() -> Array:
 func has_player(id: int) -> bool:
 	return id in _players
 
+func set_local_player(id: int, node: Node) -> void:
+	_local_player_id = id
+	_local_player_node = node
+
+
+func clear_local_player() -> void:
+	_local_player_id = 0
+	_local_player_node = null
+
+
+func get_player_node(id: int) -> Node:
+	if id == _local_player_id and _local_player_node != null and is_instance_valid(_local_player_node):
+		return _local_player_node
+
+	if id in _players:
+		var data: Dictionary = _players[id]
+		var node_ref: Variant = data.get("node", null)
+		if node_ref != null and is_instance_valid(node_ref):
+			return node_ref as Node
+
+	return null
 
 ## Очистить всех (при дисконнекте).
 func clear() -> void:

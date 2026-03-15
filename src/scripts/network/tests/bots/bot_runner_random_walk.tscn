@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://w1gihcyvvd1c"]
+
+[ext_resource type="Script" uid="uid://c4o4p0vpoaw0v" path="res://src/scripts/network/tests/bots/bot_load_runner.gd" id="1_14id3"]
+
+[node name="BotRunnerRandomWalk" type="Node2D" unique_id=1792888813]
+script = ExtResource("1_14id3")
+bot_count = 25
+bot_mode = 2

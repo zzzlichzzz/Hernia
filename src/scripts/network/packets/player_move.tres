@@ -1,12 +1,19 @@
 [gd_resource type="Resource" script_class="NetworkPacketDef" format=3 uid="uid://dx4j6vkvgym7u"]
 
-[ext_resource type="Script" uid="uid://3kiamyek5h1n" path="res://src/scripts/network/net/network_packet_def.gd" id="1_script"]
-[ext_resource type="Script" uid="uid://btch1jd2smm4m" path="res://src/scripts/network/net/network_field_def.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://3kiamyek5h1n" path="res://src/scripts/network/protocol/network_packet_def.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://btch1jd2smm4m" path="res://src/scripts/network/protocol/network_field_def.gd" id="2_script"]
 
 [sub_resource type="Resource" id="Resource_a8ed2"]
 resource_name = "peer_id (int, 16bit)"
 script = ExtResource("2_script")
 field_name = "peer_id"
+byte_size = 2
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
+[sub_resource type="Resource" id="Resource_saq2c"]
+resource_name = "tick (int, 16bit)"
+script = ExtResource("2_script")
+field_name = "tick"
 byte_size = 2
 metadata/_custom_type_script = "uid://btch1jd2smm4m"
 
@@ -47,9 +54,12 @@ metadata/_custom_type_script = "uid://btch1jd2smm4m"
 resource_name = "player_move"
 script = ExtResource("1_script")
 packet_name = "player_move"
-send_rate_hz = 20
+packet_id = 1001
+sync_mode = 0
+channel = 1
+send_rate_hz = 30
 server_validates = true
-fields = Array[ExtResource("2_script")]([SubResource("Resource_a8ed2"), SubResource("Resource_gtxbc"), SubResource("Resource_tq747"), SubResource("Resource_hcua1")])
+fields = Array[ExtResource("2_script")]([SubResource("Resource_a8ed2"), SubResource("Resource_saq2c"), SubResource("Resource_gtxbc"), SubResource("Resource_tq747"), SubResource("Resource_hcua1")])
 source_method = "get_network_state"
 receive_method = "apply_network_state"
 validate_max_distance = 50.0

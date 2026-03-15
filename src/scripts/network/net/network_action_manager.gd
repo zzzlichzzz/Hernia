@@ -27,8 +27,11 @@ var _receiver_manager: Object = null
 var _player_manager: PlayerManager = null
 var _auth_data: Dictionary = {}        # peer_id → bool (ссылка на внешний)
 var _last_move_times: Dictionary = {}   # peer_id → { pid → float }
+var _last_move_ticks: Dictionary = {}   # peer_id → { pid → int }
 var _cooldown_times: Dictionary = {}   # peer_id → { action → float }
+var _last_server_ticks: Dictionary = {} # peer_id → { pid → int }
 var _violation_callback: Callable      # (peer_id, reason) → void
+
 
 
 func setup(net: NetworkManager) -> void:
@@ -48,6 +51,12 @@ func setup(net: NetworkManager) -> void:
 				"dirty": false,
 				"accumulator": 0.0,
 				"interval": 1.0 / float(hz),
+
+				# Оптимизация отправки
+				"last_sent_signature": null,
+				"pending_signature": null,
+				"last_sent_time": -1.0,
+				"keepalive": 0.0,
 			}
 		else:
 			_rate_max[pid] = 30
@@ -99,6 +108,10 @@ func clear_sources() -> void:
 	for pid: int in _tick_data:
 		_tick_data[pid]["dirty"] = false
 		_tick_data[pid]["args"] = []
+		_tick_data[pid]["pending_signature"] = null
+		_tick_data[pid]["last_sent_signature"] = null
+		_tick_data[pid]["last_sent_time"] = -1.0
+		_tick_data[pid]["keepalive"] = 0.0
 
 
 func auto_bind_receiver(manager: Object) -> void:
@@ -228,20 +241,22 @@ func send_action_to(peer_id: int, action_name: String, args: Array) -> void:
 		return
 	var meta: Dictionary = GeneratedPackets.PACKETS[pid]
 	var pkt: PackedByteArray = _gp.callv("write_%s" % action_name, args)
-	_net.send_to_peer(peer_id, pkt, 0, _channel_flags(meta["channel"]))
+	var enet_channel := _enet_channel(meta["channel"])
+	_net.send_to_peer(peer_id, pkt, enet_channel, _channel_flags(meta["channel"]))
 	packet_sent.emit(action_name)
 
 
 func _send_immediate(pid: int, action_name: String, args: Array) -> void:
 	var meta: Dictionary = GeneratedPackets.PACKETS[pid]
 	var pkt: PackedByteArray = _gp.callv("write_%s" % action_name, args)
+	var enet_channel := _enet_channel(meta["channel"])
 	var flags := _channel_flags(meta["channel"])
 	if _net.is_server():
 		match meta["sync_mode"]:
-			1: _net.broadcast(pkt, 0, flags)
-			2: _net.broadcast(pkt, 0, flags)
+			1: _net.broadcast(pkt, enet_channel, flags)
+			2: _net.broadcast(pkt, enet_channel, flags)
 	else:
-		_net.send_to_server(pkt, 0, flags)
+		_net.send_to_server(pkt, enet_channel, flags)
 	packet_sent.emit(action_name)
 
 
@@ -261,6 +276,9 @@ func _physics_process(delta: float) -> void:
 			var meta: Dictionary = GeneratedPackets.PACKETS[pid]
 			_send_immediate(pid, meta["name"], td["args"])
 			td["dirty"] = false
+			td["last_sent_signature"] = td.get("pending_signature", null)
+			td["last_sent_time"] = _nam_now()
+			td["pending_signature"] = null
 
 
 func _collect_from_sources() -> void:
@@ -269,7 +287,6 @@ func _collect_from_sources() -> void:
 	for pid: int in _sources:
 		var source: Dictionary = _sources[pid]
 
-		# Безтиповое чтение — не крашит на freed instance
 		var node_ref: Variant = source.get("node", null)
 		if node_ref == null or not is_instance_valid(node_ref):
 			stale.append(pid)
@@ -285,17 +302,37 @@ func _collect_from_sources() -> void:
 		var args := _build_args(pid, meta, state, source["peer_id"])
 
 		if pid in _tick_data:
-			_tick_data[pid]["args"] = args
-			_tick_data[pid]["dirty"] = true
+			var td: Dictionary = _tick_data[pid]
+
+			var force_send: bool = bool(state.get("_net_force_send", false))
+			var signature: Variant = state.get("_net_signature", null)
+			var keepalive: float = float(state.get("_net_keepalive", 0.0))
+
+			# Если пакет уже ждёт своего send tick — просто обновляем его
+			# до самого свежего состояния.
+			if td["dirty"]:
+				td["args"] = args
+				td["pending_signature"] = signature
+				td["keepalive"] = keepalive
+				continue
+
+			if _should_queue_tick_packet(td, signature, keepalive, force_send):
+				td["args"] = args
+				td["dirty"] = true
+				td["pending_signature"] = signature
+				td["keepalive"] = keepalive
 		else:
+			# Для событийных пакетов старое поведение остаётся.
+			if bool(state.get("_net_skip", false)) and not bool(state.get("_net_force_send", false)):
+				continue
 			_send_immediate(pid, meta["name"], args)
 
-	# Убрать мёртвые источники
 	for pid in stale:
 		_sources.erase(pid)
 		if pid in _tick_data:
 			_tick_data[pid]["dirty"] = false
 			_tick_data[pid]["args"] = []
+			_tick_data[pid]["pending_signature"] = null
 
 
 func _build_args(pid: int, meta: Dictionary, state: Dictionary, peer_id: int) -> Array:
@@ -345,8 +382,15 @@ func set_send_rate(action_name: String, hz: int) -> void:
 		return
 	if pid not in _tick_data:
 		_tick_data[pid] = {
-			"args": [], "dirty": false,
-			"accumulator": 0.0, "interval": 1.0 / float(hz),
+			"args": [],
+			"dirty": false,
+			"accumulator": 0.0,
+			"interval": 1.0 / float(hz),
+
+			"last_sent_signature": null,
+			"pending_signature": null,
+			"last_sent_time": -1.0,
+			"keepalive": 0.0,
 		}
 	else:
 		_tick_data[pid]["interval"] = 1.0 / float(hz)
@@ -378,7 +422,9 @@ func _handle_server(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 	if "peer_id" in data:
 		data["peer_id"] = peer_id
 
-	# ── Автовалидация из .tres правил ─────────────
+	if not _accept_packet_tick_server(peer_id, pid, data):
+		return
+
 	if meta["server_validates"]:
 		if not _auto_validate(pid, peer_id, data, meta):
 			return
@@ -386,14 +432,11 @@ func _handle_server(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 			if not (_validators[pid] as Callable).call(peer_id, data):
 				return
 
-	# ── Авто-обновление PlayerManager ─────────────
 	_auto_update_pm(peer_id, data, meta)
 
-	# ── Обработчик ────────────────────────────────
 	if pid in _handlers:
 		(_handlers[pid] as Callable).call(peer_id, data)
 
-	# ── Маршрутизация ─────────────────────────────
 	if sync_mode == 0:
 		return
 
@@ -402,13 +445,15 @@ func _handle_server(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 	for fname in field_names:
 		values.append(data[fname])
 	var pkt: PackedByteArray = _gp.callv("write_%s" % meta["name"], values)
+
+	var enet_channel := _enet_channel(meta["channel"])
 	var flags := _channel_flags(meta["channel"])
 
 	match sync_mode:
-		1: _net.broadcast(pkt, 0, flags)
-		2: _net.broadcast_except(peer_id, pkt, 0, flags)
-		3: _net.broadcast_except(peer_id, pkt, 0, flags)
-		4: _net.send_to_peer(peer_id, pkt, 0, flags)
+		1: _net.broadcast(pkt, enet_channel, flags)
+		2: _net.broadcast_except(peer_id, pkt, enet_channel, flags)
+		3: _net.broadcast_except(peer_id, pkt, enet_channel, flags)
+		4: _net.send_to_peer(peer_id, pkt, enet_channel, flags)
 
 
 func _handle_client(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) -> void:
@@ -422,17 +467,17 @@ func _handle_client(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 
 func _auto_receive(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) -> void:
 	var receive_method: String = meta.get("receive_method", "")
-	var remote_id: int = data.get("peer_id", peer_id)
+	var target_id: int = int(data.get("peer_id", peer_id))
+
 	if _receiver_manager is PlayerManager:
 		var pm := _receiver_manager as PlayerManager
-		if not pm.has_player(remote_id):
-			return
-		var player_data := pm.get_player_data(remote_id)
-		var node: Node = player_data.get("node", null)
+		var node := pm.get_player_node(target_id)
 		if node != null and is_instance_valid(node) and node.has_method(receive_method):
-			node.call(receive_method, remote_id, data)
-	elif _receiver_manager.has_method(receive_method):
-		_receiver_manager.call(receive_method, remote_id, data)
+			node.call(receive_method, target_id, data)
+			return
+
+	if _receiver_manager.has_method(receive_method):
+		_receiver_manager.call(receive_method, target_id, data)
 
 
 # ══════════════════════════════════════════════════
@@ -477,10 +522,7 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 			return false
 
 		if max_speed > 0.0:
-			var dt := 0.05
-			var peer_times: Dictionary = _last_move_times.get(peer_id, {})
-			if pid in peer_times:
-				dt = clampf(now - peer_times[pid], 0.01, 2.0)
+			var dt := _compute_movement_validate_dt(peer_id, pid, data, meta, now)
 			var tolerance: float = meta.get("v_speed_tolerance", 1.5)
 			var max_allowed := max_speed * dt * tolerance
 			if distance > max_allowed:
@@ -506,13 +548,83 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 			_last_move_times[peer_id] = {}
 		_last_move_times[peer_id][pid] = now
 
+		if "tick" in data:
+			if peer_id not in _last_move_ticks:
+				_last_move_ticks[peer_id] = {}
+			_last_move_ticks[peer_id][pid] = int(data["tick"]) & 0xFFFF
+
 	return true
 
+func _compute_movement_validate_dt(
+	peer_id: int,
+	pid: int,
+	data: Dictionary,
+	meta: Dictionary,
+	now: float
+) -> float:
+	var default_dt := 0.05
+
+	var hz: int = int(meta.get("send_rate_hz", 0))
+	if hz > 0:
+		default_dt = 1.0 / float(hz)
+
+	# ── Предпочитаем tick-based dt ─────────────────
+	if "tick" in data:
+		var new_tick := int(data["tick"]) & 0xFFFF
+
+		# Tick у тебя генерируется при collect/get_network_state(),
+		# то есть фактически на physics tick.
+		var tick_rate := float(Engine.physics_ticks_per_second)
+		if tick_rate <= 0.0:
+			tick_rate = 60.0
+
+		var peer_ticks: Dictionary = _last_move_ticks.get(peer_id, {})
+		if pid in peer_ticks:
+			var old_tick := int(peer_ticks[pid])
+			var diff := (new_tick - old_tick) & 0xFFFF
+
+			if diff != 0 and diff < 0x8000:
+				return clampf(float(diff) / tick_rate, default_dt, 2.0)
+
+		return default_dt
+
+	# ── Fallback: server receive time ──────────────
+	var peer_times: Dictionary = _last_move_times.get(peer_id, {})
+	if pid in peer_times:
+		return clampf(now - float(peer_times[pid]), default_dt, 2.0)
+
+	return default_dt
 
 func _report_violation(peer_id: int, reason: String) -> void:
 	if _violation_callback.is_valid():
 		_violation_callback.call(peer_id, reason)
 
+func _accept_packet_tick_server(peer_id: int, pid: int, data: Dictionary) -> bool:
+	if "tick" not in data:
+		return true
+
+	var tick := int(data["tick"]) & 0xFFFF
+
+	if peer_id not in _last_server_ticks:
+		_last_server_ticks[peer_id] = {}
+
+	var peer_ticks: Dictionary = _last_server_ticks[peer_id]
+
+	if pid not in peer_ticks:
+		peer_ticks[pid] = tick
+		return true
+
+	var old_tick := int(peer_ticks[pid])
+	if not _is_newer_u16(tick, old_tick):
+		return false
+
+	peer_ticks[pid] = tick
+	return true
+
+
+func _is_newer_u16(new_tick: int, old_tick: int) -> bool:
+	var diff := (new_tick - old_tick) & 0xFFFF
+	return diff != 0 and diff < 0x8000
 
 # ══════════════════════════════════════════════════
 #  RATE LIMITING
@@ -545,7 +657,9 @@ func _check_rate_limit(peer_id: int, pid: int) -> bool:
 func clear_peer_data(peer_id: int) -> void:
 	_rate_limits.erase(peer_id)
 	_last_move_times.erase(peer_id)
+	_last_move_ticks.erase(peer_id)
 	_cooldown_times.erase(peer_id)
+	_last_server_ticks.erase(peer_id)
 
 
 # ══════════════════════════════════════════════════
@@ -561,8 +675,43 @@ func _find_id(action_name: String) -> int:
 			return pid
 	return -1
 
+func _should_queue_tick_packet(td: Dictionary, signature: Variant, keepalive: float, force_send: bool) -> bool:
+	if force_send:
+		return true
 
-func _channel_flags(channel: int) -> int:
-	if channel == 0:
+	# Если источник не дал signature — оставляем старое поведение:
+	# тик-пакет считается "всегда отправляемым".
+	if signature == null:
+		return true
+
+	var last_signature: Variant = td.get("last_sent_signature", null)
+	if last_signature == null:
+		return true
+
+	if signature != last_signature:
+		return true
+
+	if keepalive > 0.0:
+		var last_sent_time: float = float(td.get("last_sent_time", -1.0))
+		if last_sent_time < 0.0:
+			return true
+		if (_nam_now() - last_sent_time) >= keepalive:
+			return true
+
+	return false
+
+
+func _nam_now() -> float:
+	return float(Time.get_ticks_msec()) * 0.001
+
+func _enet_channel(channel_mode: int) -> int:
+	if channel_mode == 0:
+		return 0
+	return 1
+
+
+func _channel_flags(channel_mode: int) -> int:
+	if channel_mode == 0:
 		return ENetPacketPeer.FLAG_RELIABLE
-	return ENetPacketPeer.FLAG_UNSEQUENCED
+	# Обычный unreliable sequenced
+	return 0

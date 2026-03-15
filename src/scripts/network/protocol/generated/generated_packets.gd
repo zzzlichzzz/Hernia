@@ -1,18 +1,20 @@
 # ═══════════════════════════════════════════════════
 # AUTO-GENERATED — DO NOT EDIT
 # Source: res://src/scripts/network/actions/
-# Date:   2026-03-10T20:42:53
+# Date:   2026-03-12T23:39:10
 # ═══════════════════════════════════════════════════
 class_name GeneratedPackets
 
-const BLOCK_BREAK_ID := 53016
-const BLOCK_PLACE_ID := 51992
-const CHAMELEON_PAINT_ID := 61104
-const PLAYER_MOVE_ID := 37676
+const BLOCK_BREAK_ID := 1101
+const BLOCK_PLACE_ID := 1102
+const CHAMELEON_PAINT_ID := 1000
+const PLAYER_CORRECTION_ID := 1002
+const PLAYER_MOVE_ID := 1001
+const PLAYER_SNAPSHOT_ID := 1003
 
 ## Метаданные пакетов для NetworkActionManager
 const PACKETS := {
-	53016: {
+	1101: {
 		"name": "block_break",
 		"sync_mode": 3,
 		"channel": 0,
@@ -32,7 +34,7 @@ const PACKETS := {
 		"v_position_field": "block_position",
 		"v_max_action_dist": 12.0,
 	},
-	51992: {
+	1102: {
 		"name": "block_place",
 		"sync_mode": 3,
 		"channel": 0,
@@ -52,7 +54,7 @@ const PACKETS := {
 		"v_position_field": "block_position",
 		"v_max_action_dist": 12.0,
 	},
-	61104: {
+	1000: {
 		"name": "chameleon_paint",
 		"sync_mode": 3,
 		"channel": 0,
@@ -72,17 +74,37 @@ const PACKETS := {
 		"v_position_field": "block_position",
 		"v_max_action_dist": 12.0,
 	},
-	37676: {
+	1002: {
+		"name": "player_correction",
+		"sync_mode": 4,
+		"channel": 1,
+		"server_validates": false,
+		"field_names": ["peer_id", "tick", "position", "head_pitch", "body_yaw"],
+		"send_rate_hz": 0,
+		"source_method": "",
+		"receive_method": "apply_correction_state",
+		"auto_peer_id": false,
+		"source_keys": {"peer_id": "peer_id", "tick": "tick", "position": "position", "head_pitch": "head_pitch", "body_yaw": "body_yaw"},
+		"v_player_exists": true,
+		"v_authenticated": true,
+		"v_max_distance": 0.0,
+		"v_max_speed": 0.0,
+		"v_speed_tolerance": 1.5,
+		"v_cooldown": 0.0,
+		"v_position_field": "position",
+		"v_max_action_dist": 0.0,
+	},
+	1001: {
 		"name": "player_move",
-		"sync_mode": 3,
-		"channel": 0,
+		"sync_mode": 0,
+		"channel": 1,
 		"server_validates": true,
-		"field_names": ["peer_id", "position", "head_pitch", "body_yaw"],
+		"field_names": ["peer_id", "tick", "position", "head_pitch", "body_yaw"],
 		"send_rate_hz": 20,
 		"source_method": "get_network_state",
 		"receive_method": "apply_network_state",
 		"auto_peer_id": true,
-		"source_keys": {"peer_id": "peer_id", "position": "position", "head_pitch": "rotation.x", "body_yaw": "rotation.y"},
+		"source_keys": {"peer_id": "peer_id", "tick": "tick", "position": "position", "head_pitch": "rotation.x", "body_yaw": "rotation.y"},
 		"v_player_exists": true,
 		"v_authenticated": true,
 		"v_max_distance": 50.0,
@@ -92,10 +114,30 @@ const PACKETS := {
 		"v_position_field": "position",
 		"v_max_action_dist": 0.0,
 	},
+	1003: {
+		"name": "player_snapshot",
+		"sync_mode": 1,
+		"channel": 1,
+		"server_validates": false,
+		"field_names": ["peer_id", "tick", "position", "head_pitch", "body_yaw"],
+		"send_rate_hz": 0,
+		"source_method": "",
+		"receive_method": "apply_network_state",
+		"auto_peer_id": false,
+		"source_keys": {"peer_id": "peer_id", "tick": "tick", "position": "position", "head_pitch": "head_pitch", "body_yaw": "body_yaw"},
+		"v_player_exists": true,
+		"v_authenticated": true,
+		"v_max_distance": 0.0,
+		"v_max_speed": 0.0,
+		"v_speed_tolerance": 1.5,
+		"v_cooldown": 0.0,
+		"v_position_field": "position",
+		"v_max_action_dist": 0.0,
+	},
 }
 
 
-# ─── block_break (id=53016, 16 bytes (fixed)) ───
+# ─── block_break (id=1101, 16 bytes (fixed)) ───
 
 static func write_block_break(peer_id: int, block_position: Vector3) -> PackedByteArray:
 	var _b := StreamPeerBuffer.new()
@@ -104,7 +146,7 @@ static func write_block_break(peer_id: int, block_position: Vector3) -> PackedBy
 	_b.put_float(block_position.x)
 	_b.put_float(block_position.y)
 	_b.put_float(block_position.z)
-	return PacketTypes.write_packet(53016, _b.data_array)
+	return PacketTypes.write_packet(1101, _b.data_array)
 
 
 static func read_block_break(_b: StreamPeerBuffer) -> Dictionary:
@@ -116,7 +158,7 @@ static func read_block_break(_b: StreamPeerBuffer) -> Dictionary:
 	}
 
 
-# ─── block_place (id=51992, 18 bytes (fixed)) ───
+# ─── block_place (id=1102, 18 bytes (fixed)) ───
 
 static func write_block_place(peer_id: int, block_position: Vector3, block_id: int) -> PackedByteArray:
 	var _b := StreamPeerBuffer.new()
@@ -126,7 +168,7 @@ static func write_block_place(peer_id: int, block_position: Vector3, block_id: i
 	_b.put_float(block_position.y)
 	_b.put_float(block_position.z)
 	_b.put_u16(block_id)
-	return PacketTypes.write_packet(51992, _b.data_array)
+	return PacketTypes.write_packet(1102, _b.data_array)
 
 
 static func read_block_place(_b: StreamPeerBuffer) -> Dictionary:
@@ -140,7 +182,7 @@ static func read_block_place(_b: StreamPeerBuffer) -> Dictionary:
 	}
 
 
-# ─── chameleon_paint (id=61104, 18 bytes (fixed)) ───
+# ─── chameleon_paint (id=1000, 18 bytes (fixed)) ───
 
 static func write_chameleon_paint(peer_id: int, block_position: Vector3, source_block_id: int) -> PackedByteArray:
 	var _b := StreamPeerBuffer.new()
@@ -150,7 +192,7 @@ static func write_chameleon_paint(peer_id: int, block_position: Vector3, source_
 	_b.put_float(block_position.y)
 	_b.put_float(block_position.z)
 	_b.put_u16(source_block_id)
-	return PacketTypes.write_packet(61104, _b.data_array)
+	return PacketTypes.write_packet(1000, _b.data_array)
 
 
 static func read_chameleon_paint(_b: StreamPeerBuffer) -> Dictionary:
@@ -164,27 +206,90 @@ static func read_chameleon_paint(_b: StreamPeerBuffer) -> Dictionary:
 	}
 
 
-# ─── player_move (id=37676, 18 bytes (fixed)) ───
+# ─── player_correction (id=1002, 20 bytes (fixed)) ───
 
-static func write_player_move(peer_id: int, position: Vector3, head_pitch: float, body_yaw: float) -> PackedByteArray:
+static func write_player_correction(peer_id: int, tick: int, position: Vector3, head_pitch: float, body_yaw: float) -> PackedByteArray:
 	var _b := StreamPeerBuffer.new()
 	_b.big_endian = false
 	_b.put_u16(peer_id)
+	_b.put_u16(tick)
 	_b.put_float(position.x)
 	_b.put_float(position.y)
 	_b.put_float(position.z)
 	_b.put_u16(int(clampf((head_pitch - (-1.5)) / ((1.5) - (-1.5)), 0.0, 1.0) * 65535.0))
 	_b.put_u16(int(clampf((body_yaw - (-3.15)) / ((3.15) - (-3.15)), 0.0, 1.0) * 65535.0))
-	return PacketTypes.write_packet(37676, _b.data_array)
+	return PacketTypes.write_packet(1002, _b.data_array)
 
 
-static func read_player_move(_b: StreamPeerBuffer) -> Dictionary:
+static func read_player_correction(_b: StreamPeerBuffer) -> Dictionary:
 	var _peer_id := _b.get_u16()
+	var _tick := _b.get_u16()
 	var _position := Vector3(_b.get_float(), _b.get_float(), _b.get_float())
 	var _head_pitch := (-1.5) + (float(_b.get_u16()) / 65535.0) * ((1.5) - (-1.5))
 	var _body_yaw := (-3.15) + (float(_b.get_u16()) / 65535.0) * ((3.15) - (-3.15))
 	return {
 		"peer_id": _peer_id,
+		"tick": _tick,
+		"position": _position,
+		"head_pitch": _head_pitch,
+		"body_yaw": _body_yaw,
+	}
+
+
+# ─── player_move (id=1001, 20 bytes (fixed)) ───
+
+static func write_player_move(peer_id: int, tick: int, position: Vector3, head_pitch: float, body_yaw: float) -> PackedByteArray:
+	var _b := StreamPeerBuffer.new()
+	_b.big_endian = false
+	_b.put_u16(peer_id)
+	_b.put_u16(tick)
+	_b.put_float(position.x)
+	_b.put_float(position.y)
+	_b.put_float(position.z)
+	_b.put_u16(int(clampf((head_pitch - (-1.5)) / ((1.5) - (-1.5)), 0.0, 1.0) * 65535.0))
+	_b.put_u16(int(clampf((body_yaw - (-3.15)) / ((3.15) - (-3.15)), 0.0, 1.0) * 65535.0))
+	return PacketTypes.write_packet(1001, _b.data_array)
+
+
+static func read_player_move(_b: StreamPeerBuffer) -> Dictionary:
+	var _peer_id := _b.get_u16()
+	var _tick := _b.get_u16()
+	var _position := Vector3(_b.get_float(), _b.get_float(), _b.get_float())
+	var _head_pitch := (-1.5) + (float(_b.get_u16()) / 65535.0) * ((1.5) - (-1.5))
+	var _body_yaw := (-3.15) + (float(_b.get_u16()) / 65535.0) * ((3.15) - (-3.15))
+	return {
+		"peer_id": _peer_id,
+		"tick": _tick,
+		"position": _position,
+		"head_pitch": _head_pitch,
+		"body_yaw": _body_yaw,
+	}
+
+
+# ─── player_snapshot (id=1003, 20 bytes (fixed)) ───
+
+static func write_player_snapshot(peer_id: int, tick: int, position: Vector3, head_pitch: float, body_yaw: float) -> PackedByteArray:
+	var _b := StreamPeerBuffer.new()
+	_b.big_endian = false
+	_b.put_u16(peer_id)
+	_b.put_u16(tick)
+	_b.put_float(position.x)
+	_b.put_float(position.y)
+	_b.put_float(position.z)
+	_b.put_u16(int(clampf((head_pitch - (-1.5)) / ((1.5) - (-1.5)), 0.0, 1.0) * 65535.0))
+	_b.put_u16(int(clampf((body_yaw - (-3.15)) / ((3.15) - (-3.15)), 0.0, 1.0) * 65535.0))
+	return PacketTypes.write_packet(1003, _b.data_array)
+
+
+static func read_player_snapshot(_b: StreamPeerBuffer) -> Dictionary:
+	var _peer_id := _b.get_u16()
+	var _tick := _b.get_u16()
+	var _position := Vector3(_b.get_float(), _b.get_float(), _b.get_float())
+	var _head_pitch := (-1.5) + (float(_b.get_u16()) / 65535.0) * ((1.5) - (-1.5))
+	var _body_yaw := (-3.15) + (float(_b.get_u16()) / 65535.0) * ((3.15) - (-3.15))
+	return {
+		"peer_id": _peer_id,
+		"tick": _tick,
 		"position": _position,
 		"head_pitch": _head_pitch,
 		"body_yaw": _body_yaw,

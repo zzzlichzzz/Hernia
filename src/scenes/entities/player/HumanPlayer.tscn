@@ -2,8 +2,8 @@
 
 [ext_resource type="PackedScene" uid="uid://bquqq0ni2vmj4" path="res://src/scenes/entities/player/base/BasePlayer.tscn" id="1_5es4h"]
 [ext_resource type="Script" uid="uid://cul5psgkyxkpp" path="res://src/scripts/entities/player/human_player.gd" id="2_twyb4"]
-[ext_resource type="PackedScene" uid="uid://bb1srelhjc6b7" path="res://src/scenes/entities/player/modules/BlockInteraction.tscn" id="3_u1arh"]
 [ext_resource type="PackedScene" uid="uid://cuwen1askdtab" path="res://src/scenes/entities/player/modules/CreativeInventory.tscn" id="4_rl2wk"]
+[ext_resource type="PackedScene" uid="uid://dwpcq2f0rxhsn" path="res://src/scenes/entities/player/modules/BlockInteraction.tscn" id="5_exr5t"]
 [ext_resource type="PackedScene" uid="uid://cnwqn0s8f7ml3" path="res://src/scenes/entities/player/modules/Hotbar.tscn" id="7_u1arh"]
 
 [node name="HumanPlayer" unique_id=1161119951 instance=ExtResource("1_5es4h")]
@@ -13,4 +13,4 @@ script = ExtResource("2_twyb4")
 
 [node name="HotBar" parent="." index="5" unique_id=17073395 instance=ExtResource("7_u1arh")]
 
-[node name="BlockInteraction" parent="." index="6" unique_id=1451133203 instance=ExtResource("3_u1arh")]
+[node name="BlockInteraction" parent="." index="6" unique_id=1451133203 instance=ExtResource("5_exr5t")]

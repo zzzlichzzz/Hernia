@@ -46,7 +46,7 @@ func _ready():
 			await get_tree().create_timer(1.0).timeout
 			call_deferred("_build_library")
 	
-func _build_library(blocks: Array[ItemData]):
+func _build_library(blocks: Dictionary[int, ItemData]):
 	if debug_mode:
 		print("🏗️ АВТОСБОРЩИК БИБЛИОТЕКИ БЛОКОВ")
 		if Engine.is_editor_hint():
@@ -80,16 +80,11 @@ func _build_library(blocks: Array[ItemData]):
 	
 	if debug_mode:
 		print("\n🧱 ШАГ 4: Добавление блоков")
-	for file_path in blocks:
-		_process_block_definition(file_path)
+	for file_path in blocks.size() + 1:
+		if file_path == 0: continue
+		_process_block_definition(blocks.get(file_path))
 	
-	# ══════════════════════════════════════════
-	#  НОВОЕ: Регистрация хамелеонов (после всех обычных блоков!)
-	# ══════════════════════════════════════════
-	if debug_mode:
-		print("\n🔄 ШАГ 4.5: Регистрация хамелеон-блоков")
-	_register_chameleon_blocks()
-	# ══════════════════════════════════════════
+
 	
 	if debug_mode:
 		print("\n🔥 ШАГ 5: Запекание библиотеки")
@@ -256,6 +251,9 @@ func _process_block_definition(def_resource: ItemData):
 		#if debug_mode:
 			#print("   ❌ Неверный формат: ", file_path)
 		#return
+	if def_resource == null or def_resource.id == "empty": 
+		_add_air()
+		return
 	
 	var def: ItemBlock = def_resource
 	
@@ -274,7 +272,9 @@ func _process_block_definition(def_resource: ItemData):
 	
 	# Хамелеон — откладываем
 	if def.getBlockDefinition().is_chameleon:
-		_chameleon_defs.append(def)
+		_register_chameleon_blocks(def)
+		
+	
 		if debug_mode:
 			print("   🔄 Хамелеон отложен: ", def.getBlockDefinition().block_name)
 		return
@@ -293,7 +293,7 @@ func _process_block_definition(def_resource: ItemData):
 		print("   📐 Меш (surfaces: ", def.getBlockDefinition().model.get_surface_count(), ")")
 	
 	var model = VoxelBlockyModelMesh.new()
-	model.resource_name = def.getBlockDefinition().block_name
+	model.resource_name = def.resource_name
 	model.mesh = def.getBlockDefinition().model
 	model.culls_neighbors = def.getBlockDefinition().culls_neighbors
 	model.transparency_index = def.getBlockDefinition().transparency_index
@@ -325,7 +325,7 @@ func _process_block_definition(def_resource: ItemData):
 	if primary_tex == "":
 		if def.getBlockDefinition().texture_side != "":
 			primary_tex = def.getBlockDefinition().texture_side
-		elif def.texture_top != "":
+		elif def.getBlockDefinition().texture_top != "":
 			primary_tex = def.getBlockDefinition().texture_top
 	if primary_tex != "":
 		_block_id_to_texture[id] = primary_tex
@@ -390,11 +390,11 @@ static func get_block_id(block_name: String) -> int:
 #  ХАМЕЛЕОН — СБОРКА (без ChameleonManager!)
 # ═══════════════════════════════════════════════════════════
 
-func _register_chameleon_blocks():
-	if _chameleon_defs.is_empty():
-		if debug_mode:
-			print("   ℹ️ Хамелеон-блоки не найдены")
-		return
+func _register_chameleon_blocks(cham_def: ItemData):
+	#if _chameleon_defs.is_empty():
+		#if debug_mode:
+			#print("   ℹ️ Хамелеон-блоки не найдены")
+		#return
 	
 	var chameleon_shader: Shader = null
 	if ResourceLoader.exists(CHAMELEON_SHADER_PATH):
@@ -420,39 +420,39 @@ func _register_chameleon_blocks():
 	# чтобы data-текстуры были общими
 	var shared_material: ShaderMaterial = null
 	
-	for cham_def in _chameleon_defs:
+	#for cham_def in _chameleon_defs:
+	if debug_mode:
+		print("\n   🔄 Регистрация хамелеона: ", cham_def.getBlockDefinition().block_name)
+	
+	if cham_def.getBlockDefinition().model == null:
+		print("   ❌ У хамелеона нет модели!")
+		#continue
+	
+	var model = VoxelBlockyModelMesh.new()
+	model.resource_name = cham_def.id
+	model.mesh = cham_def.getBlockDefinition().model
+	model.culls_neighbors = cham_def.getBlockDefinition().culls_neighbors
+	model.transparency_index = cham_def.getBlockDefinition().transparency_index
+	model.collision_aabbs = cham_def.getBlockDefinition().collision_aabbs
+	model.set("collision_enabled_0", cham_def.getBlockDefinition().collision_enabled)
+	
+	# Создаём материал только один раз, потом переиспользуем
+	if shared_material == null:
+		shared_material = _create_chameleon_material(
+			chameleon_shader, atlas_texture, cham_def.getBlockDefinition().texture_name)
+	
+	if shared_material:
+		model.set_material_override(0, shared_material)
 		if debug_mode:
-			print("\n   🔄 Регистрация хамелеона: ", cham_def.getBlockDefinition().block_name)
-		
-		if cham_def.getBlockDefinition().model == null:
-			print("   ❌ У хамелеона нет модели!")
-			continue
-		
-		var model = VoxelBlockyModelMesh.new()
-		model.resource_name = cham_def.getBlockDefinition().block_name
-		model.mesh = cham_def.getBlockDefinition().model
-		model.culls_neighbors = cham_def.getBlockDefinition().culls_neighbors
-		model.transparency_index = cham_def.getBlockDefinition().transparency_index
-		model.collision_aabbs = cham_def.getBlockDefinition().collision_aabbs
-		model.set("collision_enabled_0", cham_def.getBlockDefinition().collision_enabled)
-		
-		# Создаём материал только один раз, потом переиспользуем
-		if shared_material == null:
-			shared_material = _create_chameleon_material(
-				chameleon_shader, atlas_texture, cham_def.getBlockDefinition().texture_name)
-		
-		if shared_material:
-			model.set_material_override(0, shared_material)
-			if debug_mode:
-				print("   ✅ Шейдер хамелеона применён")
-		
+			print("   ✅ Шейдер хамелеона применён")
+	
 
-		var id = library.add_model(model)
-		_chameleon_voxel_ids.append(id)       # ← добавляем в массив
-		block_count += 1
-		
-		if debug_mode:
-			print("   ✅ Хамелеон добавлен с ID: ", id)
+	var id = library.add_model(model)
+	_chameleon_voxel_ids.append(id)       # ← добавляем в массив
+	block_count += 1
+	
+	if debug_mode:
+		print("   ✅ Хамелеон добавлен с ID: ", id)
 	
 	if debug_mode:
 		print("\n   📊 Всего хамелеонов: ", _chameleon_voxel_ids.size())

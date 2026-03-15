@@ -1,10 +1,18 @@
-extends VoxelTerrain
+class_name CustomTerrain extends VoxelTerrain
 
 const CONFIG_PATH := "user://voxel_settings.cfg"
 var _settings_loaded: bool = false
 
+
+var _terrain: VoxelTerrain = null
+var _terrain_tool: VoxelTool = null
+var _voxel_size: float = 1.0
+
+
 func _ready():
 	add_to_group("voxel_terrain")
+	_terrain = self
+	_setup_terrain_tool()
 	load_settings()
 
 func load_settings():
@@ -28,3 +36,19 @@ func _apply_settings(view_dist: int, collisions: bool, gpu: bool):
 
 func update_view_distance(new_distance: int):
 	max_view_distance = new_distance
+
+func _setup_terrain_tool():
+	if _terrain == null:
+		return
+
+	_terrain_tool = _terrain.get_voxel_tool()
+	_terrain_tool.channel = VoxelBuffer.CHANNEL_TYPE
+	_terrain_tool.mode = VoxelTool.MODE_SET
+	_voxel_size = 1.0
+#
+	#var cham = ChameleonManager.get_instance()
+	#if cham:
+		#cham.connect_to_terrain(_terrain)
+
+	print("✅ Terrain найден: ", _terrain.name)
+	#terrain_found.emit(_terrain)

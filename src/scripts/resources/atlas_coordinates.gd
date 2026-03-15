@@ -33,6 +33,8 @@ func get_icon_texture(name: String) -> ImageTexture:
 	var atlas_coords = load(icon_path_coordinates)
 	if name == "air":
 		return ImageTexture.new()
+	if name == "empty":
+		return ImageTexture.new()
 	var data = atlas_coords.coordinates[name]
 	var texture = ImageTexture
 	if data.x + data.width <= img.get_width() and data.y + data.height <= img.get_height():

@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://dtum5qtbrhecq"]
+
+[ext_resource type="Script" uid="uid://0q5m81n7vx7n" path="res://src/scripts/entities/interaction/player_interaction.gd" id="1_axumi"]
+
+[node name="Test" type="Node3D" unique_id=2092803906]
+
+[node name="PlayerInteraction" type="Node3D" parent="." unique_id=1393239863]
+script = ExtResource("1_axumi")
+metadata/_custom_type_script = "uid://0q5m81n7vx7n"

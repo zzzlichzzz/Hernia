@@ -6,4 +6,4 @@
 [node name="ClientMain" type="Node3D" unique_id=504714921]
 script = ExtResource("1_6b4o1")
 
-[node name="World" parent="." unique_id=327434639 instance=ExtResource("2_dtaj1")]
+[node name="World" parent="." unique_id=1666085922 instance=ExtResource("2_dtaj1")]

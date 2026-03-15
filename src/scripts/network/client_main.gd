@@ -16,6 +16,9 @@ var _ping_timer : Timer
 
 
 func _ready() -> void:
+	if Global.server_start:
+		var client_scene = preload("res://src/scripts/network/server_main.tscn").instantiate()
+		add_child(client_scene)
 	_net = NetworkManager.new()
 	_net.name = "NetworkManager"
 	add_child(_net)

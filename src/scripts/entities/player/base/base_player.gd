@@ -94,6 +94,7 @@ func _physics_process(delta: float) -> void:
 		_process_local(delta)
 	else:
 		_process_remote(delta)
+	
 
 
 ## Логика локального игрока. Переопределяется в наследниках.

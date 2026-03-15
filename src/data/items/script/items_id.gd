@@ -6,8 +6,7 @@ const size_block = 65536 + 1
 @export var list_id: Dictionary[String, int]
 
 
-var it = [4, 3, 2, 5]
-var v = [3,2,3]
+var errors: Dictionary[String, int]
 
 
 var item_id: int
@@ -15,9 +14,6 @@ var item_string: String
 var list_id_null: Dictionary[int, String]
 
 var temp_file: Item_Id_Registry
-
-func _ready() -> void:
-	pass # Replace with function body.
 
 
 func registry_id(array: ItemLibrary):
@@ -30,41 +26,73 @@ func registry_id(array: ItemLibrary):
 	var s = array.getArray("consumble_item")
 	var z = array.getArray("block_item").duplicate()
 
+	
+	var count_new_item = count_new_element(s)
+	check_items(s)
+	
+	if count_new_item.size() != 0:
+		var count = count_item()
+		for i in count_new_item.size():
+			if temp_id.get(list_id.get(count_new_item.get(i).id)) != null: 
+				count += 1
+				continue
+			list_id.set(count_new_item.get(i).id, i + count + size_block)
+			temp_id.set(i + count + size_block, count_new_item.get(i).id)
 
-	var size_item = s.size()
+	var count_new_block = count_new_element(z)
+	var without_element = without_new_element(z)
 	
+	check_blocks(without_element)
 	
+	if count_new_block.size() != 0:
+		var count = count_block()
+		for a in count_new_block.size():
+			if temp_id.get(list_id.get(count_new_block.get(a).id)) != null: 
+				count += 1
+				continue 
+			list_id.set(count_new_block.get(a).id, a + count)
+			temp_id.set(count + a, count_new_block.get(a).id)
+		
+		
+	save_resource()
+
+func count_item() -> int:
+	var count = 0
+	for v in list_id.keys():
+		if list_id.get(v) < size_block: continue
+		count += 1
+	return count
+
+func count_block() -> int:
+	var count = 0
+	for v in list_id.keys():
+		if list_id.get(v) >= size_block: continue
+		count += 1
+	return count
+	
+
+func test_check_items(s: Array[ItemData]) ->  void:
 	for a in list_id.keys():
 		if list_id.get(a) < size_block: continue
 		if s.any(func(obj): return obj.id == a): continue
 		push_error("Ошибка, данный предмет был удалён, с помощью интерфейса вручную измените. Id:{id}, Id Item:{item}".format({"id": list_id.get(a), "item": a}))
-		
+		errors.set(a, list_id.get(a))
 
-	
-	for i in s.size():
-		if list_id.get(s.get(i).id) != null: continue
-		list_id.set(s.get(i).id, i + size_block)
-		temp_id.set(i + size_block, s.get(i).id)
 
-	
-	var count_new = count_new_element(z)
-	var without_element = without_new_element(z)
-	
-	
+func test_check_blocks(without_element: Array[ItemData]) ->  void:
 	for a in list_id.keys():
 		if list_id.get(a) >= size_block: continue
 		if without_element.any(func(obj): return obj.id == a): continue
 		push_error("Ошибка, данный предмет был удалён, с помощью интерфейса вручную измените Id:{id}, Id Block:{block}".format({"id": list_id.get(a), "block": a}))
+		errors.set(a, list_id.get(a))
 
-	if count_new.size() != 0:
-		for a in count_new.size() + 1:
-			if a == 0: a += 1
-			list_id.set(count_new.get(a - 1).id, z.size() - count_new.size() + a - 1)
-			temp_id.set(z.size() - count_new.size() + a - 1, count_new.get(a - 1).id)
-		
-		
-	save_resource()
-	
+
+func check_items(s: Array[ItemData]) -> void:
+	test_check_items(s)
+
+func check_blocks(without_element: Array[ItemData]) -> void:
+	test_check_blocks(without_element)
+
 func without_new_element(array: Array[ItemData]) -> Array[ItemData]:
 	var count: Array[ItemData] = []
 	for a in array:

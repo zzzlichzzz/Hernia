@@ -18,7 +18,15 @@ func _ready() -> void:
 # Обработчик кнопки "Запустить сервер"
 func _on_btn_single_pressed() -> void:
 	print("Запуск одичной игры...")
-	get_tree().change_scene_to_file("res://src/scenes/testing/SingleScene.tscn")
+	#var d: Thread = Thread.new()
+	#var scene2 = load("res://src/scripts/network/server_main.tscn")
+	#d.start(scene2)
+	get_tree().change_scene_to_file("res://src/scripts/network/client_main.tscn")
+	
+	#get_tree().change_scene_to_file("res://src/scripts/network/client_main.tscn")
+
+func _start_server() -> void:
+	pass	
 
 func _on_btn_server_pressed() -> void:
 	print("Запуск сервера...")

@@ -12,7 +12,7 @@ class_name ItemData extends Resource
 @export var world_mesh: Mesh
 @export var consumable: bool = false
 
-var id_int: int
+@export var id_int: int
 
 
 func get_id_int() -> int:

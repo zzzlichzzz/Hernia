@@ -1,12 +1,12 @@
-[gd_resource type="Resource" script_class="ItemArrayRegistry" format=3]
+[gd_resource type="Resource" script_class="ItemArrayRegistry" format=3 uid="uid://dg4nepvldu1pb"]
 
-[ext_resource type="Script" path="res://src/data/items/type/item_data.gd" id="1_re842"]
-[ext_resource type="Script" path="res://src/data/items/type/item_block.gd" id="2_joq86"]
-[ext_resource type="ArrayMesh" path="res://src/assets/models/blocks/cube.obj" id="3_07xnq"]
-[ext_resource type="Script" path="res://src/data/blocks/block_definition.gd" id="4_bgqht"]
-[ext_resource type="ArrayMesh" path="res://src/assets/models/blocks/stair_block.obj" id="5_4xjeh"]
-[ext_resource type="Script" path="res://src/data/items/type/item_consumable.gd" id="6_4x2x5"]
-[ext_resource type="Script" path="res://src/data/items/item_array_registry.gd" id="7_1372b"]
+[ext_resource type="Script" uid="uid://dknjrr6s5fwlj" path="res://src/data/items/type/item_data.gd" id="1_re842"]
+[ext_resource type="Script" uid="uid://bhox1u5qj13c3" path="res://src/data/items/type/item_block.gd" id="2_joq86"]
+[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/models/blocks/cube.obj" id="3_07xnq"]
+[ext_resource type="Script" uid="uid://c4qx5vqwkdro2" path="res://src/data/blocks/block_definition.gd" id="4_bgqht"]
+[ext_resource type="ArrayMesh" uid="uid://cdrw07cs74bqw" path="res://src/assets/models/blocks/stair_block.obj" id="5_4xjeh"]
+[ext_resource type="Script" uid="uid://dkfwwcqcapdoq" path="res://src/data/items/type/item_consumable.gd" id="6_4x2x5"]
+[ext_resource type="Script" uid="uid://cf4nqob3pfxot" path="res://src/data/items/item_array_registry.gd" id="7_1372b"]
 
 [sub_resource type="Resource" id="Resource_8lnn7"]
 resource_name = "empty"

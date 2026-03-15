@@ -41,12 +41,6 @@ var items: ItemArrayRegistry
 var item_path = "res://src/data/items/registry/items.tres"
 
 
-	
-func _ready() -> void:
-	items = load(item_path)
-	_find_and_setup_terrain()
-	_setup_terrain_tool()
-	_inventory = $"../Inventory"
 
 # ══════════════════════════════════════════════════
 #  ПЕРЕОПРЕДЕЛЕНИЯ InteractionModule
@@ -59,6 +53,7 @@ func _get_module_name() -> String:
 func _on_module_ready() -> void:
 	await get_tree().process_frame
 	_find_inventory()
+	items = load(item_path)
 	if search_terrain_on_ready:
 		_find_and_setup_terrain()
 	get_tree().node_added.connect(_on_node_added)
@@ -165,6 +160,7 @@ func _handle_input():
 			var place_pos = target["place_position"]
 			if _can_place_at(place_pos):
 				_place_block(place_pos)
+				
 		_place_timer = place_cooldown
 
 	if Input.is_action_just_pressed("pick_block"):

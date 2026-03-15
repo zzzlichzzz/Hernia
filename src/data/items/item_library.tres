@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://dknjrr6s5fwlj" path="res://src/data/items/script/type/item_data.gd" id="1_x613m"]
 [ext_resource type="Script" uid="uid://c4qx5vqwkdro2" path="res://src/data/blocks/block_definition.gd" id="2_n3j2i"]
 [ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/models/blocks/cube.obj" id="2_x613m"]
-[ext_resource type="Script" uid="uid://bhox1u5qj13c3" path="res://src/data/items/script/type/item_block.gd" id="3_0g1uf"]
+[ext_resource type="Script" uid="uid://clldg2lgi5i0r" path="res://src/data/items/script/type/item_block_voxel.gd" id="5_0g1uf"]
 [ext_resource type="ArrayMesh" uid="uid://cdrw07cs74bqw" path="res://src/assets/models/blocks/stair_block.obj" id="5_x613m"]
 [ext_resource type="Script" uid="uid://dkfwwcqcapdoq" path="res://src/data/items/script/type/item_consumable.gd" id="6_kpjdi"]
 [ext_resource type="Script" uid="uid://ci7ob21y7q5ce" path="res://src/data/items/item_library.gd" id="9_a666k"]
@@ -14,7 +14,7 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 
 [sub_resource type="Resource" id="Resource_lpmgl"]
 resource_name = "empty"
-script = ExtResource("3_0g1uf")
+script = ExtResource("5_0g1uf")
 block_definition = SubResource("Resource_il4ia")
 id = &"empty"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
@@ -33,7 +33,7 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 
 [sub_resource type="Resource" id="Resource_s5eag"]
 resource_name = "block_grass"
-script = ExtResource("3_0g1uf")
+script = ExtResource("5_0g1uf")
 block_definition = SubResource("Resource_0g1uf")
 id = &"block_grass"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
@@ -49,7 +49,7 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 
 [sub_resource type="Resource" id="Resource_x613m"]
 resource_name = "chameleon"
-script = ExtResource("3_0g1uf")
+script = ExtResource("5_0g1uf")
 block_definition = SubResource("Resource_n3j2i")
 id = &"chameleon"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
@@ -63,7 +63,7 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 
 [sub_resource type="Resource" id="Resource_j5g3c"]
 resource_name = "cherry_planks"
-script = ExtResource("3_0g1uf")
+script = ExtResource("5_0g1uf")
 block_definition = SubResource("Resource_kpjdi")
 id = &"cherry_planks"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
@@ -80,7 +80,7 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 
 [sub_resource type="Resource" id="Resource_60gwa"]
 resource_name = "cherry_stair"
-script = ExtResource("3_0g1uf")
+script = ExtResource("5_0g1uf")
 block_definition = SubResource("Resource_vfjgj")
 id = &"cherry_stair"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
@@ -93,7 +93,7 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 
 [sub_resource type="Resource" id="Resource_ap1cu"]
 resource_name = "test8"
-script = ExtResource("3_0g1uf")
+script = ExtResource("5_0g1uf")
 block_definition = SubResource("Resource_d76le")
 id = &"test8"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
@@ -107,7 +107,7 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 
 [sub_resource type="Resource" id="Resource_6xypv"]
 resource_name = "dirt"
-script = ExtResource("3_0g1uf")
+script = ExtResource("5_0g1uf")
 block_definition = SubResource("Resource_wy1tp")
 id = &"dirt"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
@@ -121,7 +121,7 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 
 [sub_resource type="Resource" id="Resource_dok7y"]
 resource_name = "stone"
-script = ExtResource("3_0g1uf")
+script = ExtResource("5_0g1uf")
 block_definition = SubResource("Resource_s6v2o")
 id = &"stone"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
@@ -138,7 +138,7 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 
 [sub_resource type="Resource" id="Resource_k2w68"]
 resource_name = "stair_chameleon"
-script = ExtResource("3_0g1uf")
+script = ExtResource("5_0g1uf")
 block_definition = SubResource("Resource_a666k")
 id = &"stair_chameleon"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
@@ -151,7 +151,7 @@ metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
 
 [sub_resource type="Resource" id="Resource_ra3ex"]
 resource_name = "tes75gg"
-script = ExtResource("3_0g1uf")
+script = ExtResource("5_0g1uf")
 block_definition = SubResource("Resource_tdxnx")
 id = &"tes75gg"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"

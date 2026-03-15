@@ -13,4 +13,8 @@ script = ExtResource("2_twyb4")
 
 [node name="HotBar" parent="." index="5" unique_id=17073395 instance=ExtResource("7_u1arh")]
 
-[node name="BlockInteraction" parent="." index="6" unique_id=1451133203 instance=ExtResource("5_exr5t")]
+[node name="PlayerInteraction" parent="." index="6" unique_id=1801475265 instance=ExtResource("6_jb188")]
+
+[node name="InteractionBlock" type="Node3D" parent="." index="7" unique_id=1185431978]
+script = ExtResource("8_ncjl3")
+metadata/_custom_type_script = "uid://cmp8psfjiatnb"

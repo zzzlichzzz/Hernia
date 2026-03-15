@@ -27,6 +27,7 @@ var _receiver_manager: Object = null
 var _player_manager: PlayerManager = null
 var _auth_data: Dictionary = {}        # peer_id → bool (ссылка на внешний)
 var _last_move_times: Dictionary = {}   # peer_id → { pid → float }
+var _last_move_ticks: Dictionary = {}   # peer_id → { pid → int }
 var _cooldown_times: Dictionary = {}   # peer_id → { action → float }
 var _last_server_ticks: Dictionary = {} # peer_id → { pid → int }
 var _violation_callback: Callable      # (peer_id, reason) → void
@@ -521,10 +522,7 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 			return false
 
 		if max_speed > 0.0:
-			var dt := 0.05
-			var peer_times: Dictionary = _last_move_times.get(peer_id, {})
-			if pid in peer_times:
-				dt = clampf(now - peer_times[pid], 0.01, 2.0)
+			var dt := _compute_movement_validate_dt(peer_id, pid, data, meta, now)
 			var tolerance: float = meta.get("v_speed_tolerance", 1.5)
 			var max_allowed := max_speed * dt * tolerance
 			if distance > max_allowed:
@@ -550,8 +548,52 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 			_last_move_times[peer_id] = {}
 		_last_move_times[peer_id][pid] = now
 
+		if "tick" in data:
+			if peer_id not in _last_move_ticks:
+				_last_move_ticks[peer_id] = {}
+			_last_move_ticks[peer_id][pid] = int(data["tick"]) & 0xFFFF
+
 	return true
 
+func _compute_movement_validate_dt(
+	peer_id: int,
+	pid: int,
+	data: Dictionary,
+	meta: Dictionary,
+	now: float
+) -> float:
+	var default_dt := 0.05
+
+	var hz: int = int(meta.get("send_rate_hz", 0))
+	if hz > 0:
+		default_dt = 1.0 / float(hz)
+
+	# ── Предпочитаем tick-based dt ─────────────────
+	if "tick" in data:
+		var new_tick := int(data["tick"]) & 0xFFFF
+
+		# Tick у тебя генерируется при collect/get_network_state(),
+		# то есть фактически на physics tick.
+		var tick_rate := float(Engine.physics_ticks_per_second)
+		if tick_rate <= 0.0:
+			tick_rate = 60.0
+
+		var peer_ticks: Dictionary = _last_move_ticks.get(peer_id, {})
+		if pid in peer_ticks:
+			var old_tick := int(peer_ticks[pid])
+			var diff := (new_tick - old_tick) & 0xFFFF
+
+			if diff != 0 and diff < 0x8000:
+				return clampf(float(diff) / tick_rate, default_dt, 2.0)
+
+		return default_dt
+
+	# ── Fallback: server receive time ──────────────
+	var peer_times: Dictionary = _last_move_times.get(peer_id, {})
+	if pid in peer_times:
+		return clampf(now - float(peer_times[pid]), default_dt, 2.0)
+
+	return default_dt
 
 func _report_violation(peer_id: int, reason: String) -> void:
 	if _violation_callback.is_valid():
@@ -615,6 +657,7 @@ func _check_rate_limit(peer_id: int, pid: int) -> bool:
 func clear_peer_data(peer_id: int) -> void:
 	_rate_limits.erase(peer_id)
 	_last_move_times.erase(peer_id)
+	_last_move_ticks.erase(peer_id)
 	_cooldown_times.erase(peer_id)
 	_last_server_ticks.erase(peer_id)
 

@@ -82,7 +82,8 @@ func _build_library(blocks: Dictionary[int, ItemData]):
 		print("\n🧱 ШАГ 4: Добавление блоков")
 	for file_path in blocks.size() + 1:
 		if file_path == 0: continue
-		_process_block_definition(blocks.get(file_path))
+		if blocks.get(file_path) is ItemBlockVoxel:
+			_process_block_definition(blocks.get(file_path))
 	
 
 	

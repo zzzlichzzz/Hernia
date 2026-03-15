@@ -150,6 +150,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		_network_remote_step(delta)
 		_process_remote(delta)
+	
 
 
 ## Логика локального игрока. Переопределяется в наследниках.

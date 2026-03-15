@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://bqaues5e71sqq" path="res://src/scripts/ui/debug_overlay.gd" id="4_tutcy"]
 [ext_resource type="Script" uid="uid://woicsrbbn2an" path="res://src/scripts/ui/chat_system.gd" id="5_ipsql"]
 [ext_resource type="Script" uid="uid://bvvehddyhmq1b" path="res://src/scripts/terrain/init.gd" id="5_pnw0p"]
+[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/models/blocks/cube.obj" id="6_cbmj5"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_o7xes"]
 sky_top_color = Color(0.24482554, 0.42685997, 0.80994546, 1)
@@ -47,3 +48,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.496000745500794, 0)
 [node name="Init" type="Node" parent="." unique_id=637441192]
 script = ExtResource("5_pnw0p")
 metadata/_custom_type_script = "uid://bvvehddyhmq1b"
+
+[node name="Cube" type="MeshInstance3D" parent="." unique_id=559763692]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9332360010571674, 0, -0.38559357935936767)
+mesh = ExtResource("6_cbmj5")

@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://dn8dntiinlwhd"]
+
+[ext_resource type="ArrayMesh" uid="uid://bonm6u6h2wcnj" path="res://src/assets/models/blocks/cube.obj" id="1_6c805"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_f26gp"]
+
+[node name="Test" type="SoftBody3D" unique_id=1557228762]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.821132031688784, 0)
+mesh = ExtResource("1_6c805")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=394541787]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.49294374077141356, 0.5063040100914304, 0.49337149696494165)
+shape = SubResource("BoxShape3D_f26gp")

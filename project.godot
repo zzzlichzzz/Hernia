@@ -20,7 +20,7 @@ config/features=PackedStringArray("4.6", "Double Precision", "Forward Plus")
 
 [autoload]
 
-ServerMain="*uid://c8x7hqm2kv3rn"
+Global="*uid://or77uc8m2u0v"
 
 [editor_plugins]
 

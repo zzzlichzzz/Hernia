@@ -12,6 +12,17 @@ var _start_time: float = 0.0
 var _update_interval: float = 0.5
 var _update_timer: float = 0.0
 
+var _prof_aoi_passes_ps: int = 0
+var _prof_aoi_time_ms_ps: float = 0.0
+var _prof_aoi_observers_ps: int = 0
+var _prof_candidate_targets_ps: int = 0
+var _prof_visible_pairs_ps: int = 0
+
+var _prof_repl_passes_ps: int = 0
+var _prof_repl_time_ms_ps: float = 0.0
+var _prof_repl_observers_ps: int = 0
+var _prof_repl_targets_ps: int = 0
+
 # Loop rate измерение (это не physics TPS, а частота _process HUD)
 var _loop_count: int = 0
 var _loop_timer: float = 0.0
@@ -132,6 +143,16 @@ func _refresh_transport_metrics() -> void:
 		_batch_avg_entries = 0.0
 
 	_last_replication_stats = repl_current
+	_prof_aoi_passes_ps = int(repl_current.get("prof_aoi_passes_ps", 0))
+	_prof_aoi_time_ms_ps = float(repl_current.get("prof_aoi_time_ms_ps", 0.0))
+	_prof_aoi_observers_ps = int(repl_current.get("prof_aoi_observers_ps", 0))
+	_prof_candidate_targets_ps = int(repl_current.get("prof_candidate_targets_ps", 0))
+	_prof_visible_pairs_ps = int(repl_current.get("prof_visible_pairs_ps", 0))
+
+	_prof_repl_passes_ps = int(repl_current.get("prof_repl_passes_ps", 0))
+	_prof_repl_time_ms_ps = float(repl_current.get("prof_repl_time_ms_ps", 0.0))
+	_prof_repl_observers_ps = int(repl_current.get("prof_repl_observers_ps", 0))
+	_prof_repl_targets_ps = int(repl_current.get("prof_repl_targets_ps", 0))
 
 
 func _refresh_ui() -> void:
@@ -145,7 +166,18 @@ func _refresh_ui() -> void:
 	_uptime_label.text = "Аптайм: %s" % _format_uptime(uptime)
 
 	# Это честно не TPS симуляции, а частота цикла HUD/_process.
-	_tick_rate_label.text = "Loop: %.0f/s" % _current_loop_rate
+	var aoi_avg_ms := _prof_aoi_time_ms_ps / maxf(float(_prof_aoi_passes_ps), 1.0)
+	var repl_avg_ms := _prof_repl_time_ms_ps / maxf(float(_prof_repl_passes_ps), 1.0)
+
+	_tick_rate_label.text = "Loop: %.0f/s\nAOI: %d/s  total %.1f ms/s  avg %.2f ms\nREPL: %d/s  total %.1f ms/s  avg %.2f ms" % [
+		_current_loop_rate,
+		_prof_aoi_passes_ps,
+		_prof_aoi_time_ms_ps,
+		aoi_avg_ms,
+		_prof_repl_passes_ps,
+		_prof_repl_time_ms_ps,
+		repl_avg_ms,
+	]
 
 	var total_in := int(_last_stats.get("bytes_in_total", 0))
 	var total_out := int(_last_stats.get("bytes_out_total", 0))
@@ -156,7 +188,7 @@ func _refresh_ui() -> void:
 		_format_bytes(total_out),
 	]
 
-	_packets_label.text = "Пакеты: ↓%d/с ↑%d/с  invalid:%d\nBatch: %d pkt/s  %d entries/s  avg: %.2f  max: %d\nTop in: %s\nTop out: %s" % [
+	_packets_label.text = "Пакеты: ↓%d/с ↑%d/с  invalid:%d\nBatch: %d pkt/s  %d entries/s  avg: %.2f  max: %d\nAOI obs:%d  cand:%d  vis:%d\nREPL obs:%d  targets:%d\nTop in: %s\nTop out: %s" % [
 		_pps_in,
 		_pps_out,
 		_invalid_in,
@@ -164,6 +196,11 @@ func _refresh_ui() -> void:
 		_batch_entries_ps,
 		_batch_avg_entries,
 		_batch_max_entries_seen,
+		_prof_aoi_observers_ps,
+		_prof_candidate_targets_ps,
+		_prof_visible_pairs_ps,
+		_prof_repl_observers_ps,
+		_prof_repl_targets_ps,
 		_top_in_types_text,
 		_top_out_types_text,
 	]

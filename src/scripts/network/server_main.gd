@@ -9,6 +9,10 @@ const AUTH_TIMEOUT := 15.0
 const MAX_VIOLATIONS  := 10
 const VIOLATION_DECAY := 30.0
 
+const PLAYER_CORRECTION_HZ := 5.0
+const PLAYER_CORRECTION_MIN_MOVE_DIST := 0.15
+const PLAYER_CORRECTION_MIN_ANGLE_DELTA := 0.03
+
 var _net : NetworkManager = null
 var _pm  : PlayerManager = null
 var _nam : NetworkActionManager = null
@@ -21,15 +25,15 @@ var _authenticated  : Dictionary = {}   # peer_id -> bool
 var _security_log   : Dictionary = {}
 var _violations     : Dictionary = {}
 
-## peer_id -> session data
-## {
-##   "spawn_position": Vector3,
-##   "spawn_rotation": Vector3,
-##   "character_id": ...,
-##   "race_id": "human",
-##   "world_id": "default_world",
-## }
-var _player_sessions: Dictionary = {}
+# peer_id -> {
+#   "time": float,
+#   "position": Vector3,
+#   "head_pitch": float,
+#   "body_yaw": float,
+# }
+var _last_player_corrections : Dictionary = {}
+var _player_sessions         : Dictionary = {}
+
 
 
 func _ready() -> void:
@@ -161,6 +165,7 @@ func _on_peer_disconnected(id: int) -> void:
 	_pm.remove_player(id)
 	_player_sessions.erase(id)
 	_violations.erase(id)
+	_last_player_corrections.erase(id)
 	_nam.clear_peer_data(id)
 
 
@@ -212,13 +217,14 @@ func _on_player_move(peer_id: int, data: Dictionary) -> void:
 	if _replication != null:
 		_replication.on_authoritative_move(peer_id, tick)
 
-	_nam.send_action_to(peer_id, "player_correction", [
-		peer_id,
-		tick,
-		pos,
-		head_pitch,
-		body_yaw,
-	])
+	if _should_send_player_correction(peer_id, pos, head_pitch, body_yaw):
+		_nam.send_action_to(peer_id, "player_correction", [
+			peer_id,
+			tick,
+			pos,
+			head_pitch,
+			body_yaw,
+		])
 
 
 ## Делегирование world-state менеджеру.
@@ -250,6 +256,52 @@ func _on_block_break(peer_id: int, data: Dictionary) -> void:
 # 		"world_id": "default_world",
 # 	}
 
+func _should_send_player_correction(peer_id: int, pos: Vector3, head_pitch: float, body_yaw: float) -> bool:
+	var now := _server_now()
+
+	if peer_id not in _last_player_corrections:
+		_store_player_correction_state(peer_id, now, pos, head_pitch, body_yaw)
+		return true
+
+	var state: Dictionary = _last_player_corrections[peer_id]
+
+	var min_interval := 1.0 / PLAYER_CORRECTION_HZ
+	var last_time: float = float(state.get("time", -1.0))
+	if last_time >= 0.0 and (now - last_time) < min_interval:
+		return false
+
+	var last_pos: Vector3 = state.get("position", Vector3.ZERO)
+	var last_pitch: float = float(state.get("head_pitch", 0.0))
+	var last_yaw: float = float(state.get("body_yaw", 0.0))
+
+	var moved_dist := last_pos.distance_to(pos)
+	var yaw_delta := absf(_angle_delta(last_yaw, body_yaw))
+	var pitch_delta := absf(_angle_delta(last_pitch, head_pitch))
+
+	if moved_dist < PLAYER_CORRECTION_MIN_MOVE_DIST \
+	and yaw_delta < PLAYER_CORRECTION_MIN_ANGLE_DELTA \
+	and pitch_delta < PLAYER_CORRECTION_MIN_ANGLE_DELTA:
+		return false
+
+	_store_player_correction_state(peer_id, now, pos, head_pitch, body_yaw)
+	return true
+
+
+func _store_player_correction_state(peer_id: int, now: float, pos: Vector3, head_pitch: float, body_yaw: float) -> void:
+	_last_player_corrections[peer_id] = {
+		"time": now,
+		"position": pos,
+		"head_pitch": head_pitch,
+		"body_yaw": body_yaw,
+	}
+
+
+func _server_now() -> float:
+	return float(Time.get_ticks_msec()) * 0.001
+
+
+func _angle_delta(from_angle: float, to_angle: float) -> float:
+	return wrapf(to_angle - from_angle, -PI, PI)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:

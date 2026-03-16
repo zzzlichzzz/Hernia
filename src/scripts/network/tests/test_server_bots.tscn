@@ -42,6 +42,11 @@ horizontal_alignment = 1
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 
+[node name="BtnConnect" type="Button" parent="CenterContainer/VBoxContainer" unique_id=441295484]
+custom_minimum_size = Vector2(250, 50)
+layout_mode = 2
+text = "Присоединиться к серверу"
+
 [node name="BtnSingle" type="Button" parent="CenterContainer/VBoxContainer" unique_id=820540742]
 custom_minimum_size = Vector2(250, 50)
 layout_mode = 2

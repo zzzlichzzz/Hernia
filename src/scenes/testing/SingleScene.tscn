@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://pxmgosijcx0u" path="res://src/scripts/ui/menus/voxel_terrain.gd" id="2_wis68"]
 [ext_resource type="Script" uid="uid://bqaues5e71sqq" path="res://src/scripts/ui/debug_overlay.gd" id="3_dem67"]
 [ext_resource type="Script" uid="uid://woicsrbbn2an" path="res://src/scripts/ui/chat_system.gd" id="4_mb28a"]
-[ext_resource type="PackedScene" uid="uid://dxf5dr4bn0yc7" path="res://src/scenes/entities/player/Player.tscn" id="5_wis68"]
+[ext_resource type="PackedScene" uid="uid://dxf5dr4bn0yc7" path="res://src/scenes/entities/player/SinglePlayer.tscn" id="5_wis68"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_5t5m8"]
 sky_top_color = Color(0.7288695, 0.68139, 0.74154323, 1)
@@ -41,4 +41,4 @@ script = ExtResource("3_dem67")
 script = ExtResource("4_mb28a")
 
 [node name="Player" parent="." unique_id=1646330281 instance=ExtResource("5_wis68")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.920277779073447, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5349720032220633, 0)

@@ -215,7 +215,7 @@ func _on_player_move(peer_id: int, data: Dictionary) -> void:
 	var tick: int = int(data.get("tick", 0))
 
 	if _replication != null:
-		_replication.on_authoritative_move(peer_id, tick)
+		_replication.on_authoritative_move(peer_id, tick, pos, head_pitch, body_yaw)
 
 	if _should_send_player_correction(peer_id, pos, head_pitch, body_yaw):
 		_nam.send_action_to(peer_id, "player_correction", [

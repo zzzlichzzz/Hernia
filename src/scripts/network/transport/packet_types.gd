@@ -20,7 +20,7 @@ const CHAMELEON_SYNC        := 11
 const MAX_FRAGMENT_BODY     := 1024
 const PLAYER_SNAPSHOT_BATCH := 12
 
-const SNAPSHOT_ENTRY_SIZE := 20
+const SNAPSHOT_ENTRY_SIZE        := 32
 const SNAPSHOT_BATCH_HEADER_SIZE := 2
 const SNAPSHOT_BATCH_MAX_ENTRIES := int((MAX_FRAGMENT_BODY - SNAPSHOT_BATCH_HEADER_SIZE) / SNAPSHOT_ENTRY_SIZE)
 
@@ -373,6 +373,7 @@ static func write_player_snapshot_batch_body(entries: Array) -> PackedByteArray:
 		var peer_id: int = int(e.get("peer_id", 0)) & 0xFFFF
 		var tick: int = int(e.get("tick", 0)) & 0xFFFF
 		var pos: Vector3 = e.get("position", Vector3.ZERO)
+		var vel: Vector3 = e.get("velocity", Vector3.ZERO)
 		var head_pitch: float = float(e.get("head_pitch", 0.0))
 		var body_yaw: float = float(e.get("body_yaw", 0.0))
 
@@ -382,6 +383,10 @@ static func write_player_snapshot_batch_body(entries: Array) -> PackedByteArray:
 		b.put_float(pos.x)
 		b.put_float(pos.y)
 		b.put_float(pos.z)
+
+		b.put_float(vel.x)
+		b.put_float(vel.y)
+		b.put_float(vel.z)
 
 		b.put_u16(_encode_quantized_u16(head_pitch, SNAPSHOT_PITCH_MIN, SNAPSHOT_PITCH_MAX))
 		b.put_u16(_encode_quantized_u16(body_yaw, SNAPSHOT_YAW_MIN, SNAPSHOT_YAW_MAX))
@@ -396,7 +401,6 @@ static func write_player_snapshot_batch(entries: Array) -> PackedByteArray:
 static func read_player_snapshot_batch(buf: StreamPeerBuffer) -> Array[Dictionary]:
 	var count := buf.get_u16()
 
-	# Защита от битого пакета/мусора
 	if count > 512:
 		push_warning("player_snapshot_batch: слишком много записей: %d" % count)
 		return []
@@ -409,6 +413,12 @@ static func read_player_snapshot_batch(buf: StreamPeerBuffer) -> Array[Dictionar
 		var tick := buf.get_u16()
 
 		var pos := Vector3(
+			buf.get_float(),
+			buf.get_float(),
+			buf.get_float()
+		)
+
+		var vel := Vector3(
 			buf.get_float(),
 			buf.get_float(),
 			buf.get_float()
@@ -430,6 +440,7 @@ static func read_player_snapshot_batch(buf: StreamPeerBuffer) -> Array[Dictionar
 			"peer_id": peer_id,
 			"tick": tick,
 			"position": pos,
+			"velocity": vel,
 			"head_pitch": head_pitch,
 			"body_yaw": body_yaw,
 		})

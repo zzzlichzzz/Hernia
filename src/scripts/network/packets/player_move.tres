@@ -26,6 +26,15 @@ byte_size = 3
 source_key = "position"
 metadata/_custom_type_script = "uid://btch1jd2smm4m"
 
+[sub_resource type="Resource" id="Resource_a6mx3"]
+resource_name = "velocity (vec3, 32bit)"
+script = ExtResource("2_script")
+field_name = "velocity"
+field_type = 4
+byte_size = 3
+source_key = "velocity"
+metadata/_custom_type_script = "uid://btch1jd2smm4m"
+
 [sub_resource type="Resource" id="Resource_tq747"]
 resource_name = "head_pitch (float, 16bit)"
 script = ExtResource("2_script")
@@ -59,7 +68,7 @@ sync_mode = 0
 channel = 1
 send_rate_hz = 20
 server_validates = true
-fields = Array[ExtResource("2_script")]([SubResource("Resource_a8ed2"), SubResource("Resource_saq2c"), SubResource("Resource_gtxbc"), SubResource("Resource_tq747"), SubResource("Resource_hcua1")])
+fields = Array[ExtResource("2_script")]([SubResource("Resource_a8ed2"), SubResource("Resource_saq2c"), SubResource("Resource_gtxbc"), SubResource("Resource_a6mx3"), SubResource("Resource_tq747"), SubResource("Resource_hcua1")])
 source_method = "get_network_state"
 receive_method = "apply_network_state"
 validate_max_distance = 50.0

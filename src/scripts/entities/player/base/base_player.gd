@@ -24,8 +24,9 @@ var network_id: int = 0
 
 ## Насколько "назад во времени" рисуем удалённых игроков.
 ## Для 20 Hz и MMO-пинга 100-150ms хороший старт: 0.12 - 0.15
-@export_range(0.05, 0.30, 0.01) var interpolation_back_time: float = 0.12
+@export_range(0.05, 0.30, 0.01) var interpolation_back_time: float = 0.20
 
+@export_range(0.0, 0.50, 0.01) var remote_extrapolation_limit: float = 0.15
 ## Размер буфера снапшотов remote-игрока.
 @export_range(2, 64, 1) var max_snapshot_buffer: int = 20
 
@@ -195,10 +196,12 @@ func get_network_state() -> Dictionary:
 	var pitch := _head.rotation.x if _head else 0.0
 	var yaw := rotation.y
 	var pos := global_position
+	var vel := velocity
 
 	var state := {
 		"tick": _network_tick,
 		"position": pos,
+		"velocity": vel,
 		"rotation": Vector3(pitch, yaw, 0.0),
 	}
 
@@ -208,7 +211,7 @@ func get_network_state() -> Dictionary:
 		state.merge(comp.collect_state())
 
 	# Служебные ключи для NAM.
-	# Они НЕ попадут в пакет, потому что в .tres их нет.
+	# Они не попадут в пакет, если их нет в .tres.
 	state["_net_signature"] = _build_net_send_signature(pos, yaw, pitch)
 	state["_net_keepalive"] = net_idle_keepalive
 
@@ -390,10 +393,14 @@ func _queue_network_snapshot(data: Dictionary) -> void:
 		return
 
 	var pitch_now := _head.rotation.x if _head else 0.0
+	var vel := Vector3.ZERO
+	if "velocity" in data and data["velocity"] is Vector3:
+		vel = data["velocity"]
 
 	var snap := {
 		"time": _net_now(),
 		"position": data.get("position", global_position),
+		"velocity": vel,
 		"yaw": data.get("body_yaw", rotation.y),
 		"pitch": data.get("head_pitch", pitch_now),
 	}
@@ -454,10 +461,25 @@ func _network_remote_step(delta: float) -> void:
 	# Если остался только один снапшот — мягко тянемся к нему
 	if _net_snapshots.size() == 1:
 		var only: Dictionary = _net_snapshots[0]
+
+		var target_pos: Vector3 = only["position"]
+		var target_yaw: float = float(only["yaw"])
+		var target_pitch: float = float(only["pitch"])
+		var target_vel: Vector3 = only.get("velocity", Vector3.ZERO)
+
+		var extra_time := clampf(
+			render_time - float(only["time"]),
+			0.0,
+			remote_extrapolation_limit
+		)
+
+		if extra_time > 0.0:
+			target_pos += target_vel * extra_time
+
 		_apply_remote_transform(
-			only["position"] as Vector3,
-			float(only["yaw"]),
-			float(only["pitch"]),
+			target_pos,
+			target_yaw,
+			target_pitch,
 			true,
 			delta
 		)

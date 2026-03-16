@@ -38,6 +38,7 @@ var _network_tick: int = 0
 
 var _spawn_center: Vector3 = Vector3.ZERO
 var _position: Vector3 = Vector3.ZERO
+var _velocity: Vector3 = Vector3.ZERO
 var _body_yaw: float = 0.0
 var _head_pitch: float = 0.0
 
@@ -119,6 +120,7 @@ func get_network_state() -> Dictionary:
 	var state := {
 		"tick": _network_tick,
 		"position": _position,
+		"velocity": _velocity,
 		"rotation": Vector3(_head_pitch, _body_yaw, 0.0),
 
 		# Служебные ключи для NAM idle suppression
@@ -169,8 +171,8 @@ func get_debug_position() -> Vector3:
 # ══════════════════════════════════════════════════
 
 func _update_idle(_delta: float) -> void:
-	# Лёгкое движение головой, чтобы в совсем idle-режиме
-	# можно было проверить keepalive и слабые update'ы.
+	_velocity = Vector3.ZERO
+
 	var t: float = float(Time.get_ticks_msec()) * 0.001
 	_head_pitch = sin(t * 0.5) * 0.08
 
@@ -184,6 +186,7 @@ func _update_circle(delta: float) -> void:
 	_position = _spawn_center + Vector3(x, 0.0, z)
 
 	var tangent := Vector3(-sin(_circle_angle), 0.0, cos(_circle_angle)).normalized()
+	_velocity = tangent * (circle_radius * circle_angular_speed)
 	_body_yaw = _yaw_from_direction(tangent)
 
 	var t: float = float(Time.get_ticks_msec()) * 0.001
@@ -203,7 +206,8 @@ func _update_random_walk(delta: float) -> void:
 	if to_center.length() > random_walk_radius:
 		desired_dir = to_center.normalized()
 
-	_position += desired_dir * move_speed * delta
+	_velocity = desired_dir * move_speed
+	_position += _velocity * delta
 	_position.y = _spawn_center.y
 
 	if desired_dir.length_squared() > 0.0001:

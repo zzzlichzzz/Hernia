@@ -55,11 +55,12 @@ const LOD_MID_HZ        := 10.0
 const LOD_FAR_HZ        := 5.0
 const LOD_VERY_FAR_HZ   := 4.0
 ## Приоритет клиентов для клиента
-const PRIORITY_ALWAYS_TARGETS := 16
-const PRIORITY_ROTATING_TARGETS := 16
+const PRIORITY_ALWAYS_TARGETS := 24
+const PRIORITY_ROTATING_TARGETS := 24
 
-const PRIORITY_DISTANCE_WEIGHT := 100.0
-const PRIORITY_FRONT_WEIGHT := 60.0
+const PRIORITY_DISTANCE_WEIGHT := 80.0
+const PRIORITY_FRONT_WEIGHT := 25.0
+const PRIORITY_OVERDUE_WEIGHT := 120.0
 
 ## Размер ячейки spatial grid.
 const GRID_CELL_SIZE := 40.0
@@ -83,6 +84,14 @@ var _replication_last_tick: Dictionary = {}
 
 # target_id -> latest authoritative movement tick
 var _authoritative_move_ticks: Dictionary = {}
+# target_id -> {
+#   "tick": int,
+#   "position": Vector3,
+#   "velocity": Vector3,
+#   "head_pitch": float,
+#   "body_yaw": float,
+# }
+var _authoritative_states: Dictionary = {}
 
 # observer_id -> { target_id -> true }
 var _visible_targets: Dictionary = {}
@@ -159,9 +168,44 @@ func tick(delta: float) -> void:
 func on_player_spawned(peer_id: int) -> void:
 	_authoritative_move_ticks[peer_id] = 0
 
+	var pos := Vector3.ZERO
+	var rot := Vector3.ZERO
 
-func on_authoritative_move(peer_id: int, tick: int) -> void:
-	_authoritative_move_ticks[peer_id] = tick
+	if _pm != null and _pm.has_player(peer_id):
+		var d: Dictionary = _pm.get_player_data(peer_id)
+		pos = d.get("position", Vector3.ZERO)
+		rot = d.get("rotation", Vector3.ZERO)
+
+	_authoritative_states[peer_id] = {
+		"tick": 0,
+		"position": pos,
+		"velocity": Vector3.ZERO,
+		"head_pitch": rot.x,
+		"body_yaw": rot.y,
+	}
+
+
+func on_authoritative_move(peer_id: int, tick: int, pos: Vector3, head_pitch: float, body_yaw: float) -> void:
+	var new_tick: int = tick & 0xFFFF
+	var velocity := Vector3.ZERO
+
+	if peer_id in _authoritative_states:
+		var prev: Dictionary = _authoritative_states[peer_id]
+		var prev_pos: Vector3 = prev.get("position", pos)
+		var prev_tick: int = int(prev.get("tick", new_tick))
+
+		var dt := _compute_authoritative_dt(prev_tick, new_tick)
+		if dt > 0.0:
+			velocity = (pos - prev_pos) / dt
+
+	_authoritative_move_ticks[peer_id] = new_tick
+	_authoritative_states[peer_id] = {
+		"tick": new_tick,
+		"position": pos,
+		"velocity": velocity,
+		"head_pitch": head_pitch,
+		"body_yaw": body_yaw,
+	}
 
 
 func on_player_disconnected(peer_id: int) -> void:
@@ -181,6 +225,7 @@ func clear() -> void:
 	_replication_last_send.clear()
 	_replication_last_tick.clear()
 	_authoritative_move_ticks.clear()
+	_authoritative_states.clear()
 	_visible_targets.clear()
 
 	_spatial_cells.clear()
@@ -222,6 +267,7 @@ func clear() -> void:
 	
 	_priority_target_lists.clear()
 	_priority_rotating_cursor.clear()
+	_authoritative_states.clear()
 
 
 # ══════════════════════════════════════════════════
@@ -258,13 +304,18 @@ func _replicate_player_snapshots() -> void:
 			if _get_peer_world(target_id) != observer_world:
 				continue
 
-			var target_tick: int = int(_authoritative_move_ticks.get(target_id, -1))
+			if target_id not in _authoritative_states:
+				continue
+
+			var auth_state: Dictionary = _authoritative_states[target_id]
+			var target_tick: int = int(auth_state.get("tick", -1))
 			if target_tick < 0:
 				continue
 
-			var target_data: Dictionary = _pm.get_player_data(target_id)
-			var target_pos: Vector3 = target_data.get("position", Vector3.ZERO)
-			var target_rot: Vector3 = target_data.get("rotation", Vector3.ZERO)
+			var target_pos: Vector3 = auth_state.get("position", Vector3.ZERO)
+			var target_vel: Vector3 = auth_state.get("velocity", Vector3.ZERO)
+			var target_pitch: float = float(auth_state.get("head_pitch", 0.0))
+			var target_yaw: float = float(auth_state.get("body_yaw", 0.0))
 
 			var distance := _horizontal_distance(observer_pos, target_pos)
 			var hz := _get_replication_hz(distance)
@@ -284,8 +335,9 @@ func _replicate_player_snapshots() -> void:
 				"peer_id": target_id,
 				"tick": target_tick,
 				"position": target_pos,
-				"head_pitch": target_rot.x,
-				"body_yaw": target_rot.y,
+				"velocity": target_vel,
+				"head_pitch": target_pitch,
+				"body_yaw": target_yaw,
 			})
 
 			send_map[target_id] = _replication_time
@@ -439,6 +491,7 @@ func _rebuild_priority_targets_for_observer(
 	var observer_yaw: float = observer_rot.y
 	var observer_forward := Vector3(-sin(observer_yaw), 0.0, -cos(observer_yaw)).normalized()
 
+	var send_map: Dictionary = _replication_last_send.get(observer_id, {})
 	var scored: Array[Dictionary] = []
 
 	for target_var in visible_map.keys():
@@ -465,10 +518,19 @@ func _rebuild_priority_targets_for_observer(
 		if dir != Vector3.ZERO:
 			front_dot = observer_forward.dot(dir)
 
-		# Переводим dot из [-1..1] в [0..1]
 		var front_score := clampf((front_dot + 1.0) * 0.5, 0.0, 1.0) * PRIORITY_FRONT_WEIGHT
 
-		var total_score := distance_score + front_score
+		var expected_hz := _get_replication_hz(distance)
+		var expected_interval := 1.0 / maxf(expected_hz, 0.001)
+		var last_send_time: float = float(send_map.get(target_id, -1.0))
+
+		var overdue_ratio := 1.0
+		if last_send_time >= 0.0:
+			overdue_ratio = clampf((_replication_time - last_send_time) / expected_interval, 0.0, 3.0)
+
+		var overdue_score := overdue_ratio * PRIORITY_OVERDUE_WEIGHT
+
+		var total_score := distance_score + front_score + overdue_score
 
 		scored.append({
 			"id": target_id,
@@ -479,14 +541,12 @@ func _rebuild_priority_targets_for_observer(
 		return float(a["score"]) > float(b["score"])
 	)
 
-	var ordered: Array[int] = []
-	ordered.resize(0)
+	var ordered: Array = []
 	for entry in scored:
 		ordered.append(int(entry["id"]))
 
 	_priority_target_lists[observer_id] = ordered
 
-	# Если список укоротился, нормализуем cursor
 	var old_cursor: int = int(_priority_rotating_cursor.get(observer_id, 0))
 	var tail_size := maxi(ordered.size() - PRIORITY_ALWAYS_TARGETS, 0)
 	if tail_size <= 0:
@@ -661,7 +721,19 @@ func _get_peer_world(peer_id: int) -> String:
 				return world_id
 	return DEFAULT_WORLD_ID
 
+func _compute_authoritative_dt(prev_tick: int, new_tick: int) -> float:
+	var diff := (new_tick - prev_tick) & 0xFFFF
+	if diff == 0 or diff >= 0x8000:
+		return 0.0
 
+	# Слишком большие разрывы не даём раздувать velocity.
+	diff = mini(diff, 8)
+
+	var tick_rate := float(Engine.physics_ticks_per_second)
+	if tick_rate <= 0.0:
+		tick_rate = 60.0
+
+	return float(diff) / tick_rate
 # ══════════════════════════════════════════════════
 #  CLEANUP
 # ══════════════════════════════════════════════════
@@ -696,6 +768,7 @@ func _cleanup_replication_peer(peer_id: int, notify_exit: bool = false) -> void:
 	_authoritative_move_ticks.erase(peer_id)
 	_priority_target_lists.erase(peer_id)
 	_priority_rotating_cursor.erase(peer_id)
+	_authoritative_states.erase(peer_id)
 
 	for observer_var in _visible_targets.keys():
 		var observer_id: int = int(observer_var)

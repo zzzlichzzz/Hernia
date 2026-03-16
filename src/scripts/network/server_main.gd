@@ -1,4 +1,4 @@
-class_name ServerMain extends Node
+extends Node
 
 const PORT         := 9999
 const MAX_CLIENTS  := 1200

@@ -7,9 +7,6 @@ extends Control
 @onready var btn_evil_client: Button = $CenterContainer/VBoxContainer/BtnEvilClient
 @onready var btn_exit: Button = $CenterContainer/VBoxContainer/ExitBtn
 
-var server_thread := Thread.new()
-var server: ServerMain
-
 func _ready() -> void:
 	# Подключаем сигналы кнопок
 	btn_single.pressed.connect(_on_btn_single_pressed)

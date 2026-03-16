@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://pxmgosijcx0u" path="res://src/scripts/ui/menus/voxel_terrain.gd" id="4_terrain"]
 [ext_resource type="PackedScene" uid="uid://c3twmgn2pn124" path="res://src/data/items/script/block/block_ball.tscn" id="5_b0ju7"]
 [ext_resource type="PackedScene" uid="uid://dn8dntiinlwhd" path="res://src/data/items/script/block/test.tscn" id="6_08ibg"]
+[ext_resource type="PackedScene" uid="uid://fc0dmy1d6jno" path="res://src/assets/models/blocks/untitled.glb" id="7_3cwf4"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_o7xes"]
 sky_top_color = Color(0.24482554, 0.42685997, 0.80994546, 1)
@@ -47,3 +48,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2751186203966174, 0.578894
 
 [node name="Test" parent="." unique_id=1557228762 instance=ExtResource("6_08ibg")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.145236177322511, 0.821132031688784, -1.6478897491293352)
+
+[node name="untitled" parent="." unique_id=1570622564 instance=ExtResource("7_3cwf4")]

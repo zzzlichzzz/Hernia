@@ -167,4 +167,5 @@ metadata/_custom_type_script = "uid://dkfwwcqcapdoq"
 script = ExtResource("9_a666k")
 block_item = Array[ExtResource("1_x613m")]([SubResource("Resource_lpmgl"), SubResource("Resource_s5eag"), SubResource("Resource_x613m"), SubResource("Resource_j5g3c"), SubResource("Resource_60gwa"), SubResource("Resource_ap1cu"), SubResource("Resource_6xypv"), SubResource("Resource_dok7y"), SubResource("Resource_k2w68"), SubResource("Resource_ra3ex")])
 consumble_item = Array[ExtResource("1_x613m")]([SubResource("Resource_xvaua")])
+block_logic = Array[ExtResource("1_x613m")]([null])
 metadata/_custom_type_script = "uid://ci7ob21y7q5ce"

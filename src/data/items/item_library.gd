@@ -13,6 +13,7 @@ enum Type {
 
 @export var block_item: Array[ItemData] = []
 @export var consumble_item: Array[ItemData] = []
+@export var block_logic: Array[ItemData] = []
 
 func addItem(item: ItemData) -> void:
 	ArrayList.append(item)
@@ -23,5 +24,7 @@ func getArray(name: String) -> Array[ItemData]:
 			return block_item
 		"consumble_item":
 			return consumble_item
+		"block_logic":
+			return block_logic
 	var v: Array[ItemData] = []
 	return v

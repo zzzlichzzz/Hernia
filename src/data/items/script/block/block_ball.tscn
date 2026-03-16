@@ -10,10 +10,10 @@ input_capture_on_drag = true
 linear_velocity = Vector3(0.79, 0, 0)
 
 [node name="Cube" type="MeshInstance3D" parent="." unique_id=90362229]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2962010081535691, 0.7307433050645087, -1.8486692922901038)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2844216788500695, 0.7504855600211753, -1.8460061785317232)
 mesh = ExtResource("1_j7ul4")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=414494351]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8098512205792849, 1.219984431958271, -1.3561473420996542)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8098512205792852, 1.2199844319582713, -1.3486598671014707)
 shape = SubResource("BoxShape3D_j7ul4")
 debug_color = Color(1, 0.43529412, 0.50980395, 0.41960785)

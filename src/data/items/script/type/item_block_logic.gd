@@ -1,11 +1,16 @@
-extends Node
+@tool
+class_name ItemBlockLogic extends ItemBlock
 
 
-# Called when the node enters the scene tree for the first time.
+@export var path: StringName
+
+
 func _ready() -> void:
 	pass # Replace with function body.
 
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	pass
+	
+
+func get_scene() -> Resource:
+	return load(path)

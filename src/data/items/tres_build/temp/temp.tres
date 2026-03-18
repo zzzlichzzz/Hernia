@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="Item_Id_Registry" format=3]
+[gd_resource type="Resource" script_class="Item_Id_Registry" format=3 uid="uid://ctm5ej32e533q"]
 
-[ext_resource type="Script" path="res://src/data/items/script/items_id.gd" id="1_32iwf"]
+[ext_resource type="Script" uid="uid://bbggonybnddor" path="res://src/data/items/script/items_id.gd" id="1_32iwf"]
 
 [resource]
 script = ExtResource("1_32iwf")
@@ -17,6 +17,7 @@ temp_id = Dictionary[int, String]({
 9: "test67",
 10: "tes98",
 11: "tes75gg",
+12: "testscene",
 65537: "apple_item",
 65538: "apple",
 65539: "ap",
@@ -38,5 +39,6 @@ list_id = Dictionary[String, int]({
 "tes75gg": 11,
 "tes98": 10,
 "test67": 9,
-"test8": 8
+"test8": 8,
+"testscene": 12
 })

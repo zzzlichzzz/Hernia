@@ -133,7 +133,10 @@ func generate_3d_icon_by_name(block_name: String) -> Texture2D:
 
 ## Рендер блока в текстуру (изометрический вид Minecraft)
 func _render_block(model: VoxelBlockyModel) -> Texture2D:
-	# Устанавливаем меш
+	
+	if model is VoxelBlockyModelEmpty:
+		return
+	
 	if model.mesh:
 		_mesh_instance.mesh = model.mesh
 	else:

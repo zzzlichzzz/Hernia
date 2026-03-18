@@ -1,4 +1,4 @@
-extends Node
+class_name BlockLogic extends Node3D
 
 
 # Called when the node enters the scene tree for the first time.

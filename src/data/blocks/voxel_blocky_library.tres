@@ -1,4 +1,4 @@
-[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://f0vrb23ypf60"]
+[gd_resource type="VoxelBlockyLibrary" format=3 uid="uid://detsfnykxyopy"]
 
 [ext_resource type="Shader" uid="uid://byk6fbd65qy58" path="res://src/shaders/blocks/block_multi_face.gdshader" id="1_vmbgv"]
 [ext_resource type="Texture2D" uid="uid://dje1x0vqoyu1o" path="res://src/assets/textures/atlas/block/block_atlas.png" id="2_7m0mw"]
@@ -189,11 +189,20 @@ collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
 collision_enabled_0 = true
 mesh = ExtResource("3_bnw2r")
 
-[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_sn5ev"]
+[sub_resource type="VoxelBlockyModelEmpty" id="VoxelBlockyModelEmpty_sn5ev"]
+resource_name = "air"
+
+[sub_resource type="VoxelBlockyModelEmpty" id="VoxelBlockyModelEmpty_0plh5"]
+resource_name = "air"
+
+[sub_resource type="VoxelBlockyModelMesh" id="VoxelBlockyModelMesh_6p6oi"]
 resource_name = "tes75gg"
 collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
 collision_enabled_0 = true
 mesh = ExtResource("3_bnw2r")
 
+[sub_resource type="VoxelBlockyModelEmpty" id="VoxelBlockyModelEmpty_ccqis"]
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 1, 1, 1)])
+
 [resource]
-models = Array[VoxelBlockyModel]([SubResource("VoxelBlockyModelEmpty_plqvt"), SubResource("VoxelBlockyModelMesh_bbfiv"), SubResource("VoxelBlockyModelMesh_6br1r"), SubResource("VoxelBlockyModelMesh_7uru0"), SubResource("VoxelBlockyModelMesh_18bwr"), SubResource("VoxelBlockyModelMesh_qxu2r"), SubResource("VoxelBlockyModelMesh_x2w26"), SubResource("VoxelBlockyModelMesh_vyygl"), SubResource("VoxelBlockyModelMesh_q73d6"), SubResource("VoxelBlockyModelMesh_sn5ev")])
+models = Array[VoxelBlockyModel]([SubResource("VoxelBlockyModelEmpty_plqvt"), SubResource("VoxelBlockyModelMesh_bbfiv"), SubResource("VoxelBlockyModelMesh_6br1r"), SubResource("VoxelBlockyModelMesh_7uru0"), SubResource("VoxelBlockyModelMesh_18bwr"), SubResource("VoxelBlockyModelMesh_qxu2r"), SubResource("VoxelBlockyModelMesh_x2w26"), SubResource("VoxelBlockyModelMesh_vyygl"), SubResource("VoxelBlockyModelMesh_q73d6"), SubResource("VoxelBlockyModelEmpty_sn5ev"), SubResource("VoxelBlockyModelEmpty_0plh5"), SubResource("VoxelBlockyModelMesh_6p6oi"), SubResource("VoxelBlockyModelEmpty_ccqis")])

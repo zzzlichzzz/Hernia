@@ -9,7 +9,7 @@ extends BaseInteraction
 
 @onready var _camera: Camera3D = get_node_or_null("../Neck/Camera3D")          # [CHANGE 4] get_node_or_null
 @onready var _raycast: RayCast3D = get_node_or_null("../Neck/Camera3D/RayCast3D")
-
+@onready var _world = get_node("/root/ClientMain/World")
 # ══════════════════════════════════════════════════
 #  TERRAIN
 # ══════════════════════════════════════════════════
@@ -234,7 +234,13 @@ func _break_block(pos: Vector3i) -> void:
 	var old_id := _terrain_tool.get_voxel(pos)
 	if old_id == 0:
 		return
-
+	elif is_position_free(pos):
+		#var scene_block: Resource = items.get_item_int(_selected_block_id).get_scene()
+		#var entity = scene_block.instantiate()
+		#entity.position = Vector3(pos)
+		##global_position.
+		var r = 4
+		#_world.remove_child()
 	var cham := ChameleonManager.get_instance()
 	if cham and cham.is_chameleon_block(old_id):
 		cham.remove_chameleon(pos)
@@ -250,6 +256,11 @@ func _break_block(pos: Vector3i) -> void:
 	else:
 		push_warning("❌ Не удалось сломать блок: %s" % str(pos))
 
+func is_position_free(position: Vector3) -> bool:
+	var space = get_world_3d().direct_space_state
+	var query = PhysicsPointQueryParameters3D.new()
+	query.position = position
+	return space.intersect_point(query).is_empty()
 
 func _place_block(pos: Vector3i) -> void:
 	if _terrain_tool == null:
@@ -269,6 +280,13 @@ func _place_block(pos: Vector3i) -> void:
 		return
 	if not items.isItemBlock(_selected_block_id):
 		return
+	elif items.get_item_int(_selected_block_id) is ItemBlockLogic:
+		var scene_block: Resource = items.get_item_int(_selected_block_id).get_scene()
+		var entity = scene_block.instantiate()
+		entity.position = Vector3(pos)
+		_world.add_child(entity)
+		#return
+		
 
 	var voxel_id: int = _selected_block_id
 	_terrain_tool.value = voxel_id
@@ -513,6 +531,16 @@ func _get_combined_target() -> Dictionary:
 
 	var origin := _camera.global_position
 	var forward := -_camera.global_transform.basis.z.normalized()
+
+	var hit_scene = _raycast.get_collider()
+	#if hit_scene is BlockLogic:
+		#result["has_target"] = true
+		#result["position"] = hit_scene.position
+		#result["place_position"] = hit_scene.previous_position
+		#var normal := Vector3(hit_scene.previous_position - hit_scene.position)
+		#result["face"] = _normal_to_face(normal)
+		#result["normal"] = normal.normalized()
+		#return result
 
 	var hit = _terrain_tool.raycast(origin, forward, reach_distance)
 	if hit:

@@ -22,6 +22,9 @@ const RATE_KICK_MULTIPLIER := 5
 var _sources: Dictionary = {}
 var _receiver_manager: Object = null
 
+var _read_method_cache: Dictionary = {}   # pid → String "read_xxx"
+var _write_method_cache: Dictionary = {}  # pid → String "write_xxx"
+
 # ── Автовалидация ─────────────────────────────────
 # Внешние зависимости (устанавливаются через setup_server_context)
 var _player_manager: PlayerManager = null
@@ -41,7 +44,12 @@ func setup(net: NetworkManager) -> void:
 	for pid: int in GeneratedPackets.PACKETS:
 		_net.register_handler(pid, _on_packet.bind(pid))
 		var meta: Dictionary = GeneratedPackets.PACKETS[pid]
-		_name_to_id[meta["name"]] = pid
+		var pname: String = meta["name"]
+		_name_to_id[pname] = pid
+
+		# ——— Кешируем имена методов ОДИН раз ———
+		_read_method_cache[pid] = "read_%s" % pname
+		_write_method_cache[pid] = "write_%s" % pname
 
 		var hz: int = meta.get("send_rate_hz", 0)
 		if hz > 0:
@@ -51,10 +59,7 @@ func setup(net: NetworkManager) -> void:
 				"dirty": false,
 				"accumulator": 0.0,
 				"interval": 1.0 / float(hz),
-
-				# Оптимизация отправки
-				"last_sent_signature": null,
-				"pending_signature": null,
+				# ——— Убраны signature поля, добавлены новые ———
 				"last_sent_time": -1.0,
 				"keepalive": 0.0,
 			}
@@ -104,13 +109,12 @@ func auto_bind_source(node: Node, peer_id: int) -> void:
 ## Вызывать при отключении, смене сцены, удалении локального игрока.
 func clear_sources() -> void:
 	_sources.clear()
-	# Сбросить tick-данные чтобы не отправлять стухшие пакеты
 	for pid: int in _tick_data:
-		_tick_data[pid]["dirty"] = false
-		_tick_data[pid]["args"] = []
-		_tick_data[pid]["last_sent_signature"] = null
-		_tick_data[pid]["last_sent_time"] = -1.0
-		_tick_data[pid]["keepalive"] = 0.0
+		var td: Dictionary = _tick_data[pid]
+		td["dirty"] = false
+		td["args"] = []
+		td["last_sent_time"] = -1.0
+		td["keepalive"] = 0.0
 
 
 func auto_bind_receiver(manager: Object) -> void:
@@ -239,23 +243,28 @@ func send_action_to(peer_id: int, action_name: String, args: Array) -> void:
 	if pid == -1:
 		return
 	var meta: Dictionary = GeneratedPackets.PACKETS[pid]
-	var pkt: PackedByteArray = _gp.callv("write_%s" % action_name, args)
-	var enet_channel := _enet_channel(meta["channel"])
+	var write_method: String = _write_method_cache[pid]
+	var pkt: PackedByteArray = _gp.callv(write_method, args)
+	var enet_channel: int = _enet_channel(meta["channel"])
 	_net.send_to_peer(peer_id, pkt, enet_channel, _channel_flags(meta["channel"]))
 	packet_sent.emit(action_name)
 
 
 func _send_immediate(pid: int, action_name: String, args: Array) -> void:
 	var meta: Dictionary = GeneratedPackets.PACKETS[pid]
-	var pkt: PackedByteArray = _gp.callv("write_%s" % action_name, args)
-	var enet_channel := _enet_channel(meta["channel"])
-	var flags := _channel_flags(meta["channel"])
+	# ——— Кешированный write method ———
+	var write_method: String = _write_method_cache[pid]
+	var pkt: PackedByteArray = _gp.callv(write_method, args)
+	var enet_channel: int = _enet_channel(meta["channel"])
+	var flags: int = _channel_flags(meta["channel"])
+
 	if _net.is_server():
 		match meta["sync_mode"]:
 			1: _net.broadcast(pkt, enet_channel, flags)
 			2: _net.broadcast(pkt, enet_channel, flags)
 	else:
 		_net.send_to_server(pkt, enet_channel, flags)
+
 	packet_sent.emit(action_name)
 
 
@@ -265,19 +274,36 @@ func _send_immediate(pid: int, action_name: String, args: Array) -> void:
 
 func _physics_process(delta: float) -> void:
 	_collect_from_sources()
+
+	var now: float = _nam_now()
+
 	for pid: int in _tick_data:
 		var td: Dictionary = _tick_data[pid]
 		if not td["dirty"]:
 			continue
+
 		td["accumulator"] += delta
 		if td["accumulator"] >= td["interval"]:
 			td["accumulator"] -= td["interval"]
+
 			var meta: Dictionary = GeneratedPackets.PACKETS[pid]
-			_send_immediate(pid, meta["name"], td["args"])
+			# ——— Кешированное имя метода ———
+			var write_method: String = _write_method_cache[pid]
+			var pkt: PackedByteArray = _gp.callv(write_method, td["args"])
+			var enet_channel: int = _enet_channel(meta["channel"])
+			var flags: int = _channel_flags(meta["channel"])
+
+			if _net.is_server():
+				match meta["sync_mode"]:
+					1: _net.broadcast(pkt, enet_channel, flags)
+					2: _net.broadcast(pkt, enet_channel, flags)
+			else:
+				_net.send_to_server(pkt, enet_channel, flags)
+
+			packet_sent.emit(meta["name"])
+
 			td["dirty"] = false
-			td["last_sent_signature"] = td.get("pending_signature", null)
-			td["last_sent_time"] = _nam_now()
-			td["pending_signature"] = null
+			td["last_sent_time"] = now
 
 
 # В _collect_from_sources, заменяем блок с signature:
@@ -307,8 +333,6 @@ func _collect_from_sources() -> void:
 
 			var force_send: bool = bool(state.get("_net_force_send", false))
 			var keepalive: float = float(state.get("_net_keepalive", 0.0))
-
-			# ——— ИЗМЕНЕНИЕ: bool вместо String signature ———
 			var changed: bool = bool(state.get("_net_changed", true))
 
 			if td["dirty"]:
@@ -316,11 +340,16 @@ func _collect_from_sources() -> void:
 				td["keepalive"] = keepalive
 				continue
 
-			# ——— Адаптированная проверка ———
-			if _should_queue_tick_packet_v2(td, changed, keepalive, force_send):
+			if force_send or changed:
 				td["args"] = args
 				td["dirty"] = true
 				td["keepalive"] = keepalive
+			elif keepalive > 0.0:
+				var last: float = float(td.get("last_sent_time", -1.0))
+				if last < 0.0 or (_nam_now() - last) >= keepalive:
+					td["args"] = args
+					td["dirty"] = true
+					td["keepalive"] = keepalive
 		else:
 			if bool(state.get("_net_skip", false)) and not bool(state.get("_net_force_send", false)):
 				continue
@@ -331,28 +360,6 @@ func _collect_from_sources() -> void:
 		if pid in _tick_data:
 			_tick_data[pid]["dirty"] = false
 			_tick_data[pid]["args"] = []
-
-
-## Новый метод — без сравнения строк
-func _should_queue_tick_packet_v2(
-	td: Dictionary, 
-	changed: bool, 
-	keepalive: float, 
-	force_send: bool
-) -> bool:
-	if force_send:
-		return true
-	if changed:
-		return true
-	# Keepalive: отправляем даже если не изменилось,
-	# если прошло достаточно времени
-	if keepalive > 0.0:
-		var now: float = float(Time.get_ticks_msec()) * 0.001
-		var last: float = float(td.get("last_send_time", 0.0))
-		if (now - last) >= keepalive:
-			return true
-	return false
-
 
 func _build_args(pid: int, meta: Dictionary, state: Dictionary, peer_id: int) -> Array:
 	var field_names: Array = meta.get("field_names", [])
@@ -405,9 +412,6 @@ func set_send_rate(action_name: String, hz: int) -> void:
 			"dirty": false,
 			"accumulator": 0.0,
 			"interval": 1.0 / float(hz),
-
-			"last_sent_signature": null,
-			"pending_signature": null,
 			"last_sent_time": -1.0,
 			"keepalive": 0.0,
 		}
@@ -424,9 +428,14 @@ func _on_packet(peer_id: int, body: StreamPeerBuffer, pid: int) -> void:
 		return
 	if not _check_rate_limit(peer_id, pid):
 		return
+
 	var meta: Dictionary = GeneratedPackets.PACKETS[pid]
-	var data: Dictionary = _gp.call("read_%s" % meta["name"], body)
+	# ——— Кешированный read method ———
+	var read_method: String = _read_method_cache[pid]
+	var data: Dictionary = _gp.call(read_method, body)
+
 	packet_received.emit(meta["name"], peer_id, data)
+
 	if _net.is_server():
 		_handle_server(pid, peer_id, data, meta)
 	else:
@@ -463,10 +472,13 @@ func _handle_server(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 	var values := []
 	for fname in field_names:
 		values.append(data[fname])
-	var pkt: PackedByteArray = _gp.callv("write_%s" % meta["name"], values)
 
-	var enet_channel := _enet_channel(meta["channel"])
-	var flags := _channel_flags(meta["channel"])
+	# ——— Кешированный write method ———
+	var write_method: String = _write_method_cache[pid]
+	var pkt: PackedByteArray = _gp.callv(write_method, values)
+
+	var enet_channel: int = _enet_channel(meta["channel"])
+	var flags: int = _channel_flags(meta["channel"])
 
 	match sync_mode:
 		1: _net.broadcast(pkt, enet_channel, flags)
@@ -533,23 +545,28 @@ func _auto_validate(pid: int, peer_id: int, data: Dictionary, meta: Dictionary) 
 		var new_pos: Vector3 = data[pos_field]
 		var old_data := _player_manager.get_player_data(peer_id)
 		var old_pos: Vector3 = old_data.get("position", Vector3.ZERO)
-		var distance := old_pos.distance_to(new_pos)
+
+		# ——— distance_squared вместо distance_to ———
+		var dx: float = old_pos.x - new_pos.x
+		var dy: float = old_pos.y - new_pos.y
+		var dz: float = old_pos.z - new_pos.z
+		var dist_sq: float = dx * dx + dy * dy + dz * dz
 
 		var max_dist: float = meta.get("v_max_distance", 0.0)
-		if max_dist > 0.0 and distance > max_dist:
+		if max_dist > 0.0 and dist_sq > max_dist * max_dist:
 			_report_violation(peer_id, "teleport_%s" % action_name)
 			return false
 
 		if max_speed > 0.0:
 			var dt := _compute_movement_validate_dt(peer_id, pid, data, meta, now)
 			var tolerance: float = meta.get("v_speed_tolerance", 1.5)
-			var max_allowed := max_speed * dt * tolerance
-			if distance > max_allowed:
+			var max_allowed: float = max_speed * dt * tolerance
+			if dist_sq > max_allowed * max_allowed:
 				_report_violation(peer_id, "speed_%s" % action_name)
 				return false
 
 		var max_action: float = meta.get("v_max_action_dist", 0.0)
-		if max_action > 0.0 and distance > max_action:
+		if max_action > 0.0 and dist_sq > max_action * max_action:
 			_report_violation(peer_id, "range_%s" % action_name)
 			return false
 
@@ -693,32 +710,6 @@ func _find_id(action_name: String) -> int:
 			_name_to_id[action_name] = pid
 			return pid
 	return -1
-
-func _should_queue_tick_packet(td: Dictionary, signature: Variant, keepalive: float, force_send: bool) -> bool:
-	if force_send:
-		return true
-
-	# Если источник не дал signature — оставляем старое поведение:
-	# тик-пакет считается "всегда отправляемым".
-	if signature == null:
-		return true
-
-	var last_signature: Variant = td.get("last_sent_signature", null)
-	if last_signature == null:
-		return true
-
-	if signature != last_signature:
-		return true
-
-	if keepalive > 0.0:
-		var last_sent_time: float = float(td.get("last_sent_time", -1.0))
-		if last_sent_time < 0.0:
-			return true
-		if (_nam_now() - last_sent_time) >= keepalive:
-			return true
-
-	return false
-
 
 func _nam_now() -> float:
 	return float(Time.get_ticks_msec()) * 0.001

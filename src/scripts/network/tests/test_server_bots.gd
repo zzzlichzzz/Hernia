@@ -1,6 +1,6 @@
 extends Control
 
-const SERVER_SCENE := "res://src/scripts/network/server_main.tscn"
+const SERVER_SCENE := "res://src/scripts/network/ServerMain.tscn"
 
 const MODE_IDLE := 0
 const MODE_CIRCLE := 1
@@ -190,7 +190,7 @@ func _refresh_runner_status() -> void:
 
 func _on_btn_connect_pressed() -> void:
 		print("Подключение к серверу...")
-		get_tree().change_scene_to_file("res://src/scripts/network/client_main.tscn")
+		get_tree().change_scene_to_file("res://src/scripts/network/ClientMain.tscn")
 
 func _on_btn_idle_pressed() -> void:
 	_open_bot_settings(MODE_IDLE, "IDLE", 25)

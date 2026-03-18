@@ -80,7 +80,7 @@ func _init() -> void:
 	if Global != null:
 		if Global.server_start != null:
 			if Global.server_start:
-				var v = load("res://src/scripts/network/server_main.tscn").instantiate()
+				var v = load("res://src/scripts/network/ServerMain.tscn").instantiate()
 				add_child(v)
 				Global.server_start = false
 # ══════════════════════════════════════════════════

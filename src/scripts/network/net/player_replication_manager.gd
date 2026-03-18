@@ -2,6 +2,28 @@ class_name PlayerReplicationManager
 extends Node
 
 # ══════════════════════════════════════════════════
+#  REUSABLE BUFFERS — allocated once, cleared each use
+# ══════════════════════════════════════════════════
+
+## Per-tick cache: peer_id -> bool (rebuilt once per tick)
+var _ready_cache: Dictionary = {}
+
+## Per-tick cache: peer_id -> world_id String (rebuilt once per tick)
+var _world_cache: Dictionary = {}
+
+## Reusable buffer for _gather_candidate_targets
+var _candidate_buffer: Dictionary = {}
+
+## Reusable buffer for stale target detection
+var _stale_buffer: Dictionary = {}
+
+## Reusable buffer for priority scoring (Vector2(-score, id))
+var _sort_buffer: Array = []
+
+## Reusable buffer for batch entries in replication
+var _batch_buffer: Array[Dictionary] = []
+
+# ══════════════════════════════════════════════════
 #  PROFILING STATS
 # ══════════════════════════════════════════════════
 
@@ -131,6 +153,9 @@ func set_world_resolver(world_resolver: Callable) -> void:
 func tick(delta: float) -> void:
 	if _net == null or _pm == null:
 		return
+
+	# ——— Build caches ONCE per frame ———
+	_rebuild_tick_caches()
 
 	_aoi_accumulator += delta
 	var aoi_step := 1.0 / AOI_UPDATE_TPS
@@ -268,6 +293,12 @@ func clear() -> void:
 	_priority_target_lists.clear()
 	_priority_rotating_cursor.clear()
 	_authoritative_states.clear()
+	_ready_cache.clear()
+	_world_cache.clear()
+	_candidate_buffer.clear()
+	_stale_buffer.clear()
+	_sort_buffer.clear()
+	_batch_buffer.clear()
 
 
 # ══════════════════════════════════════════════════
@@ -278,30 +309,31 @@ func _replicate_player_snapshots() -> void:
 	var observers_processed: int = 0
 	var repl_targets_total: int = 0
 
-	for observer_var in _visible_targets.keys():
+	for observer_var in _visible_targets:  # ← no .keys()
 		var observer_id: int = int(observer_var)
 
-		if not _is_peer_ready_for_replication(observer_id):
+		if not _ready_cache.get(observer_id, false):  # ← cached
 			continue
 
 		observers_processed += 1
 
-		var observer_world := _get_peer_world(observer_id)
+		var observer_world: String = _world_cache.get(observer_id, DEFAULT_WORLD_ID)  # ← cached
 		var observer_data: Dictionary = _pm.get_player_data(observer_id)
-		var observer_pos: Vector3 = observer_data.get("position", Vector3.ZERO)
+		var obs_x: float = observer_data.get("position", Vector3.ZERO).x
+		var obs_z: float = observer_data.get("position", Vector3.ZERO).z
 
 		var send_map: Dictionary = _replication_last_send.get(observer_id, {})
 		var tick_map: Dictionary = _replication_last_tick.get(observer_id, {})
 
-		var batch_entries: Array[Dictionary] = []
+		_batch_buffer.clear()  # ← reused, no new Array
 		var selected_targets: Array[int] = _get_priority_replication_targets(observer_id)
 
 		for target_id in selected_targets:
 			repl_targets_total += 1
 
-			if not _is_peer_ready_for_replication(target_id):
+			if not _ready_cache.get(target_id, false):  # ← cached
 				continue
-			if _get_peer_world(target_id) != observer_world:
+			if _world_cache.get(target_id, DEFAULT_WORLD_ID) != observer_world:  # ← cached
 				continue
 
 			if target_id not in _authoritative_states:
@@ -313,38 +345,46 @@ func _replicate_player_snapshots() -> void:
 				continue
 
 			var target_pos: Vector3 = auth_state.get("position", Vector3.ZERO)
-			var target_vel: Vector3 = auth_state.get("velocity", Vector3.ZERO)
-			var target_pitch: float = float(auth_state.get("head_pitch", 0.0))
-			var target_yaw: float = float(auth_state.get("body_yaw", 0.0))
 
-			var distance := _horizontal_distance(observer_pos, target_pos)
-			var hz := _get_replication_hz(distance)
-			if hz <= 0.0:
-				continue
+			# ——— Inlined horizontal distance ———
+			var dx: float = obs_x - target_pos.x
+			var dz: float = obs_z - target_pos.z
+			var distance: float = sqrt(dx * dx + dz * dz)
+
+			# ——— Inlined hz check ———
+			var hz: float
+			if distance <= LOD_NEAR_DISTANCE:
+				hz = LOD_NEAR_HZ
+			elif distance <= LOD_MID_DISTANCE:
+				hz = LOD_MID_HZ
+			elif distance <= LOD_FAR_DISTANCE:
+				hz = LOD_FAR_HZ
+			else:
+				hz = LOD_VERY_FAR_HZ
 
 			var last_tick_sent: int = int(tick_map.get(target_id, -1))
 			if last_tick_sent == target_tick:
 				continue
 
-			var interval := 1.0 / hz
+			var interval: float = 1.0 / hz
 			var last_send_time: float = float(send_map.get(target_id, -1.0))
 			if last_send_time >= 0.0 and (_replication_time - last_send_time) < interval:
 				continue
 
-			batch_entries.append({
+			_batch_buffer.append({
 				"peer_id": target_id,
 				"tick": target_tick,
 				"position": target_pos,
-				"velocity": target_vel,
-				"head_pitch": target_pitch,
-				"body_yaw": target_yaw,
+				"velocity": auth_state.get("velocity", Vector3.ZERO),
+				"head_pitch": float(auth_state.get("head_pitch", 0.0)),
+				"body_yaw": float(auth_state.get("body_yaw", 0.0)),
 			})
 
 			send_map[target_id] = _replication_time
 			tick_map[target_id] = target_tick
 
-		if not batch_entries.is_empty():
-			_send_snapshot_batches(observer_id, batch_entries)
+		if not _batch_buffer.is_empty():
+			_send_snapshot_batches(observer_id, _batch_buffer)
 
 	_prof_repl_observers_accum += observers_processed
 	_prof_repl_targets_accum += repl_targets_total
@@ -384,7 +424,25 @@ func _send_snapshot_batches(observer_id: int, entries: Array[Dictionary]) -> voi
 
 		offset = end
 
+## Rebuild per-tick caches once. Replaces hundreds of 
+## _is_peer_ready_for_replication() + _get_peer_world() calls
+func _rebuild_tick_caches() -> void:
+	_ready_cache.clear()
+	_world_cache.clear()
 
+	var ids: Array = _pm.get_all_ids()
+	for peer_var in ids:
+		var peer_id: int = int(peer_var)
+		var ready: bool = _authenticated.get(peer_id, false) and _pm.has_player(peer_id)
+		_ready_cache[peer_id] = ready
+
+		if ready:
+			if _world_resolver.is_valid():
+				var value: Variant = _world_resolver.call(peer_id)
+				if value is String and value != "":
+					_world_cache[peer_id] = value
+					continue
+			_world_cache[peer_id] = DEFAULT_WORLD_ID
 # ══════════════════════════════════════════════════
 #  AOI / VISIBILITY
 # ══════════════════════════════════════════════════
@@ -396,44 +454,57 @@ func _update_visibility_sets() -> void:
 	var candidate_targets_total: int = 0
 	var visible_pairs_total: int = 0
 
+	var enter_sq: float = AOI_ENTER_DISTANCE * AOI_ENTER_DISTANCE
+	var exit_sq: float = AOI_EXIT_DISTANCE * AOI_EXIT_DISTANCE
+
 	for observer_var in ids:
 		var observer_id: int = int(observer_var)
 
-		if not _is_peer_ready_for_replication(observer_id):
+		if not _ready_cache.get(observer_id, false):  # ← cached
 			_clear_observer_replication_state(observer_id)
 			continue
 
 		observers_processed += 1
-
 		_ensure_observer_replication_state(observer_id)
 
-		var observer_world := _get_peer_world(observer_id)
+		var observer_world: String = _world_cache.get(observer_id, DEFAULT_WORLD_ID)  # ← cached
 		var observer_data: Dictionary = _pm.get_player_data(observer_id)
 		var observer_pos: Vector3 = observer_data.get("position", Vector3.ZERO)
+		var obs_x: float = observer_pos.x
+		var obs_z: float = observer_pos.z
 
 		var visible_map: Dictionary = _visible_targets[observer_id]
 		var send_map: Dictionary = _replication_last_send[observer_id]
 		var tick_map: Dictionary = _replication_last_tick[observer_id]
 
-		var candidate_targets := _gather_candidate_targets(observer_pos, observer_world)
-		candidate_targets.erase(observer_id)
+		# ——— Gather candidates into reusable buffer ———
+		_gather_candidate_targets_into(observer_pos, observer_world)
+		_candidate_buffer.erase(observer_id)
 
-		candidate_targets_total += candidate_targets.size()
+		candidate_targets_total += _candidate_buffer.size()
 
-		var stale_targets: Dictionary = {}
+		_stale_buffer.clear()  # ← reused, no new Dict
 
-		for target_var in candidate_targets.keys():
+		# ——— Check candidates for enter/exit ———
+		for target_var in _candidate_buffer:  # ← no .keys()
 			var target_id: int = int(target_var)
 
-			if not _is_peer_ready_for_replication(target_id):
+			if not _ready_cache.get(target_id, false):  # ← cached
 				continue
 
 			var target_data: Dictionary = _pm.get_player_data(target_id)
 			var target_pos: Vector3 = target_data.get("position", Vector3.ZERO)
 
-			var currently_visible := target_id in visible_map
-			var distance_sq := _horizontal_distance_sq(observer_pos, target_pos)
-			var should_be_visible := _aoi_should_be_visible(distance_sq, currently_visible)
+			# ——— Inlined horizontal_distance_sq ———
+			var dx: float = obs_x - target_pos.x
+			var dz: float = obs_z - target_pos.z
+			var dist_sq: float = dx * dx + dz * dz
+
+			var currently_visible: bool = target_id in visible_map
+
+			# ——— Inlined AOI hysteresis check ———
+			var threshold_sq: float = exit_sq if currently_visible else enter_sq
+			var should_be_visible: bool = dist_sq <= threshold_sq
 
 			if should_be_visible:
 				if not currently_visible:
@@ -443,15 +514,16 @@ func _update_visibility_sets() -> void:
 					_send_player_enter(observer_id, target_id)
 			else:
 				if currently_visible:
-					stale_targets[target_id] = true
+					_stale_buffer[target_id] = true
 
-		var visible_keys: Array = visible_map.keys()
-		for target_var in visible_keys:
+		# ——— Find visible targets that left candidate range ———
+		for target_var in visible_map:  # ← no .keys() — safe, not modifying visible_map here
 			var target_id: int = int(target_var)
-			if target_id not in candidate_targets:
-				stale_targets[target_id] = true
+			if target_id not in _candidate_buffer:
+				_stale_buffer[target_id] = true
 
-		for target_var in stale_targets.keys():
+		# ——— Process stale exits ———
+		for target_var in _stale_buffer:  # ← no .keys()
 			var target_id: int = int(target_var)
 			if target_id in visible_map:
 				visible_map.erase(target_id)
@@ -461,7 +533,9 @@ func _update_visibility_sets() -> void:
 
 		visible_pairs_total += visible_map.size()
 
-		_rebuild_priority_targets_for_observer(observer_id, observer_pos, observer_data, visible_map)
+		_rebuild_priority_targets_for_observer(
+			observer_id, observer_pos, observer_data, visible_map
+		)
 
 	_prof_aoi_observers_accum += observers_processed
 	_prof_candidate_targets_accum += candidate_targets_total
@@ -489,12 +563,19 @@ func _rebuild_priority_targets_for_observer(
 
 	var observer_rot: Vector3 = observer_data.get("rotation", Vector3.ZERO)
 	var observer_yaw: float = observer_rot.y
-	var observer_forward := Vector3(-sin(observer_yaw), 0.0, -cos(observer_yaw)).normalized()
+	# Инлайним forward вектор (только XZ)
+	var fwd_x: float = -sin(observer_yaw)
+	var fwd_z: float = -cos(observer_yaw)
+
+	var obs_x: float = observer_pos.x
+	var obs_z: float = observer_pos.z
+	var inv_aoi: float = 1.0 / AOI_EXIT_DISTANCE
 
 	var send_map: Dictionary = _replication_last_send.get(observer_id, {})
-	var scored: Array[Dictionary] = []
 
-	for target_var in visible_map.keys():
+	_sort_buffer.clear()  # ← reused Array, no alloc
+
+	for target_var in visible_map:  # ← no .keys()
 		var target_id: int = int(target_var)
 
 		if not _pm.has_player(target_id):
@@ -503,56 +584,74 @@ func _rebuild_priority_targets_for_observer(
 		var target_data: Dictionary = _pm.get_player_data(target_id)
 		var target_pos: Vector3 = target_data.get("position", Vector3.ZERO)
 
-		var to_target := target_pos - observer_pos
-		to_target.y = 0.0
+		# ——— Inlined distance + direction ———
+		var dx: float = target_pos.x - obs_x
+		var dz: float = target_pos.z - obs_z
+		var distance: float = sqrt(dx * dx + dz * dz)
 
-		var distance := to_target.length()
-		var dir := Vector3.ZERO
+		var distance_norm: float = distance * inv_aoi
+		if distance_norm > 1.0:
+			distance_norm = 1.0
+		var distance_score: float = (1.0 - distance_norm) * PRIORITY_DISTANCE_WEIGHT
+
+		# ——— Front dot — inlined without Vector3 ———
+		var front_dot: float = 0.0
 		if distance > 0.0001:
-			dir = to_target / distance
+			var inv_d: float = 1.0 / distance
+			front_dot = fwd_x * dx * inv_d + fwd_z * dz * inv_d
 
-		var distance_norm := clampf(distance / AOI_EXIT_DISTANCE, 0.0, 1.0)
-		var distance_score := (1.0 - distance_norm) * PRIORITY_DISTANCE_WEIGHT
+		var front_score: float = clampf(
+			(front_dot + 1.0) * 0.5, 0.0, 1.0
+		) * PRIORITY_FRONT_WEIGHT
 
-		var front_dot := 0.0
-		if dir != Vector3.ZERO:
-			front_dot = observer_forward.dot(dir)
-
-		var front_score := clampf((front_dot + 1.0) * 0.5, 0.0, 1.0) * PRIORITY_FRONT_WEIGHT
-
-		var expected_hz := _get_replication_hz(distance)
-		var expected_interval := 1.0 / maxf(expected_hz, 0.001)
+		# ——— Overdue score ———
+		var expected_hz: float = _get_replication_hz_inline(distance)
+		var expected_interval: float = 1.0 / expected_hz
 		var last_send_time: float = float(send_map.get(target_id, -1.0))
 
-		var overdue_ratio := 1.0
+		var overdue_ratio: float = 1.0
 		if last_send_time >= 0.0:
-			overdue_ratio = clampf((_replication_time - last_send_time) / expected_interval, 0.0, 3.0)
+			overdue_ratio = (_replication_time - last_send_time) / expected_interval
+			if overdue_ratio < 0.0:
+				overdue_ratio = 0.0
+			elif overdue_ratio > 3.0:
+				overdue_ratio = 3.0
 
-		var overdue_score := overdue_ratio * PRIORITY_OVERDUE_WEIGHT
+		var overdue_score: float = overdue_ratio * PRIORITY_OVERDUE_WEIGHT
+		var total_score: float = distance_score + front_score + overdue_score
 
-		var total_score := distance_score + front_score + overdue_score
+		# Vector2(-score, id) — встроенная сортировка, 
+		# без lambda, без Dictionary
+		_sort_buffer.append(Vector2(-total_score, float(target_id)))
 
-		scored.append({
-			"id": target_id,
-			"score": total_score,
-		})
+	# Встроенный sort для Vector2: по x (ascending) → по -score = descending
+	_sort_buffer.sort()
 
-	scored.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return float(a["score"]) > float(b["score"])
-	)
-
+	var count: int = _sort_buffer.size()
 	var ordered: Array = []
-	for entry in scored:
-		ordered.append(int(entry["id"]))
+	ordered.resize(count)
+	for i in range(count):
+		ordered[i] = int(_sort_buffer[i].y)
 
 	_priority_target_lists[observer_id] = ordered
 
 	var old_cursor: int = int(_priority_rotating_cursor.get(observer_id, 0))
-	var tail_size := maxi(ordered.size() - PRIORITY_ALWAYS_TARGETS, 0)
+	var tail_size: int = maxi(count - PRIORITY_ALWAYS_TARGETS, 0)
 	if tail_size <= 0:
 		_priority_rotating_cursor[observer_id] = 0
 	else:
 		_priority_rotating_cursor[observer_id] = old_cursor % tail_size
+
+## Inlined version — avoids function call overhead
+## Called ~5000 times per AOI pass (100 observers × 50 targets)
+func _get_replication_hz_inline(distance: float) -> float:
+	if distance <= LOD_NEAR_DISTANCE:
+		return LOD_NEAR_HZ
+	if distance <= LOD_MID_DISTANCE:
+		return LOD_MID_HZ
+	if distance <= LOD_FAR_DISTANCE:
+		return LOD_FAR_HZ
+	return LOD_VERY_FAR_HZ
 
 func _get_priority_replication_targets(observer_id: int) -> Array[int]:
 	var result: Array[int] = []
@@ -599,20 +698,6 @@ func _clear_observer_replication_state(observer_id: int) -> void:
 	_priority_target_lists.erase(observer_id)
 	_priority_rotating_cursor.erase(observer_id)
 
-
-func _is_peer_ready_for_replication(peer_id: int) -> bool:
-	return _authenticated.get(peer_id, false) and _pm.has_player(peer_id)
-
-
-func _aoi_should_be_visible(distance_sq: float, currently_visible: bool) -> bool:
-	var enter_sq := AOI_ENTER_DISTANCE * AOI_ENTER_DISTANCE
-	var exit_sq := AOI_EXIT_DISTANCE * AOI_EXIT_DISTANCE
-
-	if currently_visible:
-		return distance_sq <= exit_sq
-	return distance_sq <= enter_sq
-
-
 func _send_player_enter(observer_id: int, target_id: int) -> void:
 	if not _pm.has_player(target_id):
 		return
@@ -633,61 +718,71 @@ func _send_player_exit(observer_id: int, target_id: int) -> void:
 # ══════════════════════════════════════════════════
 
 func _rebuild_spatial_grid() -> void:
-	_spatial_cells.clear()
+	# Вместо clear() + полная перестройка → очищаем содержимое,
+	# но переиспользуем верхний уровень структуры
+	for world_id in _spatial_cells:
+		var world_grid: Dictionary = _spatial_cells[world_id]
+		world_grid.clear()
+	# НЕ делаем _spatial_cells.clear() — переиспользуем ключи миров
 	_peer_cells.clear()
 
 	var ids: Array = _pm.get_all_ids()
 	for peer_var in ids:
 		var peer_id: int = int(peer_var)
 
-		if not _is_peer_ready_for_replication(peer_id):
+		if not _ready_cache.get(peer_id, false):  # ← cached
 			continue
 
-		var world_id := _get_peer_world(peer_id)
+		var world_id: String = _world_cache.get(peer_id, DEFAULT_WORLD_ID)  # ← cached
 		var data: Dictionary = _pm.get_player_data(peer_id)
 		var pos: Vector3 = data.get("position", Vector3.ZERO)
-		var cell := _world_to_cell(pos)
+
+		var cx: int = floori(pos.x / GRID_CELL_SIZE)
+		var cz: int = floori(pos.z / GRID_CELL_SIZE)
+		var cell := Vector2i(cx, cz)
 
 		_peer_cells[peer_id] = {
 			"world_id": world_id,
 			"cell": cell,
 		}
 
-		if world_id not in _spatial_cells:
-			_spatial_cells[world_id] = {}
+		var world_grid: Dictionary
+		if world_id in _spatial_cells:
+			world_grid = _spatial_cells[world_id]
+		else:
+			world_grid = {}
+			_spatial_cells[world_id] = world_grid
 
-		var world_grid: Dictionary = _spatial_cells[world_id]
-		if cell not in world_grid:
-			world_grid[cell] = {}
+		var bucket: Dictionary
+		if cell in world_grid:
+			bucket = world_grid[cell]
+		else:
+			bucket = {}
+			world_grid[cell] = bucket
 
-		var bucket: Dictionary = world_grid[cell]
 		bucket[peer_id] = true
-		world_grid[cell] = bucket
-		_spatial_cells[world_id] = world_grid
 
-
-func _gather_candidate_targets(observer_pos: Vector3, world_id: String) -> Dictionary:
-	var result: Dictionary = {}
-	var center := _world_to_cell(observer_pos)
-	var radius_cells := _get_cell_query_radius()
+## Fills _candidate_buffer in-place. No allocation per call.
+func _gather_candidate_targets_into(observer_pos: Vector3, world_id: String) -> void:
+	_candidate_buffer.clear()
 
 	if world_id not in _spatial_cells:
-		return result
+		return
 
 	var world_grid: Dictionary = _spatial_cells[world_id]
+	var cx: int = floori(observer_pos.x / GRID_CELL_SIZE)
+	var cz: int = floori(observer_pos.z / GRID_CELL_SIZE)
+	var radius_cells: int = _get_cell_query_radius()
 
 	for dz in range(-radius_cells, radius_cells + 1):
 		for dx in range(-radius_cells, radius_cells + 1):
-			var cell := Vector2i(center.x + dx, center.y + dz)
+			var cell := Vector2i(cx + dx, cz + dz)
 			if cell not in world_grid:
 				continue
-
 			var bucket: Dictionary = world_grid[cell]
-			for peer_var in bucket.keys():
-				result[int(peer_var)] = true
-
-	return result
-
+			# Итерация dict напрямую — без .keys() аллокации
+			for peer_var in bucket:
+				_candidate_buffer[int(peer_var)] = true
 
 func _get_cell_query_radius() -> int:
 	return int(ceili(AOI_EXIT_DISTANCE / GRID_CELL_SIZE))
@@ -699,18 +794,9 @@ func _world_to_cell(pos: Vector3) -> Vector2i:
 		floori(pos.z / GRID_CELL_SIZE)
 	)
 
-
-func _horizontal_distance(a: Vector3, b: Vector3) -> float:
-	var dx := a.x - b.x
-	var dz := a.z - b.z
-	return sqrt(dx * dx + dz * dz)
-
-
-func _horizontal_distance_sq(a: Vector3, b: Vector3) -> float:
-	var dx := a.x - b.x
-	var dz := a.z - b.z
-	return dx * dx + dz * dz
-
+## Оставляем для cold-path (cleanup, spawn, etc.)
+func _is_peer_ready_for_replication(peer_id: int) -> bool:
+	return _authenticated.get(peer_id, false) and _pm.has_player(peer_id)
 
 func _get_peer_world(peer_id: int) -> String:
 	if _world_resolver.is_valid():

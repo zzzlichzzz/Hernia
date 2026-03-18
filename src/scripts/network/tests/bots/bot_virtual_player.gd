@@ -52,6 +52,13 @@ var _pending_position_correction: Vector3 = Vector3.ZERO
 var _pending_yaw_correction: float = 0.0
 var _pending_pitch_correction: float = 0.0
 
+## Integer signature (как в BasePlayer)
+var _last_sig_px: int = 0
+var _last_sig_py: int = 0
+var _last_sig_pz: int = 0
+var _last_sig_yaw: int = 0
+var _last_sig_pitch: int = 0
+
 
 func configure(spawn_position: Vector3, bot_mode: int, seed_value: int = 0) -> void:
 	mode = bot_mode
@@ -66,10 +73,8 @@ func configure(spawn_position: Vector3, bot_mode: int, seed_value: int = 0) -> v
 
 	match mode:
 		Mode.CIRCLE:
-			# Выбираем стартовый угол.
 			_circle_angle = _rng.randf_range(-PI, PI)
 
-			# Смещаем центр круга так, чтобы spawn_position уже лежала на окружности.
 			var offset := Vector3(
 				cos(_circle_angle) * circle_radius,
 				0.0,
@@ -95,6 +100,14 @@ func configure(spawn_position: Vector3, bot_mode: int, seed_value: int = 0) -> v
 	_turn_timer = _rng.randf_range(random_turn_interval_min, random_turn_interval_max)
 	_movement_unlock_time = _now() + movement_start_delay + _rng.randf_range(0.0, 1.5)
 
+	# Инициализируем signature
+	_last_sig_px = _quantize_for_signature(_position.x, net_pos_quantum)
+	_last_sig_py = _quantize_for_signature(_position.y, net_pos_quantum)
+	_last_sig_pz = _quantize_for_signature(_position.z, net_pos_quantum)
+	_last_sig_yaw = _quantize_for_signature(_body_yaw, net_yaw_quantum)
+	_last_sig_pitch = _quantize_for_signature(_head_pitch, net_pitch_quantum)
+
+
 func _physics_process(delta: float) -> void:
 	if _now() < _movement_unlock_time:
 		_update_idle(delta)
@@ -117,18 +130,34 @@ func _physics_process(delta: float) -> void:
 func get_network_state() -> Dictionary:
 	_network_tick = (_network_tick + 1) & 0xFFFF
 
-	var state := {
+	# ——— Integer signature (без String аллокации) ———
+	var sig_px: int = _quantize_for_signature(_position.x, net_pos_quantum)
+	var sig_py: int = _quantize_for_signature(_position.y, net_pos_quantum)
+	var sig_pz: int = _quantize_for_signature(_position.z, net_pos_quantum)
+	var sig_yaw: int = _quantize_for_signature(wrapf(_body_yaw, -PI, PI), net_yaw_quantum)
+	var sig_pitch: int = _quantize_for_signature(wrapf(_head_pitch, -PI, PI), net_pitch_quantum)
+
+	var changed: bool = (
+		sig_px != _last_sig_px or sig_py != _last_sig_py or
+		sig_pz != _last_sig_pz or sig_yaw != _last_sig_yaw or
+		sig_pitch != _last_sig_pitch
+	)
+
+	if changed:
+		_last_sig_px = sig_px
+		_last_sig_py = sig_py
+		_last_sig_pz = sig_pz
+		_last_sig_yaw = sig_yaw
+		_last_sig_pitch = sig_pitch
+
+	return {
 		"tick": _network_tick,
 		"position": _position,
 		"velocity": _velocity,
 		"rotation": Vector3(_head_pitch, _body_yaw, 0.0),
-
-		# Служебные ключи для NAM idle suppression
-		"_net_signature": _build_net_send_signature(_position, _body_yaw, _head_pitch),
+		"_net_changed": changed,
 		"_net_keepalive": net_idle_keepalive,
 	}
-
-	return state
 
 
 func apply_correction_state(peer_id: int, data: Dictionary) -> void:
@@ -155,11 +184,23 @@ func apply_correction_state(peer_id: int, data: Dictionary) -> void:
 		_pending_position_correction = Vector3.ZERO
 		_pending_yaw_correction = 0.0
 		_pending_pitch_correction = 0.0
+
+		# ——— Синхронизируем circle_angle с серверной позицией ———
+		if mode == Mode.CIRCLE:
+			var rel: Vector3 = server_pos - _spawn_center
+			_circle_angle = atan2(rel.z, rel.x)
+
 		return
 
 	_pending_position_correction += pos_delta
 	_pending_yaw_correction = wrapf(_pending_yaw_correction + yaw_delta, -PI, PI)
 	_pending_pitch_correction = wrapf(_pending_pitch_correction + pitch_delta, -PI, PI)
+
+	# ——— Корректируем circle_angle чтобы не дрожало ———
+	if mode == Mode.CIRCLE and pos_error > 0.01:
+		var corrected_pos: Vector3 = _position + _pending_position_correction
+		var rel: Vector3 = corrected_pos - _spawn_center
+		_circle_angle = atan2(rel.z, rel.x)
 
 
 func get_debug_position() -> Vector3:
@@ -178,16 +219,19 @@ func _update_idle(_delta: float) -> void:
 
 
 func _update_circle(delta: float) -> void:
+	# ——— Движение через velocity + delta (не перезаписываем позицию) ———
 	_circle_angle = wrapf(_circle_angle + circle_angular_speed * delta, -PI, PI)
 
-	var x := cos(_circle_angle) * circle_radius
-	var z := sin(_circle_angle) * circle_radius
+	# Касательная к окружности = direction движения
+	var tangent_x: float = -sin(_circle_angle)
+	var tangent_z: float = cos(_circle_angle)
+	var speed: float = circle_radius * circle_angular_speed
 
-	_position = _spawn_center + Vector3(x, 0.0, z)
+	_velocity = Vector3(tangent_x * speed, 0.0, tangent_z * speed)
+	_position += _velocity * delta
+	_position.y = _spawn_center.y
 
-	var tangent := Vector3(-sin(_circle_angle), 0.0, cos(_circle_angle)).normalized()
-	_velocity = tangent * (circle_radius * circle_angular_speed)
-	_body_yaw = _yaw_from_direction(tangent)
+	_body_yaw = atan2(-tangent_x, -tangent_z)
 
 	var t: float = float(Time.get_ticks_msec()) * 0.001
 	_head_pitch = sin(t * 0.9 + float(network_id)) * 0.12
@@ -203,7 +247,7 @@ func _update_random_walk(delta: float) -> void:
 	to_center.y = 0.0
 
 	var desired_dir := _move_dir
-	if to_center.length() > random_walk_radius:
+	if to_center.length_squared() > random_walk_radius * random_walk_radius:
 		desired_dir = to_center.normalized()
 
 	_velocity = desired_dir * move_speed
@@ -228,17 +272,17 @@ func _pick_new_random_direction() -> void:
 
 func _apply_correction_blend(delta: float) -> void:
 	if _pending_position_correction.length_squared() > 0.0:
-		var pos_alpha := clampf(correction_position_blend_speed * delta, 0.0, 1.0)
-		var pos_step := _pending_position_correction * pos_alpha
+		var pos_alpha: float = clampf(correction_position_blend_speed * delta, 0.0, 1.0)
+		var pos_step: Vector3 = _pending_position_correction * pos_alpha
 		_position += pos_step
 		_pending_position_correction -= pos_step
 
-		if _pending_position_correction.length() <= 0.001:
+		if _pending_position_correction.length_squared() <= 0.000001:
 			_pending_position_correction = Vector3.ZERO
 
 	if absf(_pending_yaw_correction) > 0.0001:
-		var yaw_alpha := clampf(correction_rotation_blend_speed * delta, 0.0, 1.0)
-		var yaw_step := _pending_yaw_correction * yaw_alpha
+		var yaw_alpha: float = clampf(correction_rotation_blend_speed * delta, 0.0, 1.0)
+		var yaw_step: float = _pending_yaw_correction * yaw_alpha
 		_body_yaw = wrapf(_body_yaw + yaw_step, -PI, PI)
 		_pending_yaw_correction = wrapf(_pending_yaw_correction - yaw_step, -PI, PI)
 
@@ -246,8 +290,8 @@ func _apply_correction_blend(delta: float) -> void:
 			_pending_yaw_correction = 0.0
 
 	if absf(_pending_pitch_correction) > 0.0001:
-		var pitch_alpha := clampf(correction_rotation_blend_speed * delta, 0.0, 1.0)
-		var pitch_step := _pending_pitch_correction * pitch_alpha
+		var pitch_alpha: float = clampf(correction_rotation_blend_speed * delta, 0.0, 1.0)
+		var pitch_step: float = _pending_pitch_correction * pitch_alpha
 		_head_pitch += pitch_step
 		_pending_pitch_correction = wrapf(_pending_pitch_correction - pitch_step, -PI, PI)
 
@@ -265,19 +309,6 @@ func _yaw_from_direction(dir: Vector3) -> float:
 	return atan2(-dir.x, -dir.z)
 
 
-func _build_net_send_signature(pos: Vector3, yaw: float, pitch: float) -> String:
-	var pyaw := wrapf(yaw, -PI, PI)
-	var ppitch := wrapf(pitch, -PI, PI)
-
-	return "%d|%d|%d|%d|%d" % [
-		_quantize_for_signature(pos.x, net_pos_quantum),
-		_quantize_for_signature(pos.y, net_pos_quantum),
-		_quantize_for_signature(pos.z, net_pos_quantum),
-		_quantize_for_signature(pyaw, net_yaw_quantum),
-		_quantize_for_signature(ppitch, net_pitch_quantum),
-	]
-
-
 func _quantize_for_signature(v: float, step: float) -> int:
 	if step <= 0.0:
 		return int(round(v * 1000.0))
@@ -286,6 +317,7 @@ func _quantize_for_signature(v: float, step: float) -> int:
 
 func _angle_delta(from_angle: float, to_angle: float) -> float:
 	return wrapf(to_angle - from_angle, -PI, PI)
+
 
 func _now() -> float:
 	return float(Time.get_ticks_msec()) * 0.001

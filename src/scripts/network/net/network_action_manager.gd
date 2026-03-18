@@ -108,7 +108,6 @@ func clear_sources() -> void:
 	for pid: int in _tick_data:
 		_tick_data[pid]["dirty"] = false
 		_tick_data[pid]["args"] = []
-		_tick_data[pid]["pending_signature"] = null
 		_tick_data[pid]["last_sent_signature"] = null
 		_tick_data[pid]["last_sent_time"] = -1.0
 		_tick_data[pid]["keepalive"] = 0.0
@@ -281,6 +280,8 @@ func _physics_process(delta: float) -> void:
 			td["pending_signature"] = null
 
 
+# В _collect_from_sources, заменяем блок с signature:
+
 func _collect_from_sources() -> void:
 	var stale: Array[int] = []
 
@@ -305,24 +306,22 @@ func _collect_from_sources() -> void:
 			var td: Dictionary = _tick_data[pid]
 
 			var force_send: bool = bool(state.get("_net_force_send", false))
-			var signature: Variant = state.get("_net_signature", null)
 			var keepalive: float = float(state.get("_net_keepalive", 0.0))
 
-			# Если пакет уже ждёт своего send tick — просто обновляем его
-			# до самого свежего состояния.
+			# ——— ИЗМЕНЕНИЕ: bool вместо String signature ———
+			var changed: bool = bool(state.get("_net_changed", true))
+
 			if td["dirty"]:
 				td["args"] = args
-				td["pending_signature"] = signature
 				td["keepalive"] = keepalive
 				continue
 
-			if _should_queue_tick_packet(td, signature, keepalive, force_send):
+			# ——— Адаптированная проверка ———
+			if _should_queue_tick_packet_v2(td, changed, keepalive, force_send):
 				td["args"] = args
 				td["dirty"] = true
-				td["pending_signature"] = signature
 				td["keepalive"] = keepalive
 		else:
-			# Для событийных пакетов старое поведение остаётся.
 			if bool(state.get("_net_skip", false)) and not bool(state.get("_net_force_send", false)):
 				continue
 			_send_immediate(pid, meta["name"], args)
@@ -332,7 +331,27 @@ func _collect_from_sources() -> void:
 		if pid in _tick_data:
 			_tick_data[pid]["dirty"] = false
 			_tick_data[pid]["args"] = []
-			_tick_data[pid]["pending_signature"] = null
+
+
+## Новый метод — без сравнения строк
+func _should_queue_tick_packet_v2(
+	td: Dictionary, 
+	changed: bool, 
+	keepalive: float, 
+	force_send: bool
+) -> bool:
+	if force_send:
+		return true
+	if changed:
+		return true
+	# Keepalive: отправляем даже если не изменилось,
+	# если прошло достаточно времени
+	if keepalive > 0.0:
+		var now: float = float(Time.get_ticks_msec()) * 0.001
+		var last: float = float(td.get("last_send_time", 0.0))
+		if (now - last) >= keepalive:
+			return true
+	return false
 
 
 func _build_args(pid: int, meta: Dictionary, state: Dictionary, peer_id: int) -> Array:

@@ -35,6 +35,7 @@ var _break_timer: float = 0.0
 var _place_timer: float = 0.0
 var _selected_block_id: int = -1
 var _selected_texture: String = "stone"
+var voxel_id: int = 0
 
 # [CHANGE 10] Комментарий: ключи 2 и 3 оба → "cherry_planks". Намеренно?
 var _block_to_texture: Dictionary = {
@@ -159,7 +160,7 @@ func _remote_place(data: Dictionary) -> void:
 		return
 
 	var pos := Vector3i(data["block_position"])
-	var voxel_id: int = data["block_id"]
+	voxel_id = data["block_id"]
 
 	_terrain_tool.value = voxel_id
 	_terrain_tool.do_point(pos)
@@ -209,17 +210,20 @@ func _handle_input() -> void:
 	target_changed.emit(target["position"], true)
 
 	if Input.is_action_pressed("break_block") and _break_timer <= 0.0:
-		_break_block(target["position"])
+		items.get_item_int(_terrain_tool.get_voxel(target["position"])).block._break_block(target["position"], self)
 		_break_timer = break_cooldown
 
 	if Input.is_action_pressed("place_block") and _place_timer <= 0.0:
 		if not _try_paint_chameleon(target["position"]):
 			var place_pos: Vector3i = target["place_position"]
 			if _can_place_at(place_pos):
-				_place_block(place_pos)
+				if _selected_block_id != -1:
+					if items.isItemBlock(_selected_block_id):
+						items.get_item_int(_selected_block_id).block._place_block(place_pos, self)
 		_place_timer = place_cooldown
 
 	if Input.is_action_just_pressed("pick_block"):
+		items.get_item_int(_terrain_tool.get_voxel(target["position"])).block.clickRight()
 		_pick_block(target["position"])
 
 
@@ -227,76 +231,6 @@ func _handle_input() -> void:
 #  ДЕЙСТВИЯ (локальные + отправка)
 # ══════════════════════════════════════════════════
 
-func _break_block(pos: Vector3i) -> void:
-	if _terrain_tool == null:
-		return
-
-	var old_id := _terrain_tool.get_voxel(pos)
-	if old_id == 0:
-		return
-	elif is_position_free(pos):
-		#var scene_block: Resource = items.get_item_int(_selected_block_id).get_scene()
-		#var entity = scene_block.instantiate()
-		#entity.position = Vector3(pos)
-		##global_position.
-		var r = 4
-		#_world.remove_child()
-	var cham := ChameleonManager.get_instance()
-	if cham and cham.is_chameleon_block(old_id):
-		cham.remove_chameleon(pos)
-
-	_terrain_tool.value = 0
-	_terrain_tool.do_point(pos)
-
-	var new_id := _terrain_tool.get_voxel(pos)
-	if new_id == 0:
-		print("⛏️ Блок сломан: ", pos)
-		block_broken.emit(pos, old_id)
-		_send("block_break", [Vector3(pos)])
-	else:
-		push_warning("❌ Не удалось сломать блок: %s" % str(pos))
-
-func is_position_free(position: Vector3) -> bool:
-	var space = get_world_3d().direct_space_state
-	var query = PhysicsPointQueryParameters3D.new()
-	query.position = position
-	return space.intersect_point(query).is_empty()
-
-func _place_block(pos: Vector3i) -> void:
-	if _terrain_tool == null:
-		return
-
-	var current := _terrain_tool.get_voxel(pos)
-	if current != 0:
-		return
-
-	_update_selected_block_from_inventory()
-
-	# [CHANGE 2] Проверка на невалидный id ДО обращения к массиву
-	if _selected_block_id < 0:
-		return
-	# [CHANGE 1] Проверка items
-	if items == null:
-		return
-	if not items.isItemBlock(_selected_block_id):
-		return
-	elif items.get_item_int(_selected_block_id) is ItemBlockLogic:
-		var scene_block: Resource = items.get_item_int(_selected_block_id).get_scene()
-		var entity = scene_block.instantiate()
-		entity.position = Vector3(pos)
-		_world.add_child(entity)
-		#return
-		
-
-	var voxel_id: int = _selected_block_id
-	_terrain_tool.value = voxel_id
-	_terrain_tool.do_point(pos)
-
-	var new_id := _terrain_tool.get_voxel(pos)
-	if new_id == voxel_id:
-		print("🧱 Блок установлен: ", pos)
-		block_placed.emit(pos, _selected_block_id)
-		_send("block_place", [Vector3(pos), voxel_id])
 
 
 func _try_paint_chameleon(hit_pos: Vector3i) -> bool:
@@ -536,8 +470,8 @@ func _get_combined_target() -> Dictionary:
 	#if hit_scene is BlockLogic:
 		#result["has_target"] = true
 		#result["position"] = hit_scene.position
-		#result["place_position"] = hit_scene.previous_position
-		#var normal := Vector3(hit_scene.previous_position - hit_scene.position)
+		##result["place_position"] = hit_scene.previous_position
+		#var normal := Vector3(hit_scene.position)
 		#result["face"] = _normal_to_face(normal)
 		#result["normal"] = normal.normalized()
 		#return result

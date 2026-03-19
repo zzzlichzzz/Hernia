@@ -2,20 +2,24 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c8cr4rbg16v8g"
-path="res://.godot/imported/block_grase.png-7fdf0858f23028a974ea4ae6da59713a.ctex"
+uid="uid://b862u7o4nomt4"
+path.s3tc="res://.godot/imported/chest2_0.png-0556504006c2d6028fae3044ce73a0b0.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "602cf3e7d93b6bdf0b18ebd82de55ba1"
 }
 
 [deps]
 
-source_file="res://src/assets/textures/gui/icons/blocks/block_grase.png"
-dest_files=["res://.godot/imported/block_grase.png-7fdf0858f23028a974ea4ae6da59713a.ctex"]
+source_file="res://src/assets/models/blocks/chest2_0.png"
+dest_files=["res://.godot/imported/chest2_0.png-0556504006c2d6028fae3044ce73a0b0.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -23,7 +27,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
@@ -37,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

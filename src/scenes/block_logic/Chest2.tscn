@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://qas04xsqbtl8"]
+
+[ext_resource type="Script" uid="uid://bri5o41eefk8i" path="res://src/scripts/blocks/type/block_logic.gd" id="1_vhcdn"]
+[ext_resource type="PackedScene" uid="uid://cxu66d7ssy0ub" path="res://src/assets/models/blocks/chest2.gltf" id="2_rjob4"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_wspw8"]
+size = Vector3(2.2609136518383366, 1.120870214612296, 1)
+
+[node name="Chest2" type="StaticBody3D" unique_id=478784897]
+script = ExtResource("1_vhcdn")
+metadata/_custom_type_script = "uid://bri5o41eefk8i"
+
+[node name="blockbench_export" parent="." unique_id=357167540 instance=ExtResource("2_rjob4")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1464445195]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0011062328995206094, 0.5599943312592077, -0.011948033262844548)
+shape = SubResource("BoxShape3D_wspw8")

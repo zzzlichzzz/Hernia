@@ -32,7 +32,8 @@ max_view_distance = 64
 script = ExtResource("4_terrain")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1768579647]
-transform = Transform3D(1, 0, 0, 0, 0.7461038605535667, 0.665829579747749, 0, -0.665829579747749, 0.7461038605535667, 0, 75.22983780076964, 0)
+transform = Transform3D(-0.3281248339173614, 0.6289655057267979, -0.7047953504192104, 0.2704555889749417, 0.7774213961102725, 0.5678641979048972, 0.9050899777143271, -0.004285495979267917, -0.4251985027787496, 0, 10.895049303771941, -0.17141366580759154)
+sky_mode = 1
 
 [node name="DebugOverlay" type="CanvasLayer" parent="." unique_id=999999999 groups=["debug"]]
 script = ExtResource("2_debug")

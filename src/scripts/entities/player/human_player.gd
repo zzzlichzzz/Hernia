@@ -10,6 +10,7 @@ const JUMP_VELOCITY := 4.5
 const MOUSE_SENSITIVITY := 0.003
 const REACH_DISTANCE := 10.0
 
+#@onready var _camera: RayCast3D = $Neck/Camera3D
 
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 

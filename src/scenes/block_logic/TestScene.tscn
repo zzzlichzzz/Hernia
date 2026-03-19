@@ -1,17 +1,17 @@
-[gd_scene format=3 uid="uid://dr3rd1ypija21"]
+[gd_scene format=3 uid="uid://md4nskd4afiv"]
 
 [ext_resource type="PackedScene" uid="uid://fc0dmy1d6jno" path="res://src/assets/models/blocks/untitled.glb" id="1_fkumy"]
 [ext_resource type="Script" uid="uid://bri5o41eefk8i" path="res://src/scripts/blocks/type/block_logic.gd" id="1_qdgni"]
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_fkumy"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_gg4dk"]
 
-[node name="TestScene" type="Node3D" unique_id=861097535]
+[node name="TestScene" type="StaticBody3D" unique_id=550575148]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0, -0.5)
 script = ExtResource("1_qdgni")
+metadata/_custom_type_script = "uid://bri5o41eefk8i"
 
 [node name="untitled" parent="." unique_id=1570622564 instance=ExtResource("1_fkumy")]
 
-[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=802590581]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=58986171]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=944703411]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.468592823046539, 0.4995592149681616, 0.5107471218962829)
-shape = SubResource("BoxShape3D_fkumy")
+shape = SubResource("BoxShape3D_gg4dk")

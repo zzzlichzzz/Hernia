@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://bwyp4aksdt3y4"]
+
+[ext_resource type="Script" uid="uid://bri5o41eefk8i" path="res://src/scripts/blocks/type/block_logic.gd" id="1_i1wvg"]
+[ext_resource type="PackedScene" uid="uid://l5mwoyry68xv" path="res://src/scenes/block_logic/Chest.tscn" id="2_rfw4n"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_rfw4n"]
+
+[node name="Chest1" type="StaticBody3D" unique_id=153897832]
+script = ExtResource("1_i1wvg")
+metadata/_custom_type_script = "uid://bri5o41eefk8i"
+
+[node name="ChestModel" parent="." unique_id=403709595 instance=ExtResource("2_rfw4n")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=584358623]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.018727204114241724, 0.4995592149681616, -0.003607158854845416)
+shape = SubResource("BoxShape3D_rfw4n")

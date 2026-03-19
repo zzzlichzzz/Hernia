@@ -63,6 +63,8 @@ var _pending_yaw_correction: float = 0.0
 var _pending_pitch_correction: float = 0.0
 var _last_correction_tick: int = -1
 
+
+
 # ══════════════════════════════════════════════════
 # КОМПОНЕНТЫ (ECS)
 # ══════════════════════════════════════════════════

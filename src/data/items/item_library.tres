@@ -86,19 +86,6 @@ block_definition = SubResource("Resource_vfjgj")
 id = &"cherry_stair"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
-[sub_resource type="Resource" id="Resource_d76le"]
-script = ExtResource("2_n3j2i")
-block_name = "cherry_stair"
-model = ExtResource("2_x613m")
-metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
-
-[sub_resource type="Resource" id="Resource_ap1cu"]
-resource_name = "test8"
-script = ExtResource("5_0g1uf")
-block_definition = SubResource("Resource_d76le")
-id = &"test8"
-metadata/_custom_type_script = "uid://bhox1u5qj13c3"
-
 [sub_resource type="Resource" id="Resource_wy1tp"]
 script = ExtResource("2_n3j2i")
 block_name = "dirt"
@@ -144,19 +131,6 @@ block_definition = SubResource("Resource_a666k")
 id = &"stair_chameleon"
 metadata/_custom_type_script = "uid://bhox1u5qj13c3"
 
-[sub_resource type="Resource" id="Resource_tdxnx"]
-script = ExtResource("2_n3j2i")
-block_name = "stone"
-model = ExtResource("2_x613m")
-metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
-
-[sub_resource type="Resource" id="Resource_ra3ex"]
-resource_name = "tes75gg"
-script = ExtResource("5_0g1uf")
-block_definition = SubResource("Resource_tdxnx")
-id = &"tes75gg"
-metadata/_custom_type_script = "uid://bhox1u5qj13c3"
-
 [sub_resource type="Resource" id="Resource_h6xw7"]
 script = ExtResource("2_n3j2i")
 metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
@@ -169,6 +143,31 @@ block_definition = SubResource("Resource_h6xw7")
 id = &"testscene"
 metadata/_custom_type_script = "uid://b5gkj6knwjcf4"
 
+[sub_resource type="Resource" id="Resource_d76le"]
+script = ExtResource("2_n3j2i")
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_ap1cu"]
+resource_name = "chest"
+script = ExtResource("6_0g1uf")
+path = &"res://src/scenes/block_logic/Chest1.tscn"
+block_definition = SubResource("Resource_d76le")
+id = &"chest"
+metadata/_custom_type_script = "uid://b5gkj6knwjcf4"
+
+[sub_resource type="Resource" id="Resource_ra3ex"]
+script = ExtResource("2_n3j2i")
+collision_aabbs = Array[AABB]([AABB(0, 0, 0, 2, 1, 1)])
+metadata/_custom_type_script = "uid://c4qx5vqwkdro2"
+
+[sub_resource type="Resource" id="Resource_tdxnx"]
+resource_name = "chest2"
+script = ExtResource("6_0g1uf")
+path = &"res://src/scenes/block_logic/Chest2.tscn"
+block_definition = SubResource("Resource_ra3ex")
+id = &"chest2"
+metadata/_custom_type_script = "uid://b5gkj6knwjcf4"
+
 [sub_resource type="Resource" id="Resource_xvaua"]
 resource_name = "apple_item"
 script = ExtResource("6_kpjdi")
@@ -178,7 +177,7 @@ metadata/_custom_type_script = "uid://dkfwwcqcapdoq"
 
 [resource]
 script = ExtResource("9_a666k")
-block_item = Array[ExtResource("1_x613m")]([SubResource("Resource_lpmgl"), SubResource("Resource_s5eag"), SubResource("Resource_x613m"), SubResource("Resource_j5g3c"), SubResource("Resource_60gwa"), SubResource("Resource_ap1cu"), SubResource("Resource_6xypv"), SubResource("Resource_dok7y"), SubResource("Resource_k2w68"), SubResource("Resource_ra3ex")])
+block_item = Array[ExtResource("1_x613m")]([SubResource("Resource_lpmgl"), SubResource("Resource_s5eag"), SubResource("Resource_x613m"), SubResource("Resource_j5g3c"), SubResource("Resource_60gwa"), SubResource("Resource_6xypv"), SubResource("Resource_dok7y"), SubResource("Resource_k2w68")])
 consumble_item = Array[ExtResource("1_x613m")]([SubResource("Resource_xvaua")])
-block_logic = Array[ExtResource("1_x613m")]([SubResource("Resource_m4j3j")])
+block_logic = Array[ExtResource("1_x613m")]([SubResource("Resource_m4j3j"), SubResource("Resource_ap1cu"), SubResource("Resource_tdxnx")])
 metadata/_custom_type_script = "uid://ci7ob21y7q5ce"

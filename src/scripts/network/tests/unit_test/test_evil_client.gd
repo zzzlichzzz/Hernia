@@ -260,7 +260,7 @@ func _make_player_move(peer_id: int, pos: Vector3, head_pitch: float = 0.0, body
 	var t := tick
 	if t < 0:
 		t = _next_tick()
-	return _gp.call("write_player_move", peer_id, t, pos, head_pitch, body_yaw)
+	return _gp.call("write_player_move", peer_id, tick, pos, Vector3.ZERO, head_pitch, body_yaw)
 
 
 func _send_player_move(peer_id: int, pos: Vector3, head_pitch: float = 0.0, body_yaw: float = 0.0, tick: int = -1) -> void:

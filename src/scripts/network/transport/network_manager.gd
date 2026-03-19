@@ -22,6 +22,7 @@ var _my_id      : int = 0
 
 var _ip_count   : Dictionary = {}   # ip_string → int
 var _peer_ip    : Dictionary = {}   # peer_id → ip_string
+var _peer_to_id: Dictionary  = {}   # ENetPacketPeer → peer_id (обратный индекс)
 var _peers      : Dictionary = {}
 var _next_id    : int = 2
 
@@ -34,6 +35,8 @@ var _server_last_seen : float = 0.0
 # ── Сборщик фрагментов ───────────────────────────
 var _assembler := PacketTypes.FragmentAssembler.new()
 var _fragment_cleanup_timer : float = 0.0
+var _heartbeat_check_timer: float = 0.0
+const HEARTBEAT_CHECK_INTERVAL: float = 1.0
 
 # ══════════════════════════════════════════════════
 #  RAW TRANSPORT STATS
@@ -80,7 +83,7 @@ func _init() -> void:
 	if Global != null:
 		if Global.server_start != null:
 			if Global.server_start:
-				var v = load("res://src/scripts/network/server_main.tscn").instantiate()
+				var v = load("res://src/scripts/network/ServerMain.tscn").instantiate()
 				add_child(v)
 				Global.server_start = false
 # ══════════════════════════════════════════════════
@@ -277,6 +280,7 @@ func shutdown() -> void:
 			for id: int in _peers:
 				(_peers[id] as ENetPacketPeer).peer_disconnect_now(0)
 			_peers.clear()
+			_peer_to_id.clear()          # ← добавлено
 			_last_seen.clear()
 			_next_id = 2
 			_ip_count.clear()
@@ -292,6 +296,7 @@ func shutdown() -> void:
 	_host = null
 	_mode = Mode.NONE
 	_my_id = 0
+	_heartbeat_check_timer = 0.0
 	print("[net] Хост закрыт")
 
 
@@ -358,7 +363,10 @@ func _process(delta: float) -> void:
 	poll()
 
 	if _mode == Mode.SERVER:
-		_check_heartbeats()
+		_heartbeat_check_timer += delta
+		if _heartbeat_check_timer >= HEARTBEAT_CHECK_INTERVAL:
+			_heartbeat_check_timer = 0.0
+			_check_heartbeats()
 
 	_fragment_cleanup_timer += delta
 	if _fragment_cleanup_timer >= FRAGMENT_CLEANUP_INTERVAL:
@@ -409,6 +417,7 @@ func _on_enet_connect(peer: ENetPacketPeer) -> void:
 		_next_id += 1
 
 		_peers[id] = peer
+		_peer_to_id[peer] = id          # ← O(1) reverse lookup
 		_last_seen[id] = Time.get_unix_time_from_system()
 		_peer_ip[id] = ip
 		_ip_count[ip] = count + 1
@@ -432,6 +441,8 @@ func _on_enet_disconnect(peer: ENetPacketPeer) -> void:
 		if id == -1:
 			return
 
+		_peer_to_id.erase(peer)          # ← убираем reverse
+
 		if id in _peer_ip:
 			var ip: String = _peer_ip[id]
 			var count: int = int(_ip_count.get(ip, 1))
@@ -443,6 +454,13 @@ func _on_enet_disconnect(peer: ENetPacketPeer) -> void:
 
 		_peers.erase(id)
 		_last_seen.erase(id)
+
+		# Очистка per-peer stats
+		_stats_packets_in_by_peer.erase(id)
+		_stats_packets_out_by_peer.erase(id)
+		_stats_bytes_in_by_peer.erase(id)
+		_stats_bytes_out_by_peer.erase(id)
+
 		_stats_disconnect_events += 1
 
 		print("[net|srv] − id=%d (онлайн: %d)" % [id, _peers.size()])
@@ -502,17 +520,31 @@ func _on_enet_receive(peer: ENetPacketPeer) -> void:
 			(_handlers[pkt_type] as Callable).call(sender_id, parsed["body"])
 
 
+## O(1) lookup вместо O(N)
 func _find_id(peer: ENetPacketPeer) -> int:
-	for id: int in _peers:
-		if _peers[id] == peer:
-			return id
-	return -1
+	return int(_peer_to_id.get(peer, -1))
 
 
 # ══════════════════════════════════════════════════
 #  STATS API
 # ══════════════════════════════════════════════════
 
+## Лёгкая версия для HUD (без deep copy per-peer/per-type)
+func get_stats_snapshot_light() -> Dictionary:
+	return {
+		"mode": _mode,
+		"my_id": _my_id,
+		"packets_in_total": _stats_packets_in_total,
+		"packets_out_total": _stats_packets_out_total,
+		"bytes_in_total": _stats_bytes_in_total,
+		"bytes_out_total": _stats_bytes_out_total,
+		"invalid_in_total": _stats_invalid_in_total,
+		"connect_events": _stats_connect_events,
+		"disconnect_events": _stats_disconnect_events,
+		"peer_count": _peers.size(),
+	}
+
+## Полная версия (дорогая, вызывать редко)
 func get_stats_snapshot() -> Dictionary:
 	return {
 		"mode": _mode,
@@ -602,9 +634,4 @@ func _stats_inc(map: Dictionary, key: Variant, amount: int) -> void:
 func _extract_packet_type(packet: PackedByteArray) -> int:
 	if packet.size() < 2:
 		return -1
-
-	var b := StreamPeerBuffer.new()
-	b.big_endian = false
-	b.data_array = packet
-	b.seek(0)
-	return b.get_u16()
+	return packet.decode_u16(0)

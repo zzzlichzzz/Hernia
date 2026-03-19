@@ -15,6 +15,20 @@ var _player_container: Node = null
 var _local_player: CharacterBody3D = null
 var _my_id: int = 0
 
+# ══════════════════════════════════════════════════
+#  ОТЛОЖЕННЫЙ СПАВН REMOTE ИГРОКОВ
+# ══════════════════════════════════════════════════
+
+## Очередь спавна: не спавним все 99 сцен за 1 кадр
+var _spawn_queue: Array[Dictionary] = []
+## Сколько сцен спавнить за один _process (подбирается под FPS)
+const SPAWNS_PER_FRAME := 3
+
+## Буфер снапшотов для ещё не заспавненных нод.
+## target_id → последний entry (Dictionary)
+## Когда нода заспавнится — применяем сохранённый снапшот.
+var _pending_snapshots: Dictionary = {}
+
 
 func setup(
 	net: NetworkManager,
@@ -63,8 +77,61 @@ func clear_world() -> void:
 		_pm.clear()
 
 	_my_id = 0
+	_spawn_queue.clear()
+	_pending_snapshots.clear()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	world_unloaded.emit()
+
+
+# ══════════════════════════════════════════════════
+#  PROCESS — отложенный спавн
+# ══════════════════════════════════════════════════
+
+func _process(_delta: float) -> void:
+	if _spawn_queue.is_empty():
+		return
+
+	var spawned := 0
+	while not _spawn_queue.is_empty() and spawned < SPAWNS_PER_FRAME:
+		var entry: Dictionary = _spawn_queue.pop_front()
+		var id: int = entry["id"]
+		var pos: Vector3 = entry["position"]
+		var rot: Vector3 = entry["rotation"]
+
+		# Проверяем что игрок ещё актуален (мог отключиться пока ждал)
+		if not _pm.has_player(id):
+			continue
+
+		# Проверяем что нода ещё не была создана (дубль-защита)
+		var existing_node := _pm.get_player_node(id)
+		if existing_node != null:
+			continue
+
+		# Спавним ноду
+		var node := _remote_player_scene.instantiate() as Node3D
+		node.name = "Player_%d" % id
+
+		if node is BasePlayer:
+			var bp := node as BasePlayer
+			bp.is_local = false
+			bp.network_id = id
+
+		_player_container.add_child(node)
+
+		if node.has_method("update_state"):
+			node.update_state(pos, rot)
+
+		# Обновляем данные в PlayerManager
+		_pm.get_player_data(id)["node"] = node
+
+		# Применяем накопленный снапшот если есть
+		if id in _pending_snapshots:
+			var snap: Dictionary = _pending_snapshots[id]
+			if node is BasePlayer:
+				(node as BasePlayer).apply_network_state(id, snap)
+			_pending_snapshots.erase(id)
+
+		spawned += 1
 
 
 # ══════════════════════════════════════════════════
@@ -89,7 +156,6 @@ func _on_welcome(_peer_id: int, body: StreamPeerBuffer) -> void:
 	_my_id = data["id"]
 	_net.set_my_id(_my_id)
 
-	# На случай реконнекта / повторного входа в мир
 	if _nam != null:
 		_nam.clear_sources()
 
@@ -99,6 +165,9 @@ func _on_welcome(_peer_id: int, body: StreamPeerBuffer) -> void:
 	if _local_player != null and is_instance_valid(_local_player):
 		_local_player.queue_free()
 	_local_player = null
+
+	_spawn_queue.clear()
+	_pending_snapshots.clear()
 
 	_local_player = _player_scene.instantiate() as CharacterBody3D
 	_local_player.name = "LocalPlayer"
@@ -124,14 +193,34 @@ func _on_welcome(_peer_id: int, body: StreamPeerBuffer) -> void:
 
 func _on_player_joined(_peer_id: int, body: StreamPeerBuffer) -> void:
 	var data := PacketTypes.read_player_joined(body)
-	if data["id"] == _my_id:
+	var id: int = data["id"]
+	if id == _my_id:
 		return
-	_pm.add_player(data["id"], data["position"], data["rotation"])
+
+	# Регистрируем данные сразу (has_player работает мгновенно)
+	# Но ноду спавним через очередь
+	if _pm.has_player(id):
+		return
+
+	var pos: Vector3 = data["position"]
+	var rot: Vector3 = data["rotation"]
+
+	# Добавляем запись БЕЗ ноды (нода будет через очередь)
+	_pm.add_player_data_only(id, pos, rot)
+
+	# Ставим в очередь на спавн
+	_spawn_queue.append({
+		"id": id,
+		"position": pos,
+		"rotation": rot,
+	})
 
 
 func _on_player_left(_peer_id: int, body: StreamPeerBuffer) -> void:
 	var data := PacketTypes.read_player_left(body)
-	_pm.remove_player(data["id"])
+	var id: int = data["id"]
+	_pending_snapshots.erase(id)
+	_pm.remove_player(id)
 
 
 func _on_player_snapshot_batch(_peer_id: int, body: StreamPeerBuffer) -> void:
@@ -145,11 +234,15 @@ func _on_player_snapshot_batch(_peer_id: int, body: StreamPeerBuffer) -> void:
 			continue
 
 		var node := _pm.get_player_node(target_id)
+
 		if node == null or not is_instance_valid(node):
+			# Нода ещё не заспавнена — сохраняем последний снапшот
+			_pending_snapshots[target_id] = entry
 			continue
 
-		if node.has_method("apply_network_state"):
-			node.call("apply_network_state", target_id, entry)
+		# Прямой вызов вместо has_method + call
+		if node is BasePlayer:
+			(node as BasePlayer).apply_network_state(target_id, entry)
 
 
 # ══════════════════════════════════════════════════

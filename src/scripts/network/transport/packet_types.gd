@@ -13,6 +13,10 @@ enum {
 	WELCOME        = 8,
 }
 
+static var _cached_ping: PackedByteArray = PackedByteArray()
+static var _cached_pong: PackedByteArray = PackedByteArray()
+static var _pkt_cache_ready: bool = false
+
 const HEADER_SIZE           := 8
 const AUTH_REQUEST          := 9
 const AUTH_RESPONSE         := 10
@@ -20,7 +24,7 @@ const CHAMELEON_SYNC        := 11
 const MAX_FRAGMENT_BODY     := 1024
 const PLAYER_SNAPSHOT_BATCH := 12
 
-const SNAPSHOT_ENTRY_SIZE := 20
+const SNAPSHOT_ENTRY_SIZE        := 32
 const SNAPSHOT_BATCH_HEADER_SIZE := 2
 const SNAPSHOT_BATCH_MAX_ENTRIES := int((MAX_FRAGMENT_BODY - SNAPSHOT_BATCH_HEADER_SIZE) / SNAPSHOT_ENTRY_SIZE)
 
@@ -80,38 +84,46 @@ static func write_packet(type: int,
 		body: PackedByteArray = PackedByteArray(),
 		fragment_id: int = 0,
 		total_fragments: int = 0) -> PackedByteArray:
-	var buf := StreamPeerBuffer.new()
-	buf.big_endian = false
-	buf.put_u16(type)
-	buf.put_u16(body.size())
-	buf.put_u16(fragment_id)
-	buf.put_u16(total_fragments)
-	if body.size() > 0:
-		buf.put_data(body)
-	return buf.data_array
+	var body_size: int = body.size()
+
+	# Собираем header отдельно, потом склеиваем
+	var header := PackedByteArray()
+	header.resize(HEADER_SIZE)
+	header.encode_u16(0, type)
+	header.encode_u16(2, body_size)
+	header.encode_u16(4, fragment_id)
+	header.encode_u16(6, total_fragments)
+
+	if body_size == 0:
+		return header
+
+	header.append_array(body)
+	return header
 
 
 static func read_packet(raw: PackedByteArray) -> Dictionary:
 	if raw.size() < HEADER_SIZE:
 		push_warning("PacketTypes: пакет слишком короткий (%d)" % raw.size())
 		return _bad_packet()
-	var r := StreamPeerBuffer.new()
-	r.big_endian = false
-	r.data_array = raw
-	r.seek(0)
-	var pkt_type        : int = r.get_u16()
-	var body_len        : int = r.get_u16()
-	var fragment_id     : int = r.get_u16()
-	var total_fragments : int = r.get_u16()
+
+	# ——— Читаем header напрямую из PackedByteArray ———
+	var pkt_type: int        = raw.decode_u16(0)
+	var body_len: int        = raw.decode_u16(2)
+	var fragment_id: int     = raw.decode_u16(4)
+	var total_fragments: int = raw.decode_u16(6)
+
 	if raw.size() < HEADER_SIZE + body_len:
 		push_warning("PacketTypes: неполное тело (%d < %d)"
 				% [raw.size(), HEADER_SIZE + body_len])
 		return _bad_packet()
+
+	# Только ОДИН StreamPeerBuffer для body (нужен downstream readers)
 	var body := StreamPeerBuffer.new()
 	body.big_endian = false
 	if body_len > 0:
 		body.data_array = raw.slice(HEADER_SIZE, HEADER_SIZE + body_len)
 	body.seek(0)
+
 	return {
 		"type":             pkt_type,
 		"body":             body,
@@ -140,14 +152,27 @@ static func needs_fragmentation(body_size: int) -> bool:
 static func fragment_packet(type: int, body: PackedByteArray) -> Array[PackedByteArray]:
 	if body.size() <= MAX_FRAGMENT_BODY:
 		return [write_packet(type, body, 0, 0)]
+
+	var total: int = ceili(float(body.size()) / float(MAX_FRAGMENT_BODY))
 	var fragments: Array[PackedByteArray] = []
+	fragments.resize(total)
+
 	var offset := 0
-	var total  := ceili(float(body.size()) / float(MAX_FRAGMENT_BODY))
 	for i in total:
-		var end   := mini(offset + MAX_FRAGMENT_BODY, body.size())
+		var end: int = mini(offset + MAX_FRAGMENT_BODY, body.size())
 		var chunk := body.slice(offset, end)
-		fragments.append(write_packet(type, chunk, i, total))
+
+		var header := PackedByteArray()
+		header.resize(HEADER_SIZE)
+		header.encode_u16(0, type)
+		header.encode_u16(2, chunk.size())
+		header.encode_u16(4, i)
+		header.encode_u16(6, total)
+		header.append_array(chunk)
+
+		fragments[i] = header
 		offset = end
+
 	return fragments
 
 
@@ -210,12 +235,30 @@ static func read_chameleon_sync(buf: StreamPeerBuffer) -> Dictionary:
 # ══════════════════════════════════════════════════
 #  PING / PONG
 # ══════════════════════════════════════════════════
+static func _ensure_pkt_cache() -> void:
+	if _pkt_cache_ready:
+		return
+	_pkt_cache_ready = true
+
+	_cached_ping.resize(HEADER_SIZE)
+	_cached_ping.encode_u16(0, PING)
+	_cached_ping.encode_u16(2, 0)
+	_cached_ping.encode_u16(4, 0)
+	_cached_ping.encode_u16(6, 0)
+
+	_cached_pong.resize(HEADER_SIZE)
+	_cached_pong.encode_u16(0, PONG)
+	_cached_pong.encode_u16(2, 0)
+	_cached_pong.encode_u16(4, 0)
+	_cached_pong.encode_u16(6, 0)
 
 static func write_ping() -> PackedByteArray:
-	return write_packet(PING)
+	_ensure_pkt_cache()
+	return _cached_ping
 
 static func write_pong() -> PackedByteArray:
-	return write_packet(PONG)
+	_ensure_pkt_cache()
+	return _cached_pong
 
 
 # ══════════════════════════════════════════════════
@@ -223,7 +266,7 @@ static func write_pong() -> PackedByteArray:
 # ══════════════════════════════════════════════════
 
 static func write_welcome(id: int, pos: Vector3, rot: Vector3) -> PackedByteArray:
-	return write_packet(WELCOME, _write_state_body(id, pos, rot))
+	return _write_state_packet(WELCOME, id, pos, rot)
 
 static func read_welcome(buf: StreamPeerBuffer) -> Dictionary:
 	return _read_state_body(buf)
@@ -234,7 +277,7 @@ static func read_welcome(buf: StreamPeerBuffer) -> Dictionary:
 # ══════════════════════════════════════════════════
 
 static func write_player_joined(id: int, pos: Vector3, rot: Vector3) -> PackedByteArray:
-	return write_packet(PLAYER_JOINED, _write_state_body(id, pos, rot))
+	return _write_state_packet(PLAYER_JOINED, id, pos, rot)
 
 static func read_player_joined(buf: StreamPeerBuffer) -> Dictionary:
 	return _read_state_body(buf)
@@ -245,14 +288,43 @@ static func read_player_joined(buf: StreamPeerBuffer) -> Dictionary:
 # ══════════════════════════════════════════════════
 
 static func write_player_left(id: int) -> PackedByteArray:
-	var b := StreamPeerBuffer.new()
-	b.big_endian = false
-	b.put_32(id)
-	return write_packet(PLAYER_LEFT, b.data_array)
+	var pkt := PackedByteArray()
+	pkt.resize(HEADER_SIZE + 4)  # header + one s32
+
+	pkt.encode_u16(0, PLAYER_LEFT)
+	pkt.encode_u16(2, 4)     # body_len = 4
+	pkt.encode_u16(4, 0)     # fragment_id
+	pkt.encode_u16(6, 0)     # total_fragments
+	pkt.encode_s32(HEADER_SIZE, id)
+
+	return pkt
 
 static func read_player_left(buf: StreamPeerBuffer) -> Dictionary:
 	return { "id": buf.get_32() }
 
+## 28 bytes body: [ 4B id ][ 3×4B pos ][ 3×4B rot ]
+static func _write_state_packet(type: int, id: int, pos: Vector3, rot: Vector3) -> PackedByteArray:
+	const BODY_SIZE := 28  # 4 + 12 + 12
+	var pkt := PackedByteArray()
+	pkt.resize(HEADER_SIZE + BODY_SIZE)
+
+	# Header
+	pkt.encode_u16(0, type)
+	pkt.encode_u16(2, BODY_SIZE)
+	pkt.encode_u16(4, 0)
+	pkt.encode_u16(6, 0)
+
+	# Body
+	var off: int = HEADER_SIZE
+	pkt.encode_s32(off, id)
+	pkt.encode_float(off + 4,  pos.x)
+	pkt.encode_float(off + 8,  pos.y)
+	pkt.encode_float(off + 12, pos.z)
+	pkt.encode_float(off + 16, rot.x)
+	pkt.encode_float(off + 20, rot.y)
+	pkt.encode_float(off + 24, rot.z)
+
+	return pkt
 
 # ══════════════════════════════════════════════════
 #  СБОРЩИК ФРАГМЕНТОВ
@@ -264,6 +336,8 @@ class FragmentAssembler:
 	const MAX_TOTAL_ASSEMBLIES     := 256
 
 	var _buffers: Dictionary = {}
+	## peer_id → count of active assemblies (быстрый лимит)
+	var _peer_assembly_count: Dictionary = {}
 	var timeout: float = 10.0
 
 
@@ -271,7 +345,6 @@ class FragmentAssembler:
 			fragment_id: int, total_fragments: int,
 			body: StreamPeerBuffer) -> Variant:
 
-		# ── Защита от бомбы ───────────────────────
 		if total_fragments > MAX_FRAGMENTS_PER_PACKET:
 			push_warning("FragmentAssembler: слишком много фрагментов %d" % total_fragments)
 			return null
@@ -280,30 +353,30 @@ class FragmentAssembler:
 			push_warning("FragmentAssembler: буфер переполнен")
 			return null
 
-		# Лимит на пира
-		var peer_count := 0
-		for bkey: String in _buffers:
-			if bkey.begins_with("%d_" % sender_id):
-				peer_count += 1
+		# ——— Быстрый лимит на пира: O(1) вместо O(N) ———
+		var peer_count: int = _peer_assembly_count.get(sender_id, 0)
 		if peer_count >= MAX_ASSEMBLIES_PER_PEER:
 			push_warning("FragmentAssembler: лимит сборок для peer %d" % sender_id)
 			return null
 
-		# ── Сборка ────────────────────────────────
-		var key := _make_key(sender_id, type)
+		# ——— Int ключ вместо String ———
+		var key: int = _make_key_int(sender_id, type)
 		var now := Time.get_unix_time_from_system()
 
-		if key not in _buffers:
+		var is_new := key not in _buffers
+		if is_new:
 			_buffers[key] = {
 				"parts":     {},
 				"total":     total_fragments,
 				"timestamp": now,
+				"sender":    sender_id,
 			}
+			_peer_assembly_count[sender_id] = peer_count + 1
 
 		var entry: Dictionary = _buffers[key]
 		if entry["total"] != total_fragments:
-			push_warning("FragmentAssembler: total mismatch для key=%s" % key)
-			_buffers.erase(key)
+			push_warning("FragmentAssembler: total mismatch для key=%d" % key)
+			_remove_assembly(key, sender_id)
 			return null
 
 		entry["parts"][fragment_id] = body.data_array
@@ -317,11 +390,12 @@ class FragmentAssembler:
 		for i in total_fragments:
 			if i not in entry["parts"]:
 				push_warning("FragmentAssembler: пропущен фрагмент %d" % i)
-				_buffers.erase(key)
+				_remove_assembly(key, sender_id)
 				return null
 			full_body.append_array(entry["parts"][i])
 
-		_buffers.erase(key)
+		_remove_assembly(key, sender_id)
+
 		var result := StreamPeerBuffer.new()
 		result.big_endian = false
 		result.data_array = full_body
@@ -332,20 +406,32 @@ class FragmentAssembler:
 	func cleanup() -> void:
 		var now := Time.get_unix_time_from_system()
 		var expired: Array = []
-		for bkey: String in _buffers:
+		for bkey in _buffers:
 			if now - (_buffers[bkey] as Dictionary)["timestamp"] > timeout:
 				expired.append(bkey)
-		for bkey: String in expired:
-			_buffers.erase(bkey)
+		for bkey in expired:
+			var entry: Dictionary = _buffers[bkey]
+			var sid: int = entry.get("sender", 0)
+			_remove_assembly(bkey, sid)
 
 
 	func clear() -> void:
 		_buffers.clear()
+		_peer_assembly_count.clear()
 
 
-	func _make_key(sender_id: int, type: int) -> String:
-		return "%d_%d" % [sender_id, type]
+	func _remove_assembly(key: int, sender_id: int) -> void:
+		_buffers.erase(key)
+		var count: int = _peer_assembly_count.get(sender_id, 1) - 1
+		if count <= 0:
+			_peer_assembly_count.erase(sender_id)
+		else:
+			_peer_assembly_count[sender_id] = count
 
+
+	## Int ключ: старшие 32 бита = sender_id, младшие 16 = type
+	func _make_key_int(sender_id: int, type: int) -> int:
+		return (sender_id << 16) | (type & 0xFFFF)
 
 # ══════════════════════════════════════════════════
 #  PLAYER SNAPSHOT BATCH
@@ -373,6 +459,7 @@ static func write_player_snapshot_batch_body(entries: Array) -> PackedByteArray:
 		var peer_id: int = int(e.get("peer_id", 0)) & 0xFFFF
 		var tick: int = int(e.get("tick", 0)) & 0xFFFF
 		var pos: Vector3 = e.get("position", Vector3.ZERO)
+		var vel: Vector3 = e.get("velocity", Vector3.ZERO)
 		var head_pitch: float = float(e.get("head_pitch", 0.0))
 		var body_yaw: float = float(e.get("body_yaw", 0.0))
 
@@ -383,6 +470,10 @@ static func write_player_snapshot_batch_body(entries: Array) -> PackedByteArray:
 		b.put_float(pos.y)
 		b.put_float(pos.z)
 
+		b.put_float(vel.x)
+		b.put_float(vel.y)
+		b.put_float(vel.z)
+
 		b.put_u16(_encode_quantized_u16(head_pitch, SNAPSHOT_PITCH_MIN, SNAPSHOT_PITCH_MAX))
 		b.put_u16(_encode_quantized_u16(body_yaw, SNAPSHOT_YAW_MIN, SNAPSHOT_YAW_MAX))
 
@@ -390,49 +481,113 @@ static func write_player_snapshot_batch_body(entries: Array) -> PackedByteArray:
 
 
 static func write_player_snapshot_batch(entries: Array) -> PackedByteArray:
-	return write_packet(PLAYER_SNAPSHOT_BATCH, write_player_snapshot_batch_body(entries))
+	var count: int = mini(entries.size(), SNAPSHOT_BATCH_MAX_ENTRIES)
+	var body_size: int = SNAPSHOT_BATCH_HEADER_SIZE + count * SNAPSHOT_ENTRY_SIZE
+	var total_size: int = HEADER_SIZE + body_size
 
+	var pkt := PackedByteArray()
+	pkt.resize(total_size)
 
+	# ——— Header (8 bytes) ———
+	pkt.encode_u16(0, PLAYER_SNAPSHOT_BATCH)
+	pkt.encode_u16(2, body_size)
+	pkt.encode_u16(4, 0)   # fragment_id
+	pkt.encode_u16(6, 0)   # total_fragments
+
+	# ——— Body: count ———
+	pkt.encode_u16(HEADER_SIZE, count)
+
+	# ——— Body: entries ———
+	var off: int = HEADER_SIZE + SNAPSHOT_BATCH_HEADER_SIZE
+
+	for i in count:
+		var e: Dictionary = entries[i]
+
+		# peer_id (u16) + tick (u16)
+		pkt.encode_u16(off,     int(e.get("peer_id", 0)) & 0xFFFF)
+		pkt.encode_u16(off + 2, int(e.get("tick", 0)) & 0xFFFF)
+
+		# position (3 × float32)
+		var pos: Vector3 = e.get("position", Vector3.ZERO)
+		pkt.encode_float(off + 4,  pos.x)
+		pkt.encode_float(off + 8,  pos.y)
+		pkt.encode_float(off + 12, pos.z)
+
+		# velocity (3 × float32)
+		var vel: Vector3 = e.get("velocity", Vector3.ZERO)
+		pkt.encode_float(off + 16, vel.x)
+		pkt.encode_float(off + 20, vel.y)
+		pkt.encode_float(off + 24, vel.z)
+
+		# head_pitch + body_yaw (2 × quantized u16)
+		var hp: float = float(e.get("head_pitch", 0.0))
+		var by: float = float(e.get("body_yaw", 0.0))
+		pkt.encode_u16(off + 28, _encode_quantized_u16(hp, SNAPSHOT_PITCH_MIN, SNAPSHOT_PITCH_MAX))
+		pkt.encode_u16(off + 30, _encode_quantized_u16(by, SNAPSHOT_YAW_MIN, SNAPSHOT_YAW_MAX))
+
+		off += SNAPSHOT_ENTRY_SIZE
+
+	return pkt
+
+## Оптимизированная версия: читает прямо из PackedByteArray
+## Если вызывается из read_packet, body.data_array уже содержит тело
 static func read_player_snapshot_batch(buf: StreamPeerBuffer) -> Array[Dictionary]:
-	var count := buf.get_u16()
+	var raw: PackedByteArray = buf.data_array
+	var base: int = buf.get_position()  # обычно 0
 
-	# Защита от битого пакета/мусора
+	if raw.size() < base + 2:
+		return []
+
+	var count: int = raw.decode_u16(base)
+	base += 2
+
 	if count > 512:
 		push_warning("player_snapshot_batch: слишком много записей: %d" % count)
 		return []
 
+	var needed: int = base + count * SNAPSHOT_ENTRY_SIZE
+	if raw.size() < needed:
+		push_warning("player_snapshot_batch: недостаточно данных")
+		return []
+
 	var result: Array[Dictionary] = []
-	result.resize(0)
+	result.resize(count)
 
 	for i in count:
-		var peer_id := buf.get_u16()
-		var tick := buf.get_u16()
+		var off: int = base + i * SNAPSHOT_ENTRY_SIZE
+
+		var peer_id: int = raw.decode_u16(off)
+		var tick: int    = raw.decode_u16(off + 2)
 
 		var pos := Vector3(
-			buf.get_float(),
-			buf.get_float(),
-			buf.get_float()
+			raw.decode_float(off + 4),
+			raw.decode_float(off + 8),
+			raw.decode_float(off + 12)
 		)
 
-		var head_pitch := _decode_quantized_u16(
-			buf.get_u16(),
-			SNAPSHOT_PITCH_MIN,
-			SNAPSHOT_PITCH_MAX
+		var vel := Vector3(
+			raw.decode_float(off + 16),
+			raw.decode_float(off + 20),
+			raw.decode_float(off + 24)
 		)
 
-		var body_yaw := _decode_quantized_u16(
-			buf.get_u16(),
-			SNAPSHOT_YAW_MIN,
-			SNAPSHOT_YAW_MAX
+		var head_pitch: float = _decode_quantized_u16(
+			raw.decode_u16(off + 28),
+			SNAPSHOT_PITCH_MIN, SNAPSHOT_PITCH_MAX
+		)
+		var body_yaw: float = _decode_quantized_u16(
+			raw.decode_u16(off + 30),
+			SNAPSHOT_YAW_MIN, SNAPSHOT_YAW_MAX
 		)
 
-		result.append({
+		result[i] = {
 			"peer_id": peer_id,
 			"tick": tick,
 			"position": pos,
+			"velocity": vel,
 			"head_pitch": head_pitch,
 			"body_yaw": body_yaw,
-		})
+		}
 
 	return result
 

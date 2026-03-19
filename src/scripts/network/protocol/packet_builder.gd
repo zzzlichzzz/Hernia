@@ -13,16 +13,10 @@ const AUTO_PACKET_ID_START := 1000
 const AUTO_PACKET_ID_END := 65535
 
 const RESERVED_PACKET_IDS := {
-	3: true,
-	4: true,
-	6: true,
-	7: true,
-	8: true,
-	9: true,
-	10: true,
-	11: true,
-	12: true,
+	3: true, 4: true, 6: true, 7: true, 8: true,
+	9: true, 10: true, 11: true, 12: true,
 }
+
 
 func _ready() -> void:
 	print("═══════════════════════════════════════")
@@ -37,13 +31,18 @@ func _ready() -> void:
 	var changed := _assign_packet_ids(defs)
 	if changed < 0:
 		push_error("[builder] Не удалось назначить packet_id!")
-		_quit()
-		return
+		_quit(); return
 	if changed > 0:
 		print("[builder] Автоназначено/исправлено packet_id: %d" % changed)
 
 	if not _validate(defs):
 		push_error("[builder] Валидация не пройдена!")
+		_quit(); return
+
+	# ——— Генерация и сохранение ———
+	var code := _generate(defs)
+	if not _save(code):
+		push_error("[builder] Не удалось сохранить!")
 		_quit(); return
 
 	_report(defs)
@@ -106,20 +105,17 @@ func _validate(defs: Array[NetworkPacketDef]) -> bool:
 
 		if pid < AUTO_PACKET_ID_START or pid > AUTO_PACKET_ID_END:
 			push_error("[builder] Пакет '%s': packet_id=%d вне допустимого диапазона %d..%d" % [
-				d.packet_name, pid, AUTO_PACKET_ID_START, AUTO_PACKET_ID_END
-			])
+				d.packet_name, pid, AUTO_PACKET_ID_START, AUTO_PACKET_ID_END])
 			ok = false
 
 		if pid in RESERVED_PACKET_IDS:
 			push_error("[builder] Пакет '%s': packet_id=%d зарезервирован служебными PacketTypes" % [
-				d.packet_name, pid
-			])
+				d.packet_name, pid])
 			ok = false
 
 		if pid in ids:
 			push_error("[builder] Коллизия ID! '%s' и '%s' → id=%d" % [
-				ids[pid], d.packet_name, pid
-			])
+				ids[pid], d.packet_name, pid])
 			ok = false
 		ids[pid] = d.packet_name
 
@@ -128,42 +124,35 @@ func _validate(defs: Array[NetworkPacketDef]) -> bool:
 			if f.field_name.is_empty():
 				push_error("[builder] Пакет '%s': поле без имени!" % d.packet_name)
 				ok = false
-
 			if f.field_name in field_names:
 				push_error("[builder] Пакет '%s': дублирование поля '%s'!" % [
-					d.packet_name, f.field_name
-				])
+					d.packet_name, f.field_name])
 				ok = false
-
 			field_names[f.field_name] = true
 
 	return ok
 
+
 func _validate_methods(defs: Array[NetworkPacketDef]) -> void:
-	# Загружаем скрипты для проверки наличия методов
 	var scripts: Array[GDScript] = []
 	for path in KNOWN_SCRIPTS:
 		if ResourceLoader.exists(path):
 			scripts.append(load(path) as GDScript)
 
 	for d in defs:
-		# Проверить source_method
 		if d.source_method != "":
 			var found := false
 			for s in scripts:
-				if s.has_method(d.source_method):
-					found = true
-					break
-				# Проверяем через список методов
 				for m in s.get_script_method_list():
 					if m["name"] == d.source_method:
 						found = true
 						break
+				if found:
+					break
 			if not found:
 				push_warning("[builder] ⚠ Пакет '%s': source_method '%s' не найден ни в одном скрипте" % [
 					d.packet_name, d.source_method])
 
-		# Проверить receive_method
 		if d.receive_method != "":
 			var found := false
 			for s in scripts:
@@ -171,42 +160,37 @@ func _validate_methods(defs: Array[NetworkPacketDef]) -> void:
 					if m["name"] == d.receive_method:
 						found = true
 						break
+				if found:
+					break
 			if not found:
 				push_warning("[builder] ⚠ Пакет '%s': receive_method '%s' не найден ни в одном скрипте" % [
 					d.packet_name, d.receive_method])
+
+
+# ══════════════════════════════════════════════════
+#  НАЗНАЧЕНИЕ PACKET ID
+# ══════════════════════════════════════════════════
 
 func _assign_packet_ids(defs: Array[NetworkPacketDef]) -> int:
 	var changed := 0
 	var used: Dictionary = RESERVED_PACKET_IDS.duplicate(true)
 
-	# Детерминированный порядок:
-	# существующие валидные ID сохраняем,
-	# битым/пустым/дублирующимся назначаем новые.
 	var ordered: Array[NetworkPacketDef] = defs.duplicate()
 	ordered.sort_custom(func(a: NetworkPacketDef, b: NetworkPacketDef) -> bool:
 		var ap := a.resource_path if a.resource_path != "" else a.packet_name
 		var bp := b.resource_path if b.resource_path != "" else b.packet_name
-		return ap < bp
-	)
+		return ap < bp)
 
 	var to_assign: Array[NetworkPacketDef] = []
 
-	# 1 проход: собираем валидные уникальные ID
 	for d in ordered:
 		var pid := d.get_packet_id()
-		var valid := true
-
-		if pid < AUTO_PACKET_ID_START or pid > AUTO_PACKET_ID_END:
-			valid = false
-		elif pid in used:
-			valid = false
-
+		var valid := pid >= AUTO_PACKET_ID_START and pid <= AUTO_PACKET_ID_END and pid not in used
 		if valid:
 			used[pid] = true
 		else:
 			to_assign.append(d)
 
-	# 2 проход: назначаем новые ID
 	for d in to_assign:
 		var old_id := d.get_packet_id()
 		var new_id := _alloc_next_packet_id(used)
@@ -228,20 +212,15 @@ func _assign_packet_ids(defs: Array[NetworkPacketDef]) -> int:
 
 
 func _alloc_next_packet_id(used: Dictionary) -> int:
-	# Не переиспользуем "дырки", а растём вверх.
-	# Это безопаснее для будущей совместимости версий.
 	var candidate := AUTO_PACKET_ID_START
-
 	for k in used.keys():
 		var id := int(k)
 		if id >= candidate:
 			candidate = id + 1
-
 	while candidate <= AUTO_PACKET_ID_END:
 		if candidate not in used:
 			return candidate
 		candidate += 1
-
 	return -1
 
 
@@ -249,14 +228,13 @@ func _save_packet_def_resource(d: NetworkPacketDef) -> bool:
 	if d.resource_path == "":
 		push_error("[builder] У ресурса '%s' нет resource_path" % d.packet_name)
 		return false
-
 	var err := ResourceSaver.save(d, d.resource_path)
 	if err != OK:
 		push_error("[builder] Не могу сохранить %s: %s" % [d.resource_path, error_string(err)])
 		return false
-
 	return true
-	
+
+
 # ══════════════════════════════════════════════════
 #  ГЕНЕРАЦИЯ
 # ══════════════════════════════════════════════════
@@ -277,6 +255,17 @@ func _generate(defs: Array[NetworkPacketDef]) -> String:
 	for d in defs:
 		L.append("const %s_ID := %d" % [d.packet_name.to_upper(), d.get_packet_id()])
 	L.append("")
+
+	# ── Header size ───────────────────────────────
+	L.append("const _HEADER_SIZE := PacketTypes.HEADER_SIZE  # 8")
+	L.append("")
+
+	# ── Квантизационные константы ─────────────────
+	var quant_lines := _collect_quantization_constants(defs)
+	if not quant_lines.is_empty():
+		L.append("# Quantization constants (precomputed)")
+		L.append_array(quant_lines)
+		L.append("")
 
 	# ── Метаданные PACKETS ────────────────────────
 	L.append("## Метаданные пакетов для NetworkActionManager")
@@ -302,8 +291,6 @@ func _generate(defs: Array[NetworkPacketDef]) -> String:
 		L.append("\t\t\"receive_method\": \"%s\"," % d.receive_method)
 		L.append("\t\t\"auto_peer_id\": %s," % ("true" if d.auto_peer_id else "false"))
 		L.append("\t\t\"source_keys\": {%s}," % ", ".join(sk_arr))
-
-		# Правила валидации
 		L.append("\t\t\"v_player_exists\": %s," % ("true" if d.validate_player_exists else "false"))
 		L.append("\t\t\"v_authenticated\": %s," % ("true" if d.validate_authenticated else "false"))
 		L.append("\t\t\"v_max_distance\": %s," % _fstr(d.validate_max_distance))
@@ -312,7 +299,6 @@ func _generate(defs: Array[NetworkPacketDef]) -> String:
 		L.append("\t\t\"v_cooldown\": %s," % _fstr(d.validate_cooldown))
 		L.append("\t\t\"v_position_field\": \"%s\"," % d.validate_position_field)
 		L.append("\t\t\"v_max_action_dist\": %s," % _fstr(d.validate_max_action_distance))
-
 		L.append("\t},")
 	L.append("}")
 	L.append("")
@@ -324,7 +310,12 @@ func _generate(defs: Array[NetworkPacketDef]) -> String:
 		var size_str := "%d bytes (fixed)" % body_size if body_size >= 0 else "variable"
 		L.append("# ─── %s (id=%d, %s) ───" % [d.packet_name, d.get_packet_id(), size_str])
 		L.append("")
-		L.append_array(_gen_write(d))
+
+		if body_size >= 0:
+			L.append_array(_gen_write_direct(d, body_size))
+		else:
+			L.append_array(_gen_write_variable(d))
+
 		L.append("")
 		L.append("")
 		L.append_array(_gen_read(d))
@@ -337,23 +328,127 @@ func _generate(defs: Array[NetworkPacketDef]) -> String:
 	return "\n".join(L) + "\n"
 
 
-# ── Генерация write_<name>() ─────────────────────
+# ══════════════════════════════════════════════════
+#  WRITE: DIRECT (fixed-size пакеты, без StreamPeerBuffer)
+# ══════════════════════════════════════════════════
 
-func _gen_write(d: NetworkPacketDef) -> PackedStringArray:
+func _gen_write_direct(d: NetworkPacketDef, body_size: int) -> PackedStringArray:
+	var L := PackedStringArray()
+
+	var params := PackedStringArray()
+	for f: NetworkFieldDef in d.fields:
+		params.append("%s: %s" % [f.field_name, _gdscript_type(f)])
+
+	L.append("static func write_%s(%s) -> PackedByteArray:" % [
+		d.packet_name, ", ".join(params)])
+	L.append("\tconst BODY_SIZE := %d" % body_size)
+	L.append("\tvar pkt := PackedByteArray()")
+	L.append("\tpkt.resize(_HEADER_SIZE + BODY_SIZE)")
+	L.append("")
+	L.append("\t# Header")
+	L.append("\tpkt.encode_u16(0, %d)" % d.get_packet_id())
+	L.append("\tpkt.encode_u16(2, BODY_SIZE)")
+	L.append("\tpkt.encode_u16(4, 0)")
+	L.append("\tpkt.encode_u16(6, 0)")
+	L.append("")
+	L.append("\t# Body")
+
+	var offset := 0
+	for f: NetworkFieldDef in d.fields:
+		L.append_array(_gen_write_field_direct(f, offset))
+		offset += _field_byte_size(f)
+
+	L.append("\treturn pkt")
+	return L
+
+
+func _gen_write_field_direct(f: NetworkFieldDef, offset: int) -> PackedStringArray:
+	var L := PackedStringArray()
+	var n := f.field_name
+	var bs := _resolve_byte_size(f)
+	var off_str := "_HEADER_SIZE" if offset == 0 else "_HEADER_SIZE + %d" % offset
+
+	match f.field_type:
+		NetworkFieldDef.FieldType.BOOL:
+			L.append("\tpkt.encode_u8(%s, 1 if %s else 0)" % [off_str, n])
+
+		NetworkFieldDef.FieldType.INT:
+			L.append("\tpkt.%s(%s, %s)" % [_encode_int_method(bs, f.is_signed), off_str, n])
+
+		NetworkFieldDef.FieldType.FLOAT:
+			if f.use_quantization:
+				L.append("\tpkt.%s(%s, %s)" % [
+					_encode_uint_method_direct(bs), off_str,
+					_quant_encode_expr(n, f, bs)])
+			elif bs == 2:
+				L.append("\tpkt.encode_u16(%s, _f2h(%s))" % [off_str, n])
+			else:
+				L.append("\tpkt.encode_float(%s, %s)" % [off_str, n])
+
+		NetworkFieldDef.FieldType.VECTOR2:
+			for i in range(2):
+				var c: String = ["x", "y"][i]
+				var comp_offset := offset + i * _component_byte_size(f, bs)
+				var comp_off_str := "_HEADER_SIZE" if comp_offset == 0 else "_HEADER_SIZE + %d" % comp_offset
+				L.append_array(_gen_write_component_direct(
+					"%s.%s" % [n, c], f, bs, comp_off_str))
+
+		NetworkFieldDef.FieldType.VECTOR3:
+			for i in range(3):
+				var c: String = ["x", "y", "z"][i]
+				var comp_offset := offset + i * _component_byte_size(f, bs)
+				var comp_off_str := "_HEADER_SIZE" if comp_offset == 0 else "_HEADER_SIZE + %d" % comp_offset
+				L.append_array(_gen_write_component_direct(
+					"%s.%s" % [n, c], f, bs, comp_off_str))
+
+	return L
+
+
+func _gen_write_component_direct(
+	expr: String, f: NetworkFieldDef, bs: int, off_str: String
+) -> PackedStringArray:
+	var L := PackedStringArray()
+	if f.use_quantization:
+		L.append("\tpkt.%s(%s, %s)" % [
+			_encode_uint_method_direct(bs), off_str,
+			_quant_encode_expr(expr, f, bs)])
+	elif bs == 2:
+		L.append("\tpkt.encode_u16(%s, _f2h(%s))" % [off_str, expr])
+	else:
+		L.append("\tpkt.encode_float(%s, %s)" % [off_str, expr])
+	return L
+
+
+## Генерирует inline-выражение квантизации с precomputed константами.
+## Пример: int(clampf((v - _Q_N1_5_TO_1_5_MIN) * _Q_N1_5_TO_1_5_INV_RANGE, 0.0, 1.0) * 65535.0)
+func _quant_encode_expr(value_expr: String, f: NetworkFieldDef, bs: int) -> String:
+	var prefix := _quant_const_prefix(f.quantize_min, f.quantize_max)
+	var max_val := _quant_max_val(bs)
+	return "int(clampf((%s - %s_MIN) * %s_INV_RANGE, 0.0, 1.0) * %s.0)" % [
+		value_expr, prefix, prefix, str(max_val)]
+
+
+# ══════════════════════════════════════════════════
+#  WRITE: VARIABLE (пакеты с String/PackedBytes, через StreamPeerBuffer)
+# ══════════════════════════════════════════════════
+
+func _gen_write_variable(d: NetworkPacketDef) -> PackedStringArray:
 	var L := PackedStringArray()
 	var params := PackedStringArray()
 	for f: NetworkFieldDef in d.fields:
 		params.append("%s: %s" % [f.field_name, _gdscript_type(f)])
-	L.append("static func write_%s(%s) -> PackedByteArray:" % [d.packet_name, ", ".join(params)])
+
+	L.append("static func write_%s(%s) -> PackedByteArray:" % [
+		d.packet_name, ", ".join(params)])
 	L.append("\tvar _b := StreamPeerBuffer.new()")
 	L.append("\t_b.big_endian = false")
 	for f: NetworkFieldDef in d.fields:
-		L.append_array(_gen_write_field(f))
+		L.append_array(_gen_write_field_spb(f))
 	L.append("\treturn PacketTypes.write_packet(%d, _b.data_array)" % d.get_packet_id())
 	return L
 
 
-func _gen_write_field(f: NetworkFieldDef) -> PackedStringArray:
+func _gen_write_field_spb(f: NetworkFieldDef) -> PackedStringArray:
 	var L := PackedStringArray()
 	var n := f.field_name
 	var bs := _resolve_byte_size(f)
@@ -378,11 +473,11 @@ func _gen_write_field(f: NetworkFieldDef) -> PackedStringArray:
 
 		NetworkFieldDef.FieldType.VECTOR2:
 			for c in ["x", "y"]:
-				L.append_array(_gen_write_component("%s.%s" % [n, c], f, bs))
+				L.append_array(_gen_write_component_spb("%s.%s" % [n, c], f, bs))
 
 		NetworkFieldDef.FieldType.VECTOR3:
 			for c in ["x", "y", "z"]:
-				L.append_array(_gen_write_component("%s.%s" % [n, c], f, bs))
+				L.append_array(_gen_write_component_spb("%s.%s" % [n, c], f, bs))
 
 		NetworkFieldDef.FieldType.STRING:
 			L.append("\tvar _utf_%s := %s.to_utf8_buffer()" % [n, n])
@@ -398,7 +493,7 @@ func _gen_write_field(f: NetworkFieldDef) -> PackedStringArray:
 	return L
 
 
-func _gen_write_component(expr: String, f: NetworkFieldDef, bs: int) -> PackedStringArray:
+func _gen_write_component_spb(expr: String, f: NetworkFieldDef, bs: int) -> PackedStringArray:
 	var L := PackedStringArray()
 	if f.use_quantization:
 		var max_val := _quant_max_val(bs)
@@ -412,7 +507,9 @@ func _gen_write_component(expr: String, f: NetworkFieldDef, bs: int) -> PackedSt
 	return L
 
 
-# ── Генерация read_<name>() ──────────────────────
+# ══════════════════════════════════════════════════
+#  READ
+# ══════════════════════════════════════════════════
 
 func _gen_read(d: NetworkPacketDef) -> PackedStringArray:
 	var L := PackedStringArray()
@@ -440,10 +537,10 @@ func _gen_read_field(f: NetworkFieldDef) -> PackedStringArray:
 
 		NetworkFieldDef.FieldType.FLOAT:
 			if f.use_quantization:
+				var prefix := _quant_const_prefix(f.quantize_min, f.quantize_max)
 				var max_val := _quant_max_val(bs)
-				L.append("\tvar %s := (%s) + (float(_b.%s()) / %s.0) * ((%s) - (%s))" % [
-					vn, _fstr(f.quantize_min), _get_uint_method(bs), str(max_val),
-					_fstr(f.quantize_max), _fstr(f.quantize_min)])
+				L.append("\tvar %s := %s_MIN + (float(_b.%s()) / %s.0) * %s_RANGE" % [
+					vn, prefix, _get_uint_method(bs), str(max_val), prefix])
 			elif bs == 2:
 				L.append("\tvar %s := _h2f(_b.get_u16())" % vn)
 			else:
@@ -477,17 +574,19 @@ func _gen_read_field(f: NetworkFieldDef) -> PackedStringArray:
 
 func _read_comp_expr(f: NetworkFieldDef, bs: int) -> String:
 	if f.use_quantization:
+		var prefix := _quant_const_prefix(f.quantize_min, f.quantize_max)
 		var max_val := _quant_max_val(bs)
-		return "(%s) + (float(_b.%s()) / %s.0) * ((%s) - (%s))" % [
-			_fstr(f.quantize_min), _get_uint_method(bs), str(max_val),
-			_fstr(f.quantize_max), _fstr(f.quantize_min)]
+		return "%s_MIN + (float(_b.%s()) / %s.0) * %s_RANGE" % [
+			prefix, _get_uint_method(bs), str(max_val), prefix]
 	elif bs == 2:
 		return "_h2f(_b.get_u16())"
 	else:
 		return "_b.get_float()"
 
 
-# ── Хелперы (генерируются внизу файла) ───────────
+# ══════════════════════════════════════════════════
+#  ХЕЛПЕРЫ (генерируются внизу выходного файла)
+# ══════════════════════════════════════════════════
 
 func _gen_helpers() -> PackedStringArray:
 	var L := PackedStringArray()
@@ -522,20 +621,101 @@ func _gen_helpers() -> PackedStringArray:
 
 
 # ══════════════════════════════════════════════════
-#  УТИЛИТЫ ДЛЯ ГЕНЕРАТОРА
+#  КВАНТИЗАЦИОННЫЕ КОНСТАНТЫ
 # ══════════════════════════════════════════════════
+
+## Собирает уникальные пары (min, max) из всех quantized полей
+## и генерирует precomputed константы для выходного файла.
+func _collect_quantization_constants(defs: Array[NetworkPacketDef]) -> PackedStringArray:
+	var L := PackedStringArray()
+	var seen: Dictionary = {}
+
+	for d in defs:
+		for f: NetworkFieldDef in d.fields:
+			if not f.use_quantization:
+				continue
+			var key := "%s_%s" % [_fstr(f.quantize_min), _fstr(f.quantize_max)]
+			if key in seen:
+				continue
+			seen[key] = true
+
+			var prefix := _quant_const_prefix(f.quantize_min, f.quantize_max)
+			var range_val: float = f.quantize_max - f.quantize_min
+			var inv_range: float = 1.0 / range_val if range_val > 0.0 else 0.0
+
+			L.append("const %s_MIN := %s" % [prefix, _fstr(f.quantize_min)])
+			L.append("const %s_MAX := %s" % [prefix, _fstr(f.quantize_max)])
+			L.append("const %s_RANGE := %s" % [prefix, _fstr(range_val)])
+			L.append("const %s_INV_RANGE := %s" % [prefix, _fstr(inv_range)])
+
+	return L
+
+
+## Генерирует префикс константы из min/max значений.
+## -1.5 / 1.5 → "_Q_N1_5_TO_1_5"
+func _quant_const_prefix(min_v: float, max_v: float) -> String:
+	var min_s := _fstr(min_v).replace(".", "_").replace("-", "N")
+	var max_s := _fstr(max_v).replace(".", "_").replace("-", "N")
+	return "_Q_%s_TO_%s" % [min_s, max_s]
+
+
+# ══════════════════════════════════════════════════
+#  УТИЛИТЫ — РАЗМЕРЫ
+# ══════════════════════════════════════════════════
+
+## Размер одного компонента вектора в байтах.
+func _component_byte_size(f: NetworkFieldDef, bs: int) -> int:
+	if f.use_quantization:
+		return bs
+	elif bs == 2:
+		return 2  # half-float
+	else:
+		return 4  # float32
+
+
+## Полный размер одного поля в байтах (для offset tracking).
+## Вызывается ТОЛЬКО для fixed-size полей (не STRING, не PACKED_BYTES).
+func _field_byte_size(f: NetworkFieldDef) -> int:
+	var bs := _resolve_byte_size(f)
+	match f.field_type:
+		NetworkFieldDef.FieldType.BOOL:
+			return 1
+		NetworkFieldDef.FieldType.INT:
+			return bs
+		NetworkFieldDef.FieldType.FLOAT:
+			return _component_byte_size(f, bs)
+		NetworkFieldDef.FieldType.VECTOR2:
+			return _component_byte_size(f, bs) * 2
+		NetworkFieldDef.FieldType.VECTOR3:
+			return _component_byte_size(f, bs) * 3
+	return 0
+
+
+func _calc_body_size(d: NetworkPacketDef) -> int:
+	var total := 0
+	for f: NetworkFieldDef in d.fields:
+		match f.field_type:
+			NetworkFieldDef.FieldType.STRING, NetworkFieldDef.FieldType.PACKED_BYTES:
+				return -1
+		total += _field_byte_size(f)
+	return total
+
 
 func _resolve_byte_size(f: NetworkFieldDef) -> int:
 	if f.byte_size != NetworkFieldDef.ByteSize.AUTO:
 		return [0, 1, 2, 4][f.byte_size]
 	match f.field_type:
-		NetworkFieldDef.FieldType.BOOL:   return 1
-		NetworkFieldDef.FieldType.INT:    return 4
-		NetworkFieldDef.FieldType.FLOAT:  return 4
-		NetworkFieldDef.FieldType.VECTOR2: return 4
-		NetworkFieldDef.FieldType.VECTOR3: return 4
+		NetworkFieldDef.FieldType.BOOL:    return 1
+		NetworkFieldDef.FieldType.INT:     return 4
+		NetworkFieldDef.FieldType.FLOAT:   return 4
+		NetworkFieldDef.FieldType.VECTOR2:  return 4
+		NetworkFieldDef.FieldType.VECTOR3:  return 4
 	return 4
 
+
+# ══════════════════════════════════════════════════
+#  УТИЛИТЫ — ТИПЫ И МЕТОДЫ
+# ══════════════════════════════════════════════════
 
 func _gdscript_type(f: NetworkFieldDef) -> String:
 	match f.field_type:
@@ -549,6 +729,30 @@ func _gdscript_type(f: NetworkFieldDef) -> String:
 	return "Variant"
 
 
+## encode_* метод для PackedByteArray (direct write path)
+func _encode_int_method(bs: int, is_signed: bool) -> String:
+	if is_signed:
+		match bs:
+			1: return "encode_s8"
+			2: return "encode_s16"
+			4: return "encode_s32"
+	match bs:
+		1: return "encode_u8"
+		2: return "encode_u16"
+		4: return "encode_u32"
+	return "encode_u32"
+
+
+## encode_u* метод для квантизованных значений (direct write path)
+func _encode_uint_method_direct(bs: int) -> String:
+	match bs:
+		1: return "encode_u8"
+		2: return "encode_u16"
+		4: return "encode_u32"
+	return "encode_u16"
+
+
+## put_* метод для StreamPeerBuffer (variable write path)
 func _put_int_method(bs: int, is_signed: bool) -> String:
 	if is_signed:
 		return ["put_8", "put_8", "put_16", "put_32"][_bs_idx(bs)]
@@ -592,23 +796,6 @@ func _fstr(v: float) -> String:
 	return s
 
 
-func _calc_body_size(d: NetworkPacketDef) -> int:
-	var total := 0
-	for f: NetworkFieldDef in d.fields:
-		match f.field_type:
-			NetworkFieldDef.FieldType.STRING, NetworkFieldDef.FieldType.PACKED_BYTES:
-				return -1
-			NetworkFieldDef.FieldType.BOOL:
-				total += 1
-			NetworkFieldDef.FieldType.INT, NetworkFieldDef.FieldType.FLOAT:
-				total += _resolve_byte_size(f)
-			NetworkFieldDef.FieldType.VECTOR2:
-				total += _resolve_byte_size(f) * 2
-			NetworkFieldDef.FieldType.VECTOR3:
-				total += _resolve_byte_size(f) * 3
-	return total
-
-
 # ══════════════════════════════════════════════════
 #  СОХРАНЕНИЕ И ОТЧЁТ
 # ══════════════════════════════════════════════════
@@ -616,7 +803,8 @@ func _calc_body_size(d: NetworkPacketDef) -> int:
 func _save(code: String) -> bool:
 	var file := FileAccess.open(OUTPUT_PATH, FileAccess.WRITE)
 	if file == null:
-		push_error("[builder] Не могу записать %s: %s" % [OUTPUT_PATH, error_string(FileAccess.get_open_error())])
+		push_error("[builder] Не могу записать %s: %s" % [
+			OUTPUT_PATH, error_string(FileAccess.get_open_error())])
 		return false
 	file.store_string(code)
 	file.close()

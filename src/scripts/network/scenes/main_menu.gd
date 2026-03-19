@@ -19,7 +19,7 @@ func _ready() -> void:
 func _on_btn_single_pressed() -> void:
 	print("Запуск одичной игры...")
 	Global.server_start = true
-	get_tree().change_scene_to_file("res://src/scripts/network/client_main.tscn")
+	get_tree().change_scene_to_file("res://src/scripts/network/ClientMain.tscn")
 	
 	
 
@@ -27,17 +27,17 @@ func _on_btn_single_pressed() -> void:
 
 func _on_btn_server_pressed() -> void:
 	print("Запуск сервера...")
-	get_tree().change_scene_to_file("res://src/scripts/network/server_main.tscn")
+	get_tree().change_scene_to_file("res://src/scripts/network/ServerMain.tscn")
 
 # Обработчик кнопки "Присоединиться к серверу"
 func _on_btn_client_pressed() -> void:
 	print("Подключение к серверу...")
-	get_tree().change_scene_to_file("res://src/scripts/network/client_main.tscn")
+	get_tree().change_scene_to_file("res://src/scripts/network/ClientMain.tscn")
 
 # Обработчик кнопки "Test Evil Client"
 func _on_btn_evil_client_pressed() -> void:
 	print("Запуск тестового evil клиента...")
-	get_tree().change_scene_to_file("res://src/scripts/network/tests/unit_test/test_evil_client.tscn")
+	get_tree().change_scene_to_file("res://src/scripts/network/tests/unit_test/TestEvilClient.tscn")
 
 # Обработчик кнопки "Выход"
 func _on_btn_exit_pressed() -> void:

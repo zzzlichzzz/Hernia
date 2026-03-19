@@ -9,6 +9,10 @@ const AUTH_TIMEOUT := 15.0
 const MAX_VIOLATIONS  := 10
 const VIOLATION_DECAY := 30.0
 
+const PLAYER_CORRECTION_HZ := 5.0
+const PLAYER_CORRECTION_MIN_MOVE_DIST := 0.15
+const PLAYER_CORRECTION_MIN_ANGLE_DELTA := 0.03
+
 var _net : NetworkManager = null
 var _pm  : PlayerManager = null
 var _nam : NetworkActionManager = null
@@ -17,19 +21,12 @@ var _replication: PlayerReplicationManager = null
 var _auth: ServerAuthManager = null
 var _world_state: ServerWorldStateManager = null
 
-var _authenticated  : Dictionary = {}   # peer_id -> bool
+var _authenticated  : Dictionary = {}
 var _security_log   : Dictionary = {}
 var _violations     : Dictionary = {}
 
-## peer_id -> session data
-## {
-##   "spawn_position": Vector3,
-##   "spawn_rotation": Vector3,
-##   "character_id": ...,
-##   "race_id": "human",
-##   "world_id": "default_world",
-## }
-var _player_sessions: Dictionary = {}
+var _last_player_corrections : Dictionary = {}
+var _player_sessions         : Dictionary = {}
 
 
 func _ready() -> void:
@@ -62,11 +59,7 @@ func _ready() -> void:
 	add_child(_world_state)
 	_world_state.setup(_net)
 
-	# Теперь world_state уже существует — можно безопасно передать resolver
 	_replication.set_world_resolver(Callable(_world_state, "get_player_world"))
-
-	# На будущее:
-	# _auth.set_validator(_validate_external_auth)
 
 	_net.peer_connected.connect(_auth.on_peer_connected)
 	_net.peer_disconnected.connect(_on_peer_disconnected)
@@ -91,15 +84,16 @@ func _ready() -> void:
 
 	print("[server] Запущен на порту %d" % PORT)
 
-	# ═══ HUD ═══
 	$ServerHUD.setup(_net, _pm, _nam)
 
 
-func _process(delta: float) -> void:
+## Серверная логика — в _physics_process (фиксированный 60 Hz)
+func _physics_process(delta: float) -> void:
 	if _auth != null:
 		_auth.tick()
 
 	if _replication != null:
+		_replication.count_physics_tick()
 		_replication.tick(delta)
 
 
@@ -161,6 +155,7 @@ func _on_peer_disconnected(id: int) -> void:
 	_pm.remove_player(id)
 	_player_sessions.erase(id)
 	_violations.erase(id)
+	_last_player_corrections.erase(id)
 	_nam.clear_peer_data(id)
 
 
@@ -210,19 +205,18 @@ func _on_player_move(peer_id: int, data: Dictionary) -> void:
 	var tick: int = int(data.get("tick", 0))
 
 	if _replication != null:
-		_replication.on_authoritative_move(peer_id, tick)
+		_replication.on_authoritative_move(peer_id, tick, pos, head_pitch, body_yaw)
 
-	_nam.send_action_to(peer_id, "player_correction", [
-		peer_id,
-		tick,
-		pos,
-		head_pitch,
-		body_yaw,
-	])
+	if _should_send_player_correction(peer_id, pos, head_pitch, body_yaw):
+		_nam.send_action_to(peer_id, "player_correction", [
+			peer_id,
+			tick,
+			pos,
+			head_pitch,
+			body_yaw,
+		])
 
 
-## Делегирование world-state менеджеру.
-## auto_bind_server(self) продолжит находить эти методы по имени пакета.
 func _on_chameleon_paint(peer_id: int, data: Dictionary) -> void:
 	if _world_state != null:
 		_world_state.handle_chameleon_paint(peer_id, data)
@@ -234,21 +228,55 @@ func _on_block_break(peer_id: int, data: Dictionary) -> void:
 
 
 # ══════════════════════════════════════════════════
-#  FUTURE MASTER / TRANSFER HOOK
+#  PLAYER CORRECTION
 # ══════════════════════════════════════════════════
 
-## Пример будущего внешнего валидатора для master server / transfer token.
-## Пока не используется.
-# func _validate_external_auth(peer_id: int, token: String) -> Dictionary:
-# 	return {
-# 		"success": token != "",
-# 		"message": "Bad token" if token == "" else "",
-# 		"spawn_position": Vector3(0, SPAWN_Y, 0),
-# 		"spawn_rotation": Vector3.ZERO,
-# 		"character_id": peer_id,
-# 		"race_id": "human",
-# 		"world_id": "default_world",
-# 	}
+func _should_send_player_correction(peer_id: int, pos: Vector3, head_pitch: float, body_yaw: float) -> bool:
+	var now := _server_now()
+
+	if peer_id not in _last_player_corrections:
+		_store_player_correction_state(peer_id, now, pos, head_pitch, body_yaw)
+		return true
+
+	var state: Dictionary = _last_player_corrections[peer_id]
+
+	var min_interval := 1.0 / PLAYER_CORRECTION_HZ
+	var last_time: float = float(state.get("time", -1.0))
+	if last_time >= 0.0 and (now - last_time) < min_interval:
+		return false
+
+	var last_pos: Vector3 = state.get("position", Vector3.ZERO)
+	var last_pitch: float = float(state.get("head_pitch", 0.0))
+	var last_yaw: float = float(state.get("body_yaw", 0.0))
+
+	var moved_dist := last_pos.distance_to(pos)
+	var yaw_delta := absf(_angle_delta(last_yaw, body_yaw))
+	var pitch_delta := absf(_angle_delta(last_pitch, head_pitch))
+
+	if moved_dist < PLAYER_CORRECTION_MIN_MOVE_DIST \
+	and yaw_delta < PLAYER_CORRECTION_MIN_ANGLE_DELTA \
+	and pitch_delta < PLAYER_CORRECTION_MIN_ANGLE_DELTA:
+		return false
+
+	_store_player_correction_state(peer_id, now, pos, head_pitch, body_yaw)
+	return true
+
+
+func _store_player_correction_state(peer_id: int, now: float, pos: Vector3, head_pitch: float, body_yaw: float) -> void:
+	_last_player_corrections[peer_id] = {
+		"time": now,
+		"position": pos,
+		"head_pitch": head_pitch,
+		"body_yaw": body_yaw,
+	}
+
+
+func _server_now() -> float:
+	return float(Time.get_ticks_msec()) * 0.001
+
+
+func _angle_delta(from_angle: float, to_angle: float) -> float:
+	return wrapf(to_angle - from_angle, -PI, PI)
 
 
 func _notification(what: int) -> void:

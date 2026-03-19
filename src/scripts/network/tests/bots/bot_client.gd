@@ -16,10 +16,15 @@ var movement_start_delay: float = 5.0
 var _net: NetworkManager = null
 var _nam: NetworkActionManager = null
 var _bot: BotVirtualPlayer = null
-var _connect_timer: Timer = null
 
 var _my_id: int = 0
 var _is_ready: bool = false
+
+var _connect_delay_remaining: float = 0.0
+var _connect_pending: bool = false
+
+## Счётчик полученных коррекций (для диагностики)
+var _corrections_received: int = 0
 
 
 func setup(
@@ -55,29 +60,28 @@ func _ready() -> void:
 
 	_net.register_handler(PacketTypes.AUTH_RESPONSE, _on_auth_response)
 	_net.register_handler(PacketTypes.WELCOME, _on_welcome)
-	_net.register_handler(PacketTypes.PONG, _on_pong)
+	_net.register_handler(PacketTypes.PONG, _noop)
 
-	# Correction для владельца через NAM action handler.
-	_nam.on_action("player_correction", Callable(self, "_on_player_correction"))
+	_nam.on_action("player_correction", _on_player_correction)
 
-	# Эти пакеты можно игнорировать — они нужны только для того,
-	# чтобы сервер создавал реальную нагрузку репликации.
-	_net.register_handler(PacketTypes.PLAYER_JOINED, _ignore_packet)
-	_net.register_handler(PacketTypes.PLAYER_LEFT, _ignore_packet)
-	_net.register_handler(PacketTypes.CHAMELEON_SYNC, _ignore_packet)
-	_net.register_handler(PacketTypes.PLAYER_SNAPSHOT_BATCH, _ignore_packet)
-
-	_connect_timer = Timer.new()
-	_connect_timer.name = "ConnectTimer"
-	_connect_timer.one_shot = true
-	_connect_timer.wait_time = maxf(connect_delay, 0.0)
-	_connect_timer.timeout.connect(_connect_now)
-	add_child(_connect_timer)
+	_net.register_handler(PacketTypes.PLAYER_JOINED, _noop)
+	_net.register_handler(PacketTypes.PLAYER_LEFT, _noop)
+	_net.register_handler(PacketTypes.CHAMELEON_SYNC, _noop)
+	_net.register_handler(PacketTypes.PLAYER_SNAPSHOT_BATCH, _noop)
 
 	if connect_delay <= 0.0:
 		_connect_now()
 	else:
-		_connect_timer.start()
+		_connect_delay_remaining = connect_delay
+		_connect_pending = true
+
+
+func _process(delta: float) -> void:
+	if _connect_pending:
+		_connect_delay_remaining -= delta
+		if _connect_delay_remaining <= 0.0:
+			_connect_pending = false
+			_connect_now()
 
 
 func shutdown_bot() -> void:
@@ -101,6 +105,10 @@ func is_ready_for_test() -> bool:
 
 func get_my_id() -> int:
 	return _my_id
+
+
+func get_corrections_received() -> int:
+	return _corrections_received
 
 
 func _connect_now() -> void:
@@ -139,6 +147,7 @@ func _on_welcome(_peer_id: int, body: StreamPeerBuffer) -> void:
 
 	_my_id = data["id"]
 	_net.set_my_id(_my_id)
+	_corrections_received = 0
 
 	_nam.clear_sources()
 
@@ -162,13 +171,10 @@ func _on_welcome(_peer_id: int, body: StreamPeerBuffer) -> void:
 
 
 func _on_player_correction(peer_id: int, data: Dictionary) -> void:
-	if _bot != null and is_instance_valid(_bot):
+	_corrections_received += 1
+	if _bot != null:
 		_bot.apply_correction_state(peer_id, data)
 
 
-func _on_pong(_peer_id: int, _body: StreamPeerBuffer) -> void:
-	pass
-
-
-func _ignore_packet(_peer_id: int, _body: StreamPeerBuffer) -> void:
+func _noop(_peer_id: int, _body: StreamPeerBuffer) -> void:
 	pass

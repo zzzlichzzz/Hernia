@@ -24,8 +24,9 @@ var network_id: int = 0
 
 ## Насколько "назад во времени" рисуем удалённых игроков.
 ## Для 20 Hz и MMO-пинга 100-150ms хороший старт: 0.12 - 0.15
-@export_range(0.05, 0.30, 0.01) var interpolation_back_time: float = 0.12
+@export_range(0.05, 0.30, 0.01) var interpolation_back_time: float = 0.20
 
+@export_range(0.0, 0.50, 0.01) var remote_extrapolation_limit: float = 0.15
 ## Размер буфера снапшотов remote-игрока.
 @export_range(2, 64, 1) var max_snapshot_buffer: int = 20
 
@@ -38,7 +39,24 @@ var network_id: int = 0
 @export_range(1.0, 30.0, 0.5) var tail_rotation_lerp_speed: float = 14.0
 
 var _net_snapshots: Array[Dictionary] = []
+var _net_snap_start: int = 0  ## Логическое начало кольцевого буфера
+var _net_snap_count: int = 0  ## Количество валидных снапшотов
 var _net_remote_initialized: bool = false
+
+## Предыдущая "подпись" состояния для skip-send оптимизации
+## Используем 5 int вместо String
+var _last_sig_px: int = 0
+var _last_sig_py: int = 0
+var _last_sig_pz: int = 0
+var _last_sig_yaw: int = 0
+var _last_sig_pitch: int = 0
+var _last_send_time: float = 0.0
+
+## Ring buffer для local prediction history
+var _local_hist_ring: Array[Dictionary] = []
+var _local_hist_ticks: Array[int] = []
+var _local_hist_start: int = 0
+var _local_hist_count: int = 0
 
 var _network_tick: int = 0
 var _last_received_tick: int = -1
@@ -56,12 +74,15 @@ var _last_received_tick: int = -1
 @export_range(0.001, 0.2, 0.001) var net_pitch_quantum: float = 0.01
 @export_range(0.05, 2.0, 0.01) var net_idle_keepalive: float = 0.5
 
-var _local_state_history: Dictionary = {}
-var _local_state_order: Array[int] = []
 var _pending_position_correction: Vector3 = Vector3.ZERO
 var _pending_yaw_correction: float = 0.0
 var _pending_pitch_correction: float = 0.0
 var _last_correction_tick: int = -1
+
+# ══════════════════════════════════════════════════
+# NETWORK SMOOTHING — ring buffer approach
+# ══════════════════════════════════════════════════
+
 
 # ══════════════════════════════════════════════════
 # КОМПОНЕНТЫ (ECS)
@@ -86,6 +107,17 @@ func _ready() -> void:
 
 	_register_components()
 
+	# Предаллоцируем буферы
+	_net_snapshots.resize(max_snapshot_buffer)
+	for i in max_snapshot_buffer:
+		_net_snapshots[i] = {}
+
+	_local_hist_ring.resize(max_local_history)
+	_local_hist_ticks.resize(max_local_history)
+	for i in max_local_history:
+		_local_hist_ring[i] = {}
+		_local_hist_ticks[i] = -1
+
 	if is_local:
 		_setup_local()
 	else:
@@ -106,21 +138,34 @@ func _setup_local() -> void:
 
 	_network_tick = 0
 	_last_correction_tick = -1
-	_local_state_history.clear()
-	_local_state_order.clear()
+	
+	# Ring buffer reset
+	_local_hist_start = 0
+	_local_hist_count = 0
+	for i in max_local_history:
+		_local_hist_ticks[i] = -1
+	
 	_pending_position_correction = Vector3.ZERO
 	_pending_yaw_correction = 0.0
 	_pending_pitch_correction = 0.0
+	
+	_last_sig_px = 0
+	_last_sig_py = 0
+	_last_sig_pz = 0
+	_last_sig_yaw = 0
+	_last_sig_pitch = 0
 
 
-## Настройка для удалённого игрока.
 func _setup_remote() -> void:
 	if _camera:
 		_camera.current = false
 	set_process_input(false)
 	set_process_unhandled_input(false)
 	velocity = Vector3.ZERO
-	_net_snapshots.clear()
+	
+	# Ring buffer reset
+	_net_snap_start = 0
+	_net_snap_count = 0
 	_net_remote_initialized = false
 	_last_received_tick = -1
 
@@ -148,10 +193,14 @@ func _physics_process(delta: float) -> void:
 		_process_local(delta)
 		_apply_local_correction_blend(delta)
 	else:
-		_network_remote_step(delta)
+		# Убираем _network_remote_step отсюда!
+		# Физику для remote не считаем
 		_process_remote(delta)
-	
 
+func _process(delta: float) -> void:
+	if not is_local:
+		# Визуальная интерполяция в _process — привязана к render frame
+		_network_remote_step(delta)
 
 ## Логика локального игрока. Переопределяется в наследниках.
 func _process_local(_delta: float) -> void:
@@ -192,13 +241,15 @@ func has_component(type: Variant) -> bool:
 func get_network_state() -> Dictionary:
 	_network_tick = (_network_tick + 1) & 0xFFFF
 
-	var pitch := _head.rotation.x if _head else 0.0
-	var yaw := rotation.y
-	var pos := global_position
+	var pitch: float = _head.rotation.x if _head else 0.0
+	var yaw: float = rotation.y
+	var pos: Vector3 = global_position
+	var vel: Vector3 = velocity
 
 	var state := {
 		"tick": _network_tick,
 		"position": pos,
+		"velocity": vel,
 		"rotation": Vector3(pitch, yaw, 0.0),
 	}
 
@@ -207,9 +258,27 @@ func get_network_state() -> Dictionary:
 	for comp in _components:
 		state.merge(comp.collect_state())
 
-	# Служебные ключи для NAM.
-	# Они НЕ попадут в пакет, потому что в .tres их нет.
-	state["_net_signature"] = _build_net_send_signature(pos, yaw, pitch)
+	# ——— Integer signature (без String аллокации) ———
+	var sig_px: int = _quantize_for_signature(pos.x, net_pos_quantum)
+	var sig_py: int = _quantize_for_signature(pos.y, net_pos_quantum)
+	var sig_pz: int = _quantize_for_signature(pos.z, net_pos_quantum)
+	var sig_yaw: int = _quantize_for_signature(wrapf(yaw, -PI, PI), net_yaw_quantum)
+	var sig_pitch: int = _quantize_for_signature(wrapf(pitch, -PI, PI), net_pitch_quantum)
+
+	var changed: bool = (
+		sig_px != _last_sig_px or sig_py != _last_sig_py or
+		sig_pz != _last_sig_pz or sig_yaw != _last_sig_yaw or
+		sig_pitch != _last_sig_pitch
+	)
+
+	if changed:
+		_last_sig_px = sig_px
+		_last_sig_py = sig_py
+		_last_sig_pz = sig_pz
+		_last_sig_yaw = sig_yaw
+		_last_sig_pitch = sig_pitch
+
+	state["_net_changed"] = changed
 	state["_net_keepalive"] = net_idle_keepalive
 
 	return state
@@ -245,7 +314,8 @@ func update_state(pos: Vector3, rot: Vector3) -> void:
 
 	if not is_local:
 		velocity = Vector3.ZERO
-		_net_snapshots.clear()
+		_net_snap_start = 0
+		_net_snap_count = 0
 		_net_remote_initialized = true
 		_last_received_tick = -1
 
@@ -260,7 +330,7 @@ func apply_correction_state(peer_id: int, data: Dictionary) -> void:
 	if "tick" not in data or "position" not in data:
 		return
 
-	var tick := int(data["tick"]) & 0xFFFF
+	var tick: int = int(data["tick"]) & 0xFFFF
 	if not _accept_correction_tick(tick):
 		return
 
@@ -268,12 +338,13 @@ func apply_correction_state(peer_id: int, data: Dictionary) -> void:
 	var server_yaw: float = float(data.get("body_yaw", rotation.y))
 	var server_pitch: float = float(data.get("head_pitch", _head.rotation.x if _head else 0.0))
 
-	var predicted_pos := global_position
-	var predicted_yaw := rotation.y
-	var predicted_pitch := _head.rotation.x if _head else 0.0
+	var predicted_pos: Vector3 = global_position
+	var predicted_yaw: float = rotation.y
+	var predicted_pitch: float = _head.rotation.x if _head else 0.0
 
-	if tick in _local_state_history:
-		var hist: Dictionary = _local_state_history[tick]
+	# ——— Ищем в ring buffer вместо Dictionary ———
+	var hist: Dictionary = _find_local_prediction(tick)
+	if not hist.is_empty():
 		predicted_pos = hist["position"]
 		predicted_yaw = float(hist["yaw"])
 		predicted_pitch = float(hist["pitch"])
@@ -282,8 +353,8 @@ func apply_correction_state(peer_id: int, data: Dictionary) -> void:
 	var yaw_delta: float = _angle_delta(predicted_yaw, server_yaw)
 	var pitch_delta: float = _angle_delta(predicted_pitch, server_pitch)
 
-	var pos_error := pos_delta.length()
-	var angle_error := maxf(absf(yaw_delta), absf(pitch_delta))
+	var pos_error: float = pos_delta.length()
+	var angle_error: float = maxf(absf(yaw_delta), absf(pitch_delta))
 
 	_drop_local_history_through(tick)
 
@@ -295,7 +366,6 @@ func apply_correction_state(peer_id: int, data: Dictionary) -> void:
 		rotation.y = wrapf(rotation.y + yaw_delta, -PI, PI)
 		if _head:
 			_head.rotation.x += pitch_delta
-
 		_pending_position_correction = Vector3.ZERO
 		_pending_yaw_correction = 0.0
 		_pending_pitch_correction = 0.0
@@ -306,32 +376,41 @@ func apply_correction_state(peer_id: int, data: Dictionary) -> void:
 	_pending_pitch_correction = wrapf(_pending_pitch_correction + pitch_delta, -PI, PI)
 
 func _store_local_prediction(tick: int, pos: Vector3, yaw: float, pitch: float) -> void:
-	_local_state_history[tick] = {
-		"position": pos,
-		"yaw": yaw,
-		"pitch": pitch,
-		"time": _net_now(),
-	}
+	var idx: int
+	if _local_hist_count < max_local_history:
+		idx = (_local_hist_start + _local_hist_count) % max_local_history
+		_local_hist_count += 1
+	else:
+		# Буфер полон — перезаписываем самый старый
+		idx = _local_hist_start
+		_local_hist_start = (_local_hist_start + 1) % max_local_history
 
-	_local_state_order.append(tick)
-
-	while _local_state_order.size() > max_local_history:
-		var old_tick := _local_state_order[0]
-		_local_state_order.remove_at(0)
-		_local_state_history.erase(old_tick)
+	# Переиспользуем Dictionary
+	var entry: Dictionary = _local_hist_ring[idx]
+	entry["position"] = pos
+	entry["yaw"] = yaw
+	entry["pitch"] = pitch
+	_local_hist_ticks[idx] = tick
 
 
 func _drop_local_history_through(tick: int) -> void:
-	var remaining: Array[int] = []
+	# Удаляем с начала все тики <= tick
+	while _local_hist_count > 0:
+		var front_idx: int = _local_hist_start
+		var front_tick: int = _local_hist_ticks[front_idx]
+		if front_tick < 0 or not _is_older_or_equal_u16(front_tick, tick):
+			break
+		_local_hist_ticks[front_idx] = -1
+		_local_hist_start = (_local_hist_start + 1) % max_local_history
+		_local_hist_count -= 1
 
-	for t in _local_state_order:
-		if _is_older_or_equal_u16(t, tick):
-			_local_state_history.erase(t)
-		else:
-			remaining.append(t)
-
-	_local_state_order = remaining
-
+## Найти prediction по tick в ring buffer
+func _find_local_prediction(tick: int) -> Dictionary:
+	for i in range(_local_hist_count):
+		var idx: int = (_local_hist_start + i) % max_local_history
+		if _local_hist_ticks[idx] == tick:
+			return _local_hist_ring[idx]
+	return {}
 
 func _apply_local_correction_blend(delta: float) -> void:
 	if _pending_position_correction.length_squared() > 0.0:
@@ -385,23 +464,60 @@ func _angle_delta(from_angle: float, to_angle: float) -> float:
 # REMOTE INTERPOLATION
 # ══════════════════════════════════════════════════
 
+## Добавить снапшот в кольцевой буфер (без аллокации Dictionary)
+func _push_snapshot(time: float, pos: Vector3, vel: Vector3, 
+					 yaw: float, pitch: float) -> void:
+	if _net_snap_count >= max_snapshot_buffer:
+		# Буфер полон — перезаписываем самый старый
+		_net_snap_start = (_net_snap_start + 1) % max_snapshot_buffer
+		_net_snap_count -= 1
+
+	var idx: int = (_net_snap_start + _net_snap_count) % max_snapshot_buffer
+	
+	# Переиспользуем предаллоцированный Dictionary
+	var snap: Dictionary = _net_snapshots[idx]
+	snap["time"] = time
+	snap["position"] = pos
+	snap["velocity"] = vel
+	snap["yaw"] = yaw
+	snap["pitch"] = pitch
+
+	_net_snap_count += 1
+
+
+## Получить снапшот по логическому индексу (0 = самый старый)
+func _get_snapshot(logical_idx: int) -> Dictionary:
+	var real_idx: int = (_net_snap_start + logical_idx) % max_snapshot_buffer
+	return _net_snapshots[real_idx]
+
+
+## Удалить N самых старых снапшотов (без сдвига массива)
+func _trim_snapshots_front(n: int) -> void:
+	if n <= 0:
+		return
+	if n >= _net_snap_count:
+		_net_snap_count = 0
+		_net_snap_start = 0
+		return
+	_net_snap_start = (_net_snap_start + n) % max_snapshot_buffer
+	_net_snap_count -= n
+
 func _queue_network_snapshot(data: Dictionary) -> void:
 	if not data.has("position") and not data.has("body_yaw") and not data.has("head_pitch"):
 		return
 
-	var pitch_now := _head.rotation.x if _head else 0.0
+	var pitch_now: float = _head.rotation.x if _head else 0.0
+	var vel := Vector3.ZERO
+	if "velocity" in data and data["velocity"] is Vector3:
+		vel = data["velocity"]
 
-	var snap := {
-		"time": _net_now(),
-		"position": data.get("position", global_position),
-		"yaw": data.get("body_yaw", rotation.y),
-		"pitch": data.get("head_pitch", pitch_now),
-	}
-
-	_net_snapshots.append(snap)
-
-	while _net_snapshots.size() > max_snapshot_buffer:
-		_net_snapshots.remove_at(0)
+	_push_snapshot(
+		_net_now(),
+		data.get("position", global_position),
+		vel,
+		float(data.get("body_yaw", rotation.y)),
+		float(data.get("head_pitch", pitch_now))
+	)
 
 func _accept_remote_tick(new_tick: int) -> bool:
 	var tick := new_tick & 0xFFFF
@@ -421,65 +537,70 @@ func _is_newer_u16(new_tick: int, old_tick: int) -> bool:
 	var diff := (new_tick - old_tick) & 0xFFFF
 	return diff != 0 and diff < 0x8000
 
-func _build_net_send_signature(pos: Vector3, yaw: float, pitch: float) -> String:
-	var pyaw := wrapf(yaw, -PI, PI)
-	var ppitch := wrapf(pitch, -PI, PI)
-
-	return "%d|%d|%d|%d|%d" % [
-		_quantize_for_signature(pos.x, net_pos_quantum),
-		_quantize_for_signature(pos.y, net_pos_quantum),
-		_quantize_for_signature(pos.z, net_pos_quantum),
-		_quantize_for_signature(pyaw, net_yaw_quantum),
-		_quantize_for_signature(ppitch, net_pitch_quantum),
-	]
-
-
 func _quantize_for_signature(v: float, step: float) -> int:
 	if step <= 0.0:
 		return int(round(v * 1000.0))
 	return int(round(v / step))
 
 func _network_remote_step(delta: float) -> void:
-	if _net_snapshots.is_empty():
+	if _net_snap_count == 0:
 		return
 
 	velocity = Vector3.ZERO
+	var render_time: float = _net_now() - interpolation_back_time
 
-	var render_time := _net_now() - interpolation_back_time
+	# ——— Trim old snapshots: найти сколько удалить за один проход ———
+	var trim_count: int = 0
+	# Оставляем минимум 1 снапшот перед render_time
+	while trim_count < _net_snap_count - 1:
+		var next_idx: int = trim_count + 1
+		var next_snap: Dictionary = _get_snapshot(next_idx)
+		if float(next_snap["time"]) > render_time:
+			break
+		trim_count += 1
 
-	# Выбрасываем старые снапшоты, пока второй уже "позади" render_time
-	while _net_snapshots.size() >= 2 and float(_net_snapshots[1]["time"]) <= render_time:
-		_net_snapshots.remove_at(0)
+	if trim_count > 0:
+		_trim_snapshots_front(trim_count)
 
-	# Если остался только один снапшот — мягко тянемся к нему
-	if _net_snapshots.size() == 1:
-		var only: Dictionary = _net_snapshots[0]
+	# ——— Один снапшот: экстраполяция + плавное подтягивание ———
+	if _net_snap_count == 1:
+		var only: Dictionary = _get_snapshot(0)
+
+		var target_pos: Vector3 = only["position"]
+		var target_yaw: float = float(only["yaw"])
+		var target_pitch: float = float(only["pitch"])
+		var target_vel: Vector3 = only.get("velocity", Vector3.ZERO)
+
+		var time_since: float = render_time - float(only["time"])
+		if time_since > 0.0 and time_since <= remote_extrapolation_limit:
+			target_pos = target_pos + target_vel * time_since
+
 		_apply_remote_transform(
-			only["position"] as Vector3,
-			float(only["yaw"]),
-			float(only["pitch"]),
+			target_pos,
+			target_yaw,
+			target_pitch,
 			true,
 			delta
 		)
 		return
 
-	# Интерполяция между двумя снапшотами
-	var a: Dictionary = _net_snapshots[0]
-	var b: Dictionary = _net_snapshots[1]
+	# ——— Два+ снапшота: интерполяция ———
+	var a: Dictionary = _get_snapshot(0)
+	var b: Dictionary = _get_snapshot(1)
 
-	var t0 := float(a["time"])
-	var t1 := float(b["time"])
+	var t0: float = float(a["time"])
+	var t1: float = float(b["time"])
 
-	var alpha := 0.0
+	var alpha: float = 0.0
 	if t1 > t0:
 		alpha = clampf((render_time - t0) / (t1 - t0), 0.0, 1.0)
 
 	var pos_a: Vector3 = a["position"]
 	var pos_b: Vector3 = b["position"]
 
-	var target_pos := pos_a.lerp(pos_b, alpha)
-	var target_yaw := lerp_angle(float(a["yaw"]), float(b["yaw"]), alpha)
-	var target_pitch := lerp_angle(float(a["pitch"]), float(b["pitch"]), alpha)
+	var target_pos: Vector3 = pos_a.lerp(pos_b, alpha)
+	var target_yaw: float = lerp_angle(float(a["yaw"]), float(b["yaw"]), alpha)
+	var target_pitch: float = lerp_angle(float(a["pitch"]), float(b["pitch"]), alpha)
 
 	_apply_remote_transform(target_pos, target_yaw, target_pitch, false, delta)
 
@@ -491,7 +612,6 @@ func _apply_remote_transform(
 	smooth_tail: bool,
 	delta: float
 ) -> void:
-	# Первый сетевой снапшот — просто ставим как есть
 	if not _net_remote_initialized:
 		global_position = target_pos
 		rotation.y = target_yaw
@@ -500,19 +620,21 @@ func _apply_remote_transform(
 		_net_remote_initialized = true
 		return
 
-	# Слишком большое расхождение — считаем телепортом / резкой коррекцией
-	if global_position.distance_to(target_pos) >= teleport_distance:
+	# ——— distance_squared вместо distance_to (убираем sqrt) ———
+	var tp_dist_sq: float = teleport_distance * teleport_distance
+	var dx: float = global_position.x - target_pos.x
+	var dy: float = global_position.y - target_pos.y
+	var dz: float = global_position.z - target_pos.z
+	if (dx * dx + dy * dy + dz * dz) >= tp_dist_sq:
 		global_position = target_pos
 		rotation.y = target_yaw
 		if _head:
 			_head.rotation.x = target_pitch
 		return
 
-	# Если новых снапшотов нет, но один последний остался —
-	# плавно дотягиваемся к нему
 	if smooth_tail:
-		var pos_alpha := clampf(tail_position_lerp_speed * delta, 0.0, 1.0)
-		var rot_alpha := clampf(tail_rotation_lerp_speed * delta, 0.0, 1.0)
+		var pos_alpha: float = clampf(tail_position_lerp_speed * delta, 0.0, 1.0)
+		var rot_alpha: float = clampf(tail_rotation_lerp_speed * delta, 0.0, 1.0)
 
 		global_position = global_position.lerp(target_pos, pos_alpha)
 		rotation.y = lerp_angle(rotation.y, target_yaw, rot_alpha)
@@ -521,7 +643,6 @@ func _apply_remote_transform(
 			_head.rotation.x = lerp_angle(_head.rotation.x, target_pitch, rot_alpha)
 		return
 
-	# Нормальный режим интерполяции: ставим вычисленное интерполированное состояние
 	global_position = target_pos
 	rotation.y = target_yaw
 	if _head:

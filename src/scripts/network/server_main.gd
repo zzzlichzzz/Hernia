@@ -21,19 +21,12 @@ var _replication: PlayerReplicationManager = null
 var _auth: ServerAuthManager = null
 var _world_state: ServerWorldStateManager = null
 
-var _authenticated  : Dictionary = {}   # peer_id -> bool
+var _authenticated  : Dictionary = {}
 var _security_log   : Dictionary = {}
 var _violations     : Dictionary = {}
 
-# peer_id -> {
-#   "time": float,
-#   "position": Vector3,
-#   "head_pitch": float,
-#   "body_yaw": float,
-# }
 var _last_player_corrections : Dictionary = {}
 var _player_sessions         : Dictionary = {}
-
 
 
 func _ready() -> void:
@@ -66,11 +59,7 @@ func _ready() -> void:
 	add_child(_world_state)
 	_world_state.setup(_net)
 
-	# Теперь world_state уже существует — можно безопасно передать resolver
 	_replication.set_world_resolver(Callable(_world_state, "get_player_world"))
-
-	# На будущее:
-	# _auth.set_validator(_validate_external_auth)
 
 	_net.peer_connected.connect(_auth.on_peer_connected)
 	_net.peer_disconnected.connect(_on_peer_disconnected)
@@ -95,15 +84,16 @@ func _ready() -> void:
 
 	print("[server] Запущен на порту %d" % PORT)
 
-	# ═══ HUD ═══
 	$ServerHUD.setup(_net, _pm, _nam)
 
 
-func _process(delta: float) -> void:
+## Серверная логика — в _physics_process (фиксированный 60 Hz)
+func _physics_process(delta: float) -> void:
 	if _auth != null:
 		_auth.tick()
 
 	if _replication != null:
+		_replication.count_physics_tick()
 		_replication.tick(delta)
 
 
@@ -227,8 +217,6 @@ func _on_player_move(peer_id: int, data: Dictionary) -> void:
 		])
 
 
-## Делегирование world-state менеджеру.
-## auto_bind_server(self) продолжит находить эти методы по имени пакета.
 func _on_chameleon_paint(peer_id: int, data: Dictionary) -> void:
 	if _world_state != null:
 		_world_state.handle_chameleon_paint(peer_id, data)
@@ -240,21 +228,8 @@ func _on_block_break(peer_id: int, data: Dictionary) -> void:
 
 
 # ══════════════════════════════════════════════════
-#  FUTURE MASTER / TRANSFER HOOK
+#  PLAYER CORRECTION
 # ══════════════════════════════════════════════════
-
-## Пример будущего внешнего валидатора для master server / transfer token.
-## Пока не используется.
-# func _validate_external_auth(peer_id: int, token: String) -> Dictionary:
-# 	return {
-# 		"success": token != "",
-# 		"message": "Bad token" if token == "" else "",
-# 		"spawn_position": Vector3(0, SPAWN_Y, 0),
-# 		"spawn_rotation": Vector3.ZERO,
-# 		"character_id": peer_id,
-# 		"race_id": "human",
-# 		"world_id": "default_world",
-# 	}
 
 func _should_send_player_correction(peer_id: int, pos: Vector3, head_pitch: float, body_yaw: float) -> bool:
 	var now := _server_now()
@@ -302,6 +277,7 @@ func _server_now() -> float:
 
 func _angle_delta(from_angle: float, to_angle: float) -> float:
 	return wrapf(to_angle - from_angle, -PI, PI)
+
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:

@@ -27,7 +27,10 @@ var _prof_repl_targets_ps: int = 0
 var _loop_count: int = 0
 var _loop_timer: float = 0.0
 var _current_loop_rate: float = 0.0
-
+# TPS
+var _server_tps: float = 0.0
+var _tick_avg_ms: float = 0.0
+var _tick_max_ms: float = 0.0
 # Пик онлайна
 var _peak_online: int = 0
 
@@ -143,6 +146,9 @@ func _refresh_transport_metrics() -> void:
 		_batch_avg_entries = 0.0
 
 	_last_replication_stats = repl_current
+	_server_tps = float(repl_current.get("server_physics_tps", 0.0))
+	_tick_avg_ms = float(repl_current.get("tick_avg_ms", 0.0))
+	_tick_max_ms = float(repl_current.get("tick_max_ms", 0.0))
 	_prof_aoi_passes_ps = int(repl_current.get("prof_aoi_passes_ps", 0))
 	_prof_aoi_time_ms_ps = float(repl_current.get("prof_aoi_time_ms_ps", 0.0))
 	_prof_aoi_observers_ps = int(repl_current.get("prof_aoi_observers_ps", 0))
@@ -165,11 +171,23 @@ func _refresh_ui() -> void:
 	var uptime := Time.get_unix_time_from_system() - _start_time
 	_uptime_label.text = "Аптайм: %s" % _format_uptime(uptime)
 
-	# Это честно не TPS симуляции, а частота цикла HUD/_process.
 	var aoi_avg_ms := _prof_aoi_time_ms_ps / maxf(float(_prof_aoi_passes_ps), 1.0)
 	var repl_avg_ms := _prof_repl_time_ms_ps / maxf(float(_prof_repl_passes_ps), 1.0)
 
-	_tick_rate_label.text = "Loop: %.0f/s\nAOI: %d/s  total %.1f ms/s  avg %.2f ms\nREPL: %d/s  total %.1f ms/s  avg %.2f ms" % [
+	# ——— Обновлённый tick rate label с TPS ———
+	var tps_color: String
+	if _server_tps >= 55.0:
+		tps_color = "🟢"
+	elif _server_tps >= 40.0:
+		tps_color = "🟡"
+	else:
+		tps_color = "🔴"
+
+	_tick_rate_label.text = "%s TPS: %.0f  (avg %.1fms  max %.1fms)\nLoop: %.0f/s\nAOI: %d/s  total %.1fms  avg %.2fms\nREPL: %d/s  total %.1fms  avg %.2fms" % [
+		tps_color,
+		_server_tps,
+		_tick_avg_ms,
+		_tick_max_ms,
 		_current_loop_rate,
 		_prof_aoi_passes_ps,
 		_prof_aoi_time_ms_ps,

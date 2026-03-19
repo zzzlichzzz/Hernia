@@ -24,6 +24,21 @@ var _sort_buffer: Array = []
 var _batch_buffer: Array[Dictionary] = []
 
 # ══════════════════════════════════════════════════
+#  Новые переменные — серверный TPS
+# ══════════════════════════════════════════════════
+
+var _tick_count_accum: int = 0
+var _tick_time_accum: float = 0.0
+var _server_tps: float = 0.0
+
+## Среднее время одного полного tick() в миллисекундах
+var _tick_avg_ms: float = 0.0
+## Максимальное время tick() за последнее окно
+var _tick_max_ms: float = 0.0
+
+var _tick_max_ms_accum: float = 0.0
+
+# ══════════════════════════════════════════════════
 #  PROFILING STATS
 # ══════════════════════════════════════════════════
 
@@ -73,9 +88,9 @@ const LOD_MID_DISTANCE  := 45.0
 const LOD_FAR_DISTANCE  := 90.0
 
 const LOD_NEAR_HZ       := 20.0
-const LOD_MID_HZ        := 10.0
-const LOD_FAR_HZ        := 5.0
-const LOD_VERY_FAR_HZ   := 4.0
+const LOD_MID_HZ        := 12.0
+const LOD_FAR_HZ        := 8.0
+const LOD_VERY_FAR_HZ   := 6.0
 ## Приоритет клиентов для клиента
 const PRIORITY_ALWAYS_TARGETS := 24
 const PRIORITY_ROTATING_TARGETS := 24
@@ -86,6 +101,10 @@ const PRIORITY_OVERDUE_WEIGHT := 120.0
 
 ## Размер ячейки spatial grid.
 const GRID_CELL_SIZE := 40.0
+
+const REPLICATION_BUDGET_MIN := 16
+const REPLICATION_BUDGET_MAX := 48
+const REPLICATION_BUDGET_CROWD_THRESHOLD := 40
 
 var _net: NetworkManager = null
 var _pm: PlayerManager = null
@@ -134,6 +153,22 @@ var _stats_batch_packets_sent_total: int = 0
 var _stats_batch_entries_sent_total: int = 0
 var _stats_batch_max_entries_seen: int = 0
 
+# ══════════════════════════════════════════════════
+#  СЕРВЕРНЫЙ TPS — измеряем реальную частоту physics
+# ══════════════════════════════════════════════════
+
+## Счётчик physics тиков (вызывается движком строго по расписанию)
+var _physics_tick_count: int = 0
+var _physics_tick_timer: float = 0.0
+var _server_physics_tps: float = 0.0
+
+## Время полного tick() (вызывается из _process или _physics_process)
+var _tick_call_count: int = 0
+var _tick_call_timer: float = 0.0
+var _server_tick_rate: float = 0.0  # Реальная частота вызова tick()
+
+var _tick_total_ms_accum: float = 0.0
+
 func setup(
 	net: NetworkManager,
 	pm: PlayerManager,
@@ -145,6 +180,8 @@ func setup(
 	_authenticated = authenticated
 	_world_resolver = world_resolver
 
+func count_physics_tick() -> void:
+	_physics_tick_count += 1
 
 func set_world_resolver(world_resolver: Callable) -> void:
 	_world_resolver = world_resolver
@@ -154,7 +191,8 @@ func tick(delta: float) -> void:
 	if _net == null or _pm == null:
 		return
 
-	# ——— Build caches ONCE per frame ———
+	var tick_start_us: int = Time.get_ticks_usec()
+
 	_rebuild_tick_caches()
 
 	_aoi_accumulator += delta
@@ -184,6 +222,18 @@ func tick(delta: float) -> void:
 		_prof_repl_passes_accum += 1
 		_prof_repl_time_ms_accum += repl_elapsed_ms
 
+	# ——— Измеряем время tick() ———
+	var tick_elapsed_ms: float = float(Time.get_ticks_usec() - tick_start_us) / 1000.0
+	_tick_call_count += 1
+	_tick_call_timer += delta
+	_tick_total_ms_accum += tick_elapsed_ms
+	if tick_elapsed_ms > _tick_max_ms_accum:
+		_tick_max_ms_accum = tick_elapsed_ms
+
+	# ——— Physics tick timer ———
+	_physics_tick_timer += delta
+
+	# ——— Profile window ———
 	_prof_window_accum += delta
 	if _prof_window_accum >= 1.0:
 		_flush_profile_window()
@@ -289,6 +339,12 @@ func clear() -> void:
 
 	_prof_batch_packets_ps = 0
 	_prof_batch_entries_ps = 0
+	_tick_count_accum = 0
+	_tick_time_accum = 0.0
+	_tick_max_ms_accum = 0.0
+	_server_tps = 0.0
+	_tick_avg_ms = 0.0
+	_tick_max_ms = 0.0
 	
 	_priority_target_lists.clear()
 	_priority_rotating_cursor.clear()
@@ -299,41 +355,61 @@ func clear() -> void:
 	_stale_buffer.clear()
 	_sort_buffer.clear()
 	_batch_buffer.clear()
+	
 
 
 # ══════════════════════════════════════════════════
 #  REPLICATION
 # ══════════════════════════════════════════════════
+func _get_replication_budget(visible_count: int) -> int:
+	if visible_count <= REPLICATION_BUDGET_CROWD_THRESHOLD:
+		# Мало видимых — обновляем всех каждый тик
+		return REPLICATION_BUDGET_MAX
+	# Много видимых — ограничиваем, но не меньше MIN
+	# Линейная интерполяция: 40 видимых → 48 budget, 100 видимых → 16 budget
+	var t: float = clampf(
+		float(visible_count - REPLICATION_BUDGET_CROWD_THRESHOLD) / 60.0,
+		0.0, 1.0
+	)
+	return int(lerpf(float(REPLICATION_BUDGET_MAX), float(REPLICATION_BUDGET_MIN), t))
 
 func _replicate_player_snapshots() -> void:
 	var observers_processed: int = 0
 	var repl_targets_total: int = 0
 
-	for observer_var in _visible_targets:  # ← no .keys()
+	for observer_var in _visible_targets:
 		var observer_id: int = int(observer_var)
 
-		if not _ready_cache.get(observer_id, false):  # ← cached
+		if not _ready_cache.get(observer_id, false):
 			continue
 
 		observers_processed += 1
 
-		var observer_world: String = _world_cache.get(observer_id, DEFAULT_WORLD_ID)  # ← cached
+		var observer_world: String = _world_cache.get(observer_id, DEFAULT_WORLD_ID)
 		var observer_data: Dictionary = _pm.get_player_data(observer_id)
-		var obs_x: float = observer_data.get("position", Vector3.ZERO).x
-		var obs_z: float = observer_data.get("position", Vector3.ZERO).z
+		var obs_pos: Vector3 = observer_data.get("position", Vector3.ZERO)
+		var obs_x: float = obs_pos.x
+		var obs_z: float = obs_pos.z
 
 		var send_map: Dictionary = _replication_last_send.get(observer_id, {})
 		var tick_map: Dictionary = _replication_last_tick.get(observer_id, {})
 
-		_batch_buffer.clear()  # ← reused, no new Array
+		_batch_buffer.clear()
 		var selected_targets: Array[int] = _get_priority_replication_targets(observer_id)
 
+		# ——— Адаптивный budget ———
+		var visible_map: Dictionary = _visible_targets.get(observer_id, {})
+		var budget: int = _get_replication_budget(visible_map.size())
+
 		for target_id in selected_targets:
+			if budget <= 0:
+				break
+
 			repl_targets_total += 1
 
-			if not _ready_cache.get(target_id, false):  # ← cached
+			if not _ready_cache.get(target_id, false):
 				continue
-			if _world_cache.get(target_id, DEFAULT_WORLD_ID) != observer_world:  # ← cached
+			if _world_cache.get(target_id, DEFAULT_WORLD_ID) != observer_world:
 				continue
 
 			if target_id not in _authoritative_states:
@@ -346,12 +422,10 @@ func _replicate_player_snapshots() -> void:
 
 			var target_pos: Vector3 = auth_state.get("position", Vector3.ZERO)
 
-			# ——— Inlined horizontal distance ———
 			var dx: float = obs_x - target_pos.x
 			var dz: float = obs_z - target_pos.z
 			var distance: float = sqrt(dx * dx + dz * dz)
 
-			# ——— Inlined hz check ———
 			var hz: float
 			if distance <= LOD_NEAR_DISTANCE:
 				hz = LOD_NEAR_HZ
@@ -382,6 +456,7 @@ func _replicate_player_snapshots() -> void:
 
 			send_map[target_id] = _replication_time
 			tick_map[target_id] = target_tick
+			budget -= 1
 
 		if not _batch_buffer.is_empty():
 			_send_snapshot_batches(observer_id, _batch_buffer)
@@ -873,6 +948,30 @@ func _cleanup_replication_peer(peer_id: int, notify_exit: bool = false) -> void:
 			(_replication_last_tick[observer_id] as Dictionary).erase(peer_id)
 
 func _flush_profile_window() -> void:
+	# ——— Physics TPS (реальная частота движка) ———
+	if _physics_tick_timer > 0.0:
+		_server_physics_tps = float(_physics_tick_count) / _physics_tick_timer
+	else:
+		_server_physics_tps = 0.0
+	_physics_tick_count = 0
+	_physics_tick_timer = 0.0
+
+	# ——— Tick call rate (частота вызова tick()) ———
+	if _tick_call_timer > 0.0:
+		_server_tick_rate = float(_tick_call_count) / _tick_call_timer
+		_tick_avg_ms = _tick_total_ms_accum / float(maxi(_tick_call_count, 1))
+	else:
+		_server_tick_rate = 0.0
+		_tick_avg_ms = 0.0
+
+	_tick_max_ms = _tick_max_ms_accum
+
+	_tick_call_count = 0
+	_tick_call_timer = 0.0
+	_tick_total_ms_accum = 0.0
+	_tick_max_ms_accum = 0.0
+
+	# ——— Остальное как было ———
 	_prof_aoi_passes_ps = _prof_aoi_passes_accum
 	_prof_aoi_time_ms_ps = _prof_aoi_time_ms_accum
 	_prof_aoi_observers_ps = _prof_aoi_observers_accum
@@ -903,12 +1002,10 @@ func _flush_profile_window() -> void:
 
 func get_stats_snapshot() -> Dictionary:
 	return {
-		# cumulative batch
 		"batch_packets_sent_total": _stats_batch_packets_sent_total,
 		"batch_entries_sent_total": _stats_batch_entries_sent_total,
 		"batch_max_entries_seen": _stats_batch_max_entries_seen,
 
-		# profiling window
 		"prof_aoi_passes_ps": _prof_aoi_passes_ps,
 		"prof_aoi_time_ms_ps": _prof_aoi_time_ms_ps,
 		"prof_aoi_observers_ps": _prof_aoi_observers_ps,
@@ -922,4 +1019,10 @@ func get_stats_snapshot() -> Dictionary:
 
 		"prof_batch_packets_ps": _prof_batch_packets_ps,
 		"prof_batch_entries_ps": _prof_batch_entries_ps,
+
+		# ——— TPS метрики ———
+		"server_physics_tps": _server_physics_tps,
+		"server_tick_rate": _server_tick_rate,
+		"tick_avg_ms": _tick_avg_ms,
+		"tick_max_ms": _tick_max_ms,
 	}

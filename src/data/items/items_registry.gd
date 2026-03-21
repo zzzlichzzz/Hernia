@@ -42,9 +42,12 @@ func _build_library() -> void:
 		ResourceSaver.save(item_registry_id, ITEM_REGISTRY_ID)
 		item_registry_id = load(ITEM_REGISTRY_ID)
 	
-	var s = item_library.getArray("consumble_item")
-	var z: Array = item_library.getArray("block_item")
-
+	var consumble_item = item_library.getArray("consumble_item")
+	var block_item: Array = item_library.getArray("block_item")
+	var block_logic: Array = item_library.getArray("block_logic")
+	block_item.append_array(block_logic)
+	
+	
 	item_registry_id.registry_id(item_library)
 
 
@@ -57,13 +60,13 @@ func _build_library() -> void:
 				continue
 			ITEM_BLOCK.set(item_registry_id.get_list_id().get(d), block_empty)
 
-	for items in z:
+	for items in block_item:
 		var int_id = item_registry_id.get_list_id().get(items.id)
 		if items.id == "empty" and int_id == 0: continue
 		items.set_id_int(int_id)
 		ITEM_BLOCK.set(item_registry_id.get_list_id().get(items.id), items)
 
-	for items in s:
+	for items in consumble_item:
 		var int_id = item_registry_id.get_list_id().get(items.id)
 		items.set_id_int(int_id)
 		ITEM.set(item_registry_id.get_list_id().get(items.id), items)

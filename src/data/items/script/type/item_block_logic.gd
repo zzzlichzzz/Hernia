@@ -1,11 +1,15 @@
-extends Node
+@tool
+class_name ItemBlockLogic extends ItemBlock
 
 
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass # Replace with function body.
+@export var path: StringName
 
+func _init() -> void:
+	self.block = preload("res://src/scripts/blocks/type/block_logic.gd").new()
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	pass
+	
+
+func get_scene() -> Resource:
+	return load(path)

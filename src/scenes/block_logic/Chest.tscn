@@ -1,0 +1,5 @@
+[gd_scene format=3 uid="uid://l5mwoyry68xv"]
+
+[ext_resource type="PackedScene" uid="uid://bhhbf8obn3o1n" path="res://src/scenes/block_logic/model/ChestModel.tscn" id="1_0ju25"]
+
+[node name="ChestModel" unique_id=403709595 instance=ExtResource("1_0ju25")]

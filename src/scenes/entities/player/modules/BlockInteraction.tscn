@@ -1,6 +1,10 @@
 [gd_scene format=3 uid="uid://dwpcq2f0rxhsn"]
 
-[ext_resource type="Script" path="res://src/scripts/entities/player/components/block_interaction.gd" id="1_nfcvg"]
+[ext_resource type="Script" uid="uid://b2s2cwk7hiohb" path="res://src/scripts/entities/player/components/block_interaction.gd" id="1_nfcvg"]
 
 [node name="BlockInteraction" type="Node3D" unique_id=1451133203]
 script = ExtResource("1_nfcvg")
+reach_distance = null
+break_cooldown = null
+place_cooldown = null
+search_terrain_on_ready = null

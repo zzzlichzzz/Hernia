@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dmvse08esyl44"
-path="res://.godot/imported/tes75gg.png-bcd1dd98eb672591c87062fda6596139.ctex"
+uid="uid://b4acq3ne36cfk"
+path="res://.godot/imported/chest2.png-0c41ccac41974bc9bfd5a19469474d66.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://src/assets/textures/gui/icons/blocks/tes75gg.png"
-dest_files=["res://.godot/imported/tes75gg.png-bcd1dd98eb672591c87062fda6596139.ctex"]
+source_file="res://src/assets/textures/gui/icons/items/chest2.png"
+dest_files=["res://.godot/imported/chest2.png-0c41ccac41974bc9bfd5a19469474d66.ctex"]
 
 [params]
 

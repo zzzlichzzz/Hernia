@@ -82,7 +82,7 @@ func _build_library(blocks: Dictionary[int, ItemData]):
 		print("\n🧱 ШАГ 4: Добавление блоков")
 	for file_path in blocks.size() + 1:
 		if file_path == 0: continue
-		if blocks.get(file_path) is ItemBlockVoxel:
+		if blocks.get(file_path) is ItemBlock:
 			_process_block_definition(blocks.get(file_path))
 	
 
@@ -255,9 +255,19 @@ func _process_block_definition(def_resource: ItemData):
 	if def_resource == null or def_resource.id == "empty": 
 		_add_air()
 		return
+
 	
 	var def: ItemBlock = def_resource
-	
+	if def is ItemBlockLogic:
+		var v = VoxelBlockyModelEmpty.new()
+		v.collision_aabbs = def.getBlockDefinition().collision_aabbs
+		v.set("collision_enabled_0", def.getBlockDefinition().collision_enabled)
+		var id = library.add_model(v)
+		if debug_mode:
+			print("   ✅ Блок добавлен с ID: ", id)
+		block_count += 1
+		return
+		
 	match def.getBlockDefinition().material_type_enum:
 		BlockDefinition.MaterialType.OPAQUE:
 			def.getBlockDefinition().material_type = "opaque"

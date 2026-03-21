@@ -13,6 +13,9 @@ var _timer: float = 0.0
 var _fps_history: Array = []
 var _player: Node3D = null
 
+
+var _voxel_tool: VoxelTool = null
+
 func _ready():
 	layer = 100
 	var panel = PanelContainer.new()
@@ -39,7 +42,7 @@ func _ready():
 
 func _find_player():
 	_player = get_tree().get_first_node_in_group("player")
-	if not _player: _player = get_tree().current_scene.get_node_or_null("Player")
+	if not _player: _player = get_tree().current_scene.get_node_or_null("../Players/LocalPlayer/HumanPlayer")
 
 func _panel_style() -> StyleBoxFlat:
 	var s = StyleBoxFlat.new()
@@ -60,6 +63,11 @@ func _process(delta: float) -> void:
 	if _timer >= update_interval:
 		_timer = 0.0
 		_update_debug_info()
+		if _player == null:
+			_player = get_tree().current_scene.get_node_or_null("/root/ClientMain/World/Players/LocalPlayer")
+			_voxel_tool = get_tree().current_scene.get_node_or_null("/root/ClientMain/World/VoxelTerrain").get_voxel_tool()
+			#_voxel_tool.channel = VoxelBuffer.CHANNEL_TYPE
+			#_voxel_tool.mode = VoxelTool.MODE_SET
 
 func _update_debug_info() -> void:
 	var bc = "[color=#33ff33]"; var wc = "[color=#ffff33]"; var ec = "[color=#ff3333]"; var ic = "[color=#66ccff]"; var cc = "[/color]"
@@ -86,17 +94,31 @@ func _update_debug_info() -> void:
 	if show_memory:
 		var mem = Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0
 		var mem_max = Performance.get_monitor(Performance.MEMORY_STATIC_MAX) / 1048576.0
+		var mem_buffer = Performance.get_monitor(Performance.MEMORY_MESSAGE_BUFFER_MAX)
 		text += bc + "RAM:" + cc + " %.1f / %.1f MB" % [mem, mem_max] + "\n"
+		text += bc + "Memory Buffer:" + cc + " %.1f" % [mem_buffer] + "\n"
 		text += bc + "3D Obj:" + cc + " %d" % Performance.get_monitor(Performance.OBJECT_COUNT) + "\n"
 	
 	text += bc + "├── WORLD ────────┤" + cc + "\n"
 	
 	if show_position and _player:
 		var pos = _player.global_position
+		var pos_target = Vector3i(0, 0, 0)
+		if _player._camera != null:
+			#var positon = _player._get_raycast().get_collider()
+			var origin = _player._camera.global_position
+			var forward = -_player._camera.global_transform.basis.z.normalized()
+
+			var hit = _voxel_tool.raycast(origin, forward, 10.0)
+			if hit:
+				pos_target = hit.position
+
+				
 		text += ic + "Pos:" + cc + " (%.1f, %.1f, %.1f)" % [pos.x, pos.y, pos.z] + "\n"
 		if _player.has_method("get_velocity"):
 			var sp = Vector3(_player.get_velocity().x, 0, _player.get_velocity().z).length()
 			text += ic + "Speed:" + cc + " %.1f m/s" % sp + "\n"
+		text += ic + "Target pos:" + cc + " (%.1f, %.1f, %.1f)" % [pos_target.x, pos_target.y, pos_target.z] + "\n"
 	
 	if show_debug_info:
 		var objs = get_tree().get_node_count()

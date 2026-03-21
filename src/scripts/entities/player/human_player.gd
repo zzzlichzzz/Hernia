@@ -10,6 +10,7 @@ const JUMP_VELOCITY := 4.5
 const MOUSE_SENSITIVITY := 0.003
 const REACH_DISTANCE := 10.0
 
+#@onready var _camera: RayCast3D = $Neck/Camera3D
 ## Скорость затухания горизонтальной скорости (чем больше — тем быстрее остановка).
 ## 20.0 = почти мгновенно, но плавно за 2-3 кадра вместо 1.
 const DECELERATION := 25.0

@@ -11,6 +11,11 @@ var _players          : Dictionary = {}   # id → { "position", "rotation", "no
 var _local_player_id  : int = 0
 var _local_player_node: Node = null
 
+## Кеш массива id — пересоздаётся только при add/remove
+var _ids_cache: Array = []
+var _ids_dirty: bool = true
+
+
 ## Вызвать на клиенте, чтобы PlayerManager умел спавнить 3D-модели.
 func setup_client(scene: PackedScene, container: Node) -> void:
 	_remote_scene = scene
@@ -28,11 +33,10 @@ func add_player(id: int, pos: Vector3, rot: Vector3) -> void:
 		var node := _remote_scene.instantiate() as Node3D
 		node.name = "Player_%d" % id
 
-		# ── Установить свойства BasePlayer ДО add_child ──
-		# _ready() увидит правильные значения
 		if node is BasePlayer:
-			(node as BasePlayer).is_local = false
-			(node as BasePlayer).network_id = id
+			var bp := node as BasePlayer
+			bp.is_local = false
+			bp.network_id = id
 
 		_container.add_child(node)
 
@@ -42,6 +46,7 @@ func add_player(id: int, pos: Vector3, rot: Vector3) -> void:
 		data["node"] = node
 
 	_players[id] = data
+	_ids_dirty = true
 	print("[pm] + Игрок %d  (всего: %d)" % [id, _players.size()])
 
 
@@ -54,9 +59,16 @@ func remove_player(id: int) -> void:
 	if node_ref != null and is_instance_valid(node_ref):
 		(node_ref as Node).queue_free()
 	_players.erase(id)
+	_ids_dirty = true
 	print("[pm] − Игрок %d (всего: %d)" % [id, _players.size()])
 
-
+## Добавить запись игрока БЕЗ спавна ноды.
+## Используется ClientWorldRuntimeManager для отложенного спавна.
+func add_player_data_only(id: int, pos: Vector3, rot: Vector3) -> void:
+	if id in _players:
+		return
+	_players[id] = { "position": pos, "rotation": rot, "node": null }
+	_ids_dirty = true
 ## Обновить позицию/поворот.
 func update_player(id: int, pos: Vector3, rot: Vector3) -> void:
 	if id not in _players:
@@ -64,27 +76,34 @@ func update_player(id: int, pos: Vector3, rot: Vector3) -> void:
 	var data: Dictionary = _players[id]
 	data["position"] = pos
 	data["rotation"] = rot
+	# Нода обновляется только на клиенте, и только если есть.
+	# update_state проверяется один раз при add_player, 
+	# здесь мы знаем что если node != null, метод есть.
 	var node_ref: Variant = data.get("node", null)
 	if node_ref != null and is_instance_valid(node_ref):
-		if (node_ref as Node).has_method("update_state"):
-			(node_ref as Node3D).update_state(pos, rot)
+		(node_ref as Node3D).update_state(pos, rot)
 
 
 ## Получить данные одного игрока.
+## ВНИМАНИЕ: возвращает ССЫЛКУ на внутренний Dictionary.
+## Не модифицируйте его снаружи (кроме position/rotation через update_player).
 func get_player_data(id: int) -> Dictionary:
-	if id in _players:
-		return _players[id]
-	return {}
+	return _players.get(id, {})
 
 
-## Все id игроков.
+## Все id игроков — кешированный массив.
+## Не модифицируйте возвращённый массив!
 func get_all_ids() -> Array:
-	return _players.keys()
+	if _ids_dirty:
+		_ids_cache = _players.keys()
+		_ids_dirty = false
+	return _ids_cache
 
 
 ## Есть ли такой игрок.
 func has_player(id: int) -> bool:
 	return id in _players
+
 
 func set_local_player(id: int, node: Node) -> void:
 	_local_player_id = id
@@ -108,7 +127,10 @@ func get_player_node(id: int) -> Node:
 
 	return null
 
+
 ## Очистить всех (при дисконнекте).
 func clear() -> void:
 	for id: int in _players.keys():
 		remove_player(id)
+	_ids_cache.clear()
+	_ids_dirty = true

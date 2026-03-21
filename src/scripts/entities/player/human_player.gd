@@ -11,8 +11,12 @@ const MOUSE_SENSITIVITY := 0.003
 const REACH_DISTANCE := 10.0
 
 #@onready var _camera: RayCast3D = $Neck/Camera3D
+## Скорость затухания горизонтальной скорости (чем больше — тем быстрее остановка).
+## 20.0 = почти мгновенно, но плавно за 2-3 кадра вместо 1.
+const DECELERATION := 25.0
 
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
+
 
 func _setup_local() -> void:
 	super._setup_local()
@@ -23,8 +27,6 @@ func _setup_remote() -> void:
 	super._setup_remote()
 
 
-## Поворот камеры — вызывается из BasePlayer._input().
-## _input раньше в цепочке чем _unhandled_input → меньше задержки.
 func _apply_mouse_rotation(relative: Vector2) -> void:
 	rotate_y(-relative.x * MOUSE_SENSITIVITY)
 	_head.rotate_x(-relative.y * MOUSE_SENSITIVITY)
@@ -43,12 +45,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process_local(delta: float) -> void:
+	# Гравитация
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 
+	# Прыжок
 	if Input.is_key_pressed(KEY_SPACE) and is_on_floor():
 		velocity.y = JUMP_VELOCITY
 
+	# Ввод
 	var input_dir := Vector2.ZERO
 	if Input.is_key_pressed(KEY_W): input_dir.y -= 1.0
 	if Input.is_key_pressed(KEY_S): input_dir.y += 1.0
@@ -57,12 +62,21 @@ func _process_local(delta: float) -> void:
 	input_dir = input_dir.normalized()
 
 	var direction := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+
 	if direction != Vector3.ZERO:
 		velocity.x = direction.x * SPEED
 		velocity.z = direction.z * SPEED
 	else:
-		velocity.x = move_toward(velocity.x, 0.0, SPEED)
-		velocity.z = move_toward(velocity.z, 0.0, SPEED)
+		# Плавное торможение вместо мгновенной остановки
+		var decay: float = clampf(DECELERATION * delta, 0.0, 1.0)
+		velocity.x = lerpf(velocity.x, 0.0, decay)
+		velocity.z = lerpf(velocity.z, 0.0, decay)
+
+		# Отсекаем микро-дрожание
+		if absf(velocity.x) < 0.01:
+			velocity.x = 0.0
+		if absf(velocity.z) < 0.01:
+			velocity.z = 0.0
 
 	move_and_slide()
 

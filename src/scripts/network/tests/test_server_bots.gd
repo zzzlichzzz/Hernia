@@ -1,12 +1,13 @@
 extends Control
 
-const SERVER_SCENE := "res://src/scripts/network/server_main.tscn"
+const SERVER_SCENE := "res://src/scripts/network/ServerMain.tscn"
 
 const MODE_IDLE := 0
 const MODE_CIRCLE := 1
 const MODE_RANDOM_WALK := 2
 
 @onready var title_label: Label = $CenterContainer/VBoxContainer/Title
+@onready var btn_connect: Button = $CenterContainer/VBoxContainer/BtnConnect
 @onready var btn_single: Button = $CenterContainer/VBoxContainer/BtnSingle
 @onready var btn_server: Button = $CenterContainer/VBoxContainer/BtnServer
 @onready var btn_client: Button = $CenterContainer/VBoxContainer/BtnClient
@@ -35,6 +36,7 @@ func _ready() -> void:
 	_setup_ui()
 	_create_bot_settings_popup()
 
+	btn_connect.pressed.connect(_on_btn_connect_pressed)
 	btn_single.pressed.connect(_on_btn_idle_pressed)
 	btn_server.pressed.connect(_on_btn_server_pressed)
 	btn_client.pressed.connect(_on_btn_circle_pressed)
@@ -185,6 +187,10 @@ func _refresh_runner_status() -> void:
 # ══════════════════════════════════════════════════
 #  BUTTONS
 # ══════════════════════════════════════════════════
+
+func _on_btn_connect_pressed() -> void:
+		print("Подключение к серверу...")
+		get_tree().change_scene_to_file("res://src/scripts/network/ClientMain.tscn")
 
 func _on_btn_idle_pressed() -> void:
 	_open_bot_settings(MODE_IDLE, "IDLE", 25)
